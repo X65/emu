@@ -1,3 +1,4 @@
+#include <err.h>
 #include <unistd.h>
 
 #define SOKOL_IMPL
@@ -11,6 +12,7 @@
 
 #include "icon.c"
 #include "cli.h"
+#include "cmd.h"
 
 extern const char* GIT_TAG;
 extern const char* GIT_REV;
@@ -32,6 +34,7 @@ static void init(void) {
     };
 
     cli_init();
+    cmd_init();
 }
 
 static void frame(void) {
@@ -48,6 +51,8 @@ static void cleanup(void) {
     sg_shutdown();
 
     cli_cleanup();
+    cmd_cleanup();
+
     ap_free(arg_parser);
 }
 
@@ -60,7 +65,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 
     arg_parser = ap_new_parser();
     if (!arg_parser) {
-        exit(EXIT_FAILURE);
+        errx(EXIT_FAILURE, "cannot create args parser");
     }
 
     ap_set_version(arg_parser, version);
@@ -72,9 +77,8 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         "\n-v, --version    Show app version.");
 
     if (!ap_parse(arg_parser, argc, argv)) {
-        exit(EXIT_FAILURE);
+        errx(EXIT_FAILURE, "cannot parse arguments list");
     }
-    // ap_print(arg_parser);
 
     // if we reached interactive mode, print app name and version
     printf("%s  %s\n", app_name, version);

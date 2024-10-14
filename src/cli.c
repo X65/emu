@@ -15,6 +15,7 @@
 #include "sokol_app.h"
 
 #include "cli.h"
+#include "cmd.h"
 
 static struct termios ttysave;
 
@@ -89,8 +90,7 @@ static void cb_linehandler(char* line) {
     else {
         if (!is_empty(line)) {
             add_history(line);
-            printf(": %s\n", line);
-            // TODO: handle_command(line);
+            cmd_parse_line(line);
         }
         free(line);
     }

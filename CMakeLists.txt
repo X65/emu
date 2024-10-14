@@ -15,13 +15,14 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(READLINE REQUIRED readline)
 
 include_directories(external/sokol)
-include_directories(external/args/src)
+include_directories(external)
 
 add_executable(emu
     src/main.c
     src/cli.c
+    src/cmd.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
-    external/args/src/args.c
+    external/args.c
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
