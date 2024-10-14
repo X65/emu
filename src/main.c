@@ -6,6 +6,8 @@
 #include "sokol_glue.h"
 #include "sokol_log.h"
 
+#include "icon.c"
+
 sg_pass_action pass_action;
 
 void init(void) {
@@ -40,7 +42,9 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .width = 400,
         .height = 300,
         .window_title = "Clear (sokol app)",
-        .icon.sokol_default = true,
+        .icon.images = { { .width = app_icon.width,
+                           .height = app_icon.height,
+                           .pixels = (sapp_range){ &app_icon.pixel_data, app_icon.width * app_icon.height * 4 } } },
         .logger.func = slog_func,
     };
 }
