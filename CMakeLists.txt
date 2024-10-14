@@ -1,12 +1,12 @@
-# Minimum required CMake version
+#
+# project: X65 emulator
+#
 cmake_minimum_required(VERSION 3.10)
 
-# Set the project name and language
-project(MyCProject VERSION 1.0 LANGUAGES C)
+project(emu VERSION 1.0 LANGUAGES C)
 
-# Specify the C standard (optional)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
-# Specify the executable target
-add_executable(MyCProject src/main.c)
+add_executable(emu src/main.c)

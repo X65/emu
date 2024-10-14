@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    ".clangd": "yaml",
+    ".clang-format": "yaml"
+  },
+  "editor.formatOnSave": true,
+}

@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "llvm-vs-code-extensions.vscode-clangd",
+    "ms-vscode.cmake-tools",
+    "ms-vscode.cpptools",
+    "streetsidesoftware.code-spell-checker",
+    "DavidAnson.vscode-markdownlint"
+  ]
+}

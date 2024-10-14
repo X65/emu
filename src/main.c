@@ -1,6 +1,6 @@
 #include <stdio.h>
 
 int main() {
-    printf("Hello, CMake!\n");
+    printf("Hello, emu!\n");
     return 0;
 }
