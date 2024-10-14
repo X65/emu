@@ -7,7 +7,7 @@
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
 #include "sokol_log.h"
-#include "sokol_args.h"
+#include "args.h"
 
 #include "icon.c"
 #include "cli.h"
@@ -15,9 +15,12 @@
 extern const char* GIT_TAG;
 extern const char* GIT_REV;
 extern const char* GIT_BRANCH;
-const char* APP_NAME = "X65 emu";
+#define APP_NAME "X65 emu"
+const char* app_name = APP_NAME;
 
 sg_pass_action pass_action;
+
+ArgParser* arg_parser = NULL;
 
 static void init(void) {
     sg_setup(&(sg_desc){
@@ -43,22 +46,38 @@ static void frame(void) {
 
 static void cleanup(void) {
     sg_shutdown();
-    sargs_shutdown();
 
     cli_cleanup();
+    ap_free(arg_parser);
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) {
+    char version[256];
     if (strlen(GIT_TAG))
-        printf("%s  %s\n", APP_NAME, GIT_TAG);
+        snprintf(version, sizeof(version), "%s", GIT_TAG);
     else
-        printf("%s  %s@%s\n", APP_NAME, GIT_REV, GIT_BRANCH);
+        snprintf(version, sizeof(version), "%s@%s", GIT_REV, GIT_BRANCH);
 
-    sargs_setup(&(sargs_desc){
-        .argc = argc,
-        .argv = argv,
-        .buf_size = (int)sysconf(_SC_ARG_MAX),
-    });
+    arg_parser = ap_new_parser();
+    if (!arg_parser) {
+        exit(EXIT_FAILURE);
+    }
+
+    ap_set_version(arg_parser, version);
+    ap_set_helptext(
+        arg_parser,
+        APP_NAME
+        "\n"
+        "\n-h, --help       Show this help."
+        "\n-v, --version    Show app version.");
+
+    if (!ap_parse(arg_parser, argc, argv)) {
+        exit(EXIT_FAILURE);
+    }
+    // ap_print(arg_parser);
+
+    // if we reached interactive mode, print app name and version
+    printf("%s  %s\n", app_name, version);
 
     return (sapp_desc){
         .init_cb = init,
@@ -66,7 +85,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .cleanup_cb = cleanup,
         .width = 400,
         .height = 300,
-        .window_title = APP_NAME,
+        .window_title = app_name,
         .icon.images = { { .width = app_icon.width,
                            .height = app_icon.height,
                            .pixels = (sapp_range){ &app_icon.pixel_data, app_icon.width * app_icon.height * 4 } } },
