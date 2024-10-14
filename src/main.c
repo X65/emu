@@ -7,6 +7,7 @@
 #include "sokol_log.h"
 
 #include "icon.c"
+#include "cli.h"
 
 sg_pass_action pass_action;
 
@@ -18,6 +19,8 @@ void init(void) {
     pass_action = (sg_pass_action){
         .colors[0] = { .load_action = SG_LOADACTION_CLEAR, .clear_value = { 1.0f, 0.0f, 0.0f, 1.0f } }
     };
+
+    cli_init();
 }
 
 void frame(void) {
@@ -26,10 +29,14 @@ void frame(void) {
     sg_begin_pass(&(sg_pass){ .action = pass_action, .swapchain = sglue_swapchain() });
     sg_end_pass();
     sg_commit();
+
+    cli_update();
 }
 
 void cleanup(void) {
     sg_shutdown();
+
+    cli_cleanup();
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) {
