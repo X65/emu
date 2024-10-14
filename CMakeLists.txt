@@ -19,9 +19,19 @@ include_directories(external/sokol)
 add_executable(emu
     src/main.c
     src/cli.c
+    ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
     PRIVATE ${READLINE_LIBRARIES}
     X11 Xi Xcursor EGL GLESv2 dl pthread m)
 target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
+
+# Add a custom command that produces version.c, plus
+# a dummy output that's not actually produced, in order
+# to force version.cmake to always be re-run before the build
+ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.c
+           ${CMAKE_CURRENT_BINARY_DIR}/_version.c
+    COMMAND ${CMAKE_COMMAND} -P
+            ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
