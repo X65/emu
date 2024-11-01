@@ -13,8 +13,6 @@
 extern ArgParser* arg_parser;
 static ArgParser* cmd_parser = NULL;
 
-static ArgParser* cmd_dump_parser = NULL;
-
 __attribute__((__format__(__printf__, 1, 2))) static void cmd_error(const char* format_string, ...) {
     fprintf(stderr, "error: ");
 
@@ -26,15 +24,40 @@ __attribute__((__format__(__printf__, 1, 2))) static void cmd_error(const char* 
     fprintf(stderr, "\n");
 }
 
-static int cmd_dump_callback(char* cmd_name, ArgParser* parser) {
-    if (ap_has_args(parser)) {
-        cmd_error("the '%s' command does not take arguments", cmd_name);
-        return 1;
+#define CMD_NO_ARGS \
+    if (ap_has_args(parser)) { \
+        cmd_error("the '%s' command does not take arguments", cmd_name); \
+        return 1; \
     }
+
+static int cmd_dump_callback(char* cmd_name, ArgParser* parser) {
+    CMD_NO_ARGS
 
     puts("--- 8< -- ARGS ------------------ >8 ---");
     ap_print(arg_parser);
     puts("--- 8< -------------------------- >8 ---");
+    return 0;
+}
+
+static int cmd_cmds_callback(char* cmd_name, ArgParser* parser);
+
+static struct {
+    const char* cmd;
+    const char* help;
+    ap_callback_t callback;
+} COMMANDS[] = {
+    { "?",    "List commands.",                 cmd_cmds_callback },
+    { "dump", "Dump emulator state to stdout.", cmd_dump_callback },
+};
+static const size_t COMMANDS_COUNT = sizeof COMMANDS / sizeof *COMMANDS;
+
+static int cmd_cmds_callback(char* cmd_name, ArgParser* parser) {
+    CMD_NO_ARGS
+
+    puts("Commands:");
+    for (size_t i = 0; i < COMMANDS_COUNT; ++i) {
+        printf("%12s - %s\n", COMMANDS[i].cmd, COMMANDS[i].help);
+    }
     return 0;
 }
 
@@ -49,9 +72,12 @@ static void cmd_create_parser(void) {
     if (!(cmd_parser = ap_new_parser())) exit(EXIT_FAILURE);
     ap_set_failing(cmd_parser, false);
 
-    if (!(cmd_dump_parser = ap_new_cmd(cmd_parser, "dump"))) exit(EXIT_FAILURE);
-    ap_set_helptext(cmd_dump_parser, "Dump emulator state to stdout.");
-    ap_set_cmd_callback(cmd_dump_parser, cmd_dump_callback);
+    for (size_t i = 0; i < COMMANDS_COUNT; ++i) {
+        ArgParser* parser = ap_new_cmd(cmd_parser, COMMANDS[i].cmd);
+        if (!parser) exit(EXIT_FAILURE);
+        ap_set_helptext(parser, COMMANDS[i].help);
+        ap_set_cmd_callback(parser, COMMANDS[i].callback);
+    }
 }
 
 void cmd_init(void) {}
