@@ -106,7 +106,34 @@ uint64_t cgia_tick(cgia_t* cgia, uint64_t pins) {
     return pins;
 }
 
+chips_rect_t cgia_screen(cgia_t* vic) {
+    CHIPS_ASSERT(vic);
+    return (chips_rect_t){
+        .x = 0,
+        .y = 0,
+        .width = CGIA_FRAMEBUFFER_WIDTH,
+        .height = CGIA_FRAMEBUFFER_HEIGHT,
+    };
+}
+
+chips_range_t cgia_palette(void) {
+    return (chips_range_t){
+        .ptr = (void*)cgia_rgb_palette,
+        .size = sizeof(cgia_rgb_palette),
+    };
+}
+
 uint32_t cgia_color(size_t i) {
     CHIPS_ASSERT(i < 256);
     return cgia_rgb_palette[i];
+}
+
+void cgia_snapshot_onsave(cgia_t* snapshot) {
+    CHIPS_ASSERT(snapshot);
+    // snapshot->crt.fb = 0;
+}
+
+void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys) {
+    CHIPS_ASSERT(snapshot && sys);
+    // snapshot->crt.fb = sys->crt.fb;
 }

@@ -122,9 +122,16 @@ void cgia_init(cgia_t* cgia, const cgia_desc_t* desc);
 void cgia_reset(cgia_t* cgia);
 // tick the cgia instance
 uint64_t cgia_tick(cgia_t* cgia, uint64_t pins);
-
-extern uint32_t cgia_rgb_palette[256];
+// get the visible screen rect in pixels
+chips_rect_t cgia_screen(cgia_t* cgia);
+// get the color palette
+chips_range_t cgia_palette(void);
+// get 32-bit RGBA8 value from color index (0..15)
 uint32_t cgia_color(size_t i);
+// prepare cgia_t snapshot for saving
+void cgia_snapshot_onsave(cgia_t* snapshot);
+// fixup cgia_t snapshot after loading
+void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
 
 #ifdef __cplusplus
 }  // extern "C"

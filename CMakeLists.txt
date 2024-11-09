@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.22)
 
-project(emu VERSION 1.0 LANGUAGES C)
+project(emu VERSION 1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
@@ -16,6 +16,7 @@ find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(READLINE REQUIRED readline)
 
+include_directories(ext/imgui)
 include_directories(ext/sokol)
 include_directories(ext/sokol/util)
 include_directories(ext/chips)
@@ -34,13 +35,16 @@ add_executable(emu
     src/chips/ymf825.c
     src/chips/mcp23017.c
     src/systems/x65.c
+    src/systems/x65-ui.cc
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
-    PRIVATE ext
+    PRIVATE ext imgui
     ${READLINE_LIBRARIES})
 target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
+
+target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 
 # Add a custom command that produces version.c, plus
 # a dummy output that's not actually produced, in order

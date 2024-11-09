@@ -10,3 +10,6 @@
 [submodule "ext/sokol-tools-bin"]
 	path = ext/sokol-tools-bin
 	url = https://github.com/floooh/sokol-tools-bin.git
+[submodule "ext/imgui"]
+	path = ext/imgui
+	url = https://github.com/ocornut/imgui.git
