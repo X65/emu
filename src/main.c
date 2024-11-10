@@ -33,8 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include "args.h"
+#include <argp.h>
 
 #include "icon.c"
 #include "cli.h"
@@ -46,7 +45,17 @@ extern const char* GIT_BRANCH;
 #define APP_NAME "X65 emu"
 const char* app_name = APP_NAME;
 
-ArgParser* arg_parser = NULL;
+const char* argp_program_bug_address = " https://github.com/X65/emu/issues ";
+static char app_doc[] = "X65 microcomputer emulator";
+
+static char args_doc[] = "[ROM.xex]";
+static struct argp_option options[] = {
+    { "verbose", 'v', 0, 0, "Produce verbose output" },
+    { "quiet", 'q', 0, 0, "Don't produce any output" },
+    { "silent", 's', 0, OPTION_ALIAS },
+    { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
+    { 0 }
+};
 
 typedef struct {
     uint32_t version;
@@ -275,7 +284,7 @@ static void app_cleanup(void) {
     cli_cleanup();
     cmd_cleanup();
 
-    ap_free(arg_parser);
+    // ap_free(arg_parser);
 }
 
 static void send_keybuf_input(void) {
@@ -393,39 +402,68 @@ static void ui_load_snapshots_from_storage(void) {
 }
 #endif
 
+static struct arguments {
+    char* rom;
+    int silent, verbose;
+    char* output_file;
+} arguments = { NULL, 0, 0, "-" };
+
+void dump_args(void) {
+    printf(
+        "ROM = %s\nOUTPUT_FILE = %s\n"
+        "VERBOSE = %s\nSILENT = %s\n",
+        arguments.rom,
+        arguments.output_file,
+        arguments.verbose ? "yes" : "no",
+        arguments.silent ? "yes" : "no");
+}
+
+static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
+    struct arguments* args = argp_state->input;
+
+    switch (key) {
+        case 'q':
+        case 's': args->silent = 1; break;
+        case 'v': args->verbose = 1; break;
+        case 'o': args->output_file = arg; break;
+
+        case ARGP_KEY_ARG:
+            if (argp_state->arg_num >= 2) /* Too many arguments. */
+                argp_usage(argp_state);
+
+            args->rom = arg;
+            break;
+
+        default: return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+
+static struct argp argp = { options, parse_opt, args_doc, app_doc };
+static char app_version[256];
+static char program_version[256];
+
 sapp_desc sokol_main(int argc, char* argv[]) {
-    char version[256];
     if (strlen(GIT_TAG))
-        snprintf(version, sizeof(version), "%s", GIT_TAG);
+        snprintf(app_version, sizeof(app_version), "%s", GIT_TAG);
     else
-        snprintf(version, sizeof(version), "%s@%s", GIT_REV, GIT_BRANCH);
+        snprintf(app_version, sizeof(app_version), "%s@%s", GIT_REV, GIT_BRANCH);
 
-    arg_parser = ap_new_parser();
-    if (!arg_parser) {
-        errx(EXIT_FAILURE, "cannot create args parser");
-    }
-
-    ap_set_version(arg_parser, version);
-    ap_set_helptext(
-        arg_parser,
-        APP_NAME
-        "\nUsage: emu [-hv] [ROM file]"
-        "\n"
-        "\n-h, --help       Show this help."
-        "\n-v, --version    Show app version.");
-
-    if (!ap_parse(arg_parser, argc, argv)) {
-        errx(EXIT_FAILURE, "cannot parse arguments list");
-    }
-
-    // if we reached interactive mode, print app name and version
-    printf("%s  %s\n", app_name, version);
+    snprintf(program_version, sizeof(program_version), "emu %s\n%s", app_version, app_doc);
+    argp_program_version = program_version;
 
     sargs_setup(&(sargs_desc){
         .argc = argc,
         .argv = argv,
         .buf_size = (int)sysconf(_SC_ARG_MAX),
     });
+
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    // if we reached interactive mode, print app name and version
+    printf("%s  %s\n", app_name, app_version);
+    // and reset argp version string, so it does not add --version to command options
+    argp_program_version = NULL;
 
     const chips_display_info_t info = x65_display_info(0);
     return (sapp_desc){

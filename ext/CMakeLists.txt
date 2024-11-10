@@ -1,4 +1,4 @@
-add_library(ext STATIC args.c)
+add_library(ext STATIC)
 
 add_compile_definitions(-DSOKOL_GLES3)
 set(slang "glsl300es")
