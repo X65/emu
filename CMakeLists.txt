@@ -16,31 +16,23 @@ find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(READLINE REQUIRED readline)
 
+add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
 include_directories(ext/sokol/util)
-include_directories(ext/chips)
-include_directories(ext/chips-test/examples/common)
-include_directories(ext)
-
-add_subdirectory(ext)
 
 include_directories(src)
+add_subdirectory(src/common)
+
+include_directories(src/common)
 add_executable(emu
-    src/main.c
-    src/cli.c
-    src/cmd.c
-    src/chips/ria816.c
-    src/chips/cgia.c
-    src/chips/ymf825.c
-    src/chips/mcp23017.c
-    src/systems/x65.c
-    src/systems/x65-ui.cc
+    src/x65.c
+    src/x65-ui-impl.cc
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
-    PRIVATE ext imgui
+    PRIVATE common imgui
     ${READLINE_LIBRARIES})
 target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
 

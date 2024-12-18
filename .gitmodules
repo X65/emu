@@ -1,12 +1,6 @@
 [submodule "external/sokol"]
 	path = ext/sokol
 	url = https://github.com/floooh/sokol.git
-[submodule "external/chips"]
-	path = ext/chips
-	url = https://github.com/floooh/chips.git
-[submodule "external/chips-test"]
-	path = ext/chips-test
-	url = https://github.com/floooh/chips-test.git
 [submodule "ext/sokol-tools-bin"]
 	path = ext/sokol-tools-bin
 	url = https://github.com/floooh/sokol-tools-bin.git
