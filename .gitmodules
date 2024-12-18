@@ -13,3 +13,6 @@
 [submodule "ext/imgui"]
 	path = ext/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "src/firmware"]
+	path = src/firmware
+	url = https://github.com/X65/firmware.git

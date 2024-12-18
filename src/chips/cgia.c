@@ -1,5 +1,5 @@
 #include "cgia.h"
-#include "cgia_palette.h"
+#include "firmware/src/ria/cgia/cgia_palette.h"
 
 #include <string.h>
 
