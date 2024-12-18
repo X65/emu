@@ -69,6 +69,7 @@ static void commit_listener(void* user_data) {
 void ui_init(ui_draw_t draw_cb) {
     simgui_desc_t simgui_desc = { };
     simgui_setup(&simgui_desc);
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     auto& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowBorderSize = 1.0f;
