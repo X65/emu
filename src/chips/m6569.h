@@ -318,6 +318,7 @@ uint64_t m6569_tick(m6569_t* vic, uint64_t pins);
 chips_rect_t m6569_screen(m6569_t* vic);
 // get the color palette
 chips_range_t m6569_palette(void);
+chips_range_t m6569_dbg_palette(void);
 // get 32-bit RGBA8 value from color index (0..15)
 uint32_t m6569_color(size_t i);
 // prepare m6569_t snapshot for saving

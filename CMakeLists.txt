@@ -26,6 +26,7 @@ add_subdirectory(src/common)
 
 include_directories(src/common)
 add_executable(emu
+    src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
