@@ -1,3 +1,4 @@
+#pragma once
 /*#
     # ui_m6526.h
 
