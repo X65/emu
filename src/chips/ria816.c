@@ -33,6 +33,7 @@ static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
 
 static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
+
     switch (addr) {
         // multiplication accelerator
         case RIA816_MATH_MULAB:

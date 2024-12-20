@@ -57,6 +57,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem("MOS 6526 #2 (CIA)", 0, &ui->cia[1].open);
             ImGui::MenuItem("MOS 6581 (SID)", 0, &ui->sid.open);
             ImGui::MenuItem("MOS 6569 (VIC-II)", 0, &ui->vic.open);
+            ImGui::MenuItem("RIA UART", 0, &ui->ria_uart.open);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debug")) {
@@ -462,6 +463,17 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
+        ui_console_desc_t desc = { 0 };
+        desc.title = "RIA UART";
+        desc.rx = &ui->x65->ria.uart_rx;
+        desc.tx = &ui->x65->ria.uart_tx;
+        desc.x = x;
+        desc.y = y;
+        ui_console_init(&ui->ria_uart, &desc);
+    }
+    x += dx;
+    y += dy;
+    {
         ui_m6569_desc_t desc = { 0 };
         desc.title = "MOS 6569 (VIC-II)";
         desc.vic = &ui->x65->vic;
@@ -556,6 +568,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_m6526_discard(&ui->cia[1]);
     ui_m6581_discard(&ui->sid);
     ui_m6569_discard(&ui->vic);
+    ui_console_discard(&ui->ria_uart);
     ui_kbd_discard(&ui->kbd);
     ui_audio_discard(&ui->audio);
     ui_memmap_discard(&ui->memmap);
@@ -580,6 +593,7 @@ void ui_x65_draw(ui_x65_t* ui) {
     ui_m6526_draw(&ui->cia[1]);
     ui_m6581_draw(&ui->sid);
     ui_m6569_draw(&ui->vic);
+    ui_console_draw(&ui->ria_uart);
     ui_memmap_draw(&ui->memmap);
     for (int i = 0; i < 4; i++) {
         ui_memedit_draw(&ui->memedit[i]);

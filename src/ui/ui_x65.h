@@ -58,6 +58,7 @@
 #include "systems/x65.h"
 #include "ui/ui_audio.h"
 #include "ui/ui_chip.h"
+#include "ui/ui_console.h"
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
 #include "ui/ui_kbd.h"
@@ -96,6 +97,7 @@ typedef struct {
     ui_m6526_t cia[2];
     ui_m6581_t sid;
     ui_m6569_t vic;
+    ui_console_t ria_uart;
     ui_audio_t audio;
     ui_kbd_t kbd;
     ui_memmap_t memmap;
