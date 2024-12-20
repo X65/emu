@@ -58,6 +58,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         });
     m6526_init(&sys->cia_1);
     m6526_init(&sys->cia_2);
+    ria816_init(&sys->ria);
     m6569_init(&sys->vic, &(m6569_desc_t){
         .fetch_cb = _x65_vic_fetch,
         .framebuffer = {
@@ -98,6 +99,7 @@ void x65_reset(x65_t* sys) {
     sys->pins |= M6502_RES;
     m6526_reset(&sys->cia_1);
     m6526_reset(&sys->cia_2);
+    ria816_reset(&sys->ria);
     m6569_reset(&sys->vic);
     m6581_reset(&sys->sid);
 }
@@ -121,6 +123,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     uint64_t vic_pins = pins & M6502_PIN_MASK;
     uint64_t cia1_pins = pins & M6502_PIN_MASK;
     uint64_t cia2_pins = pins & M6502_PIN_MASK;
+    uint64_t ria_pins = pins & M6502_PIN_MASK;
     uint64_t sid_pins = pins & M6502_PIN_MASK;
     if ((pins & (M6502_RDY | M6502_RW)) != (M6502_RDY | M6502_RW)) {
         if (M6510_CHECK_IO(pins)) {
@@ -147,6 +150,21 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 else if (addr < 0xDE00) {
                     // CIA-2 (DD00..DDFF)
                     cia2_pins |= M6526_CS;
+                }
+            }
+            else if ((addr & 0xFF00) == 0xFF00) {
+                mem_access = true;  // FIXME: remove
+                if (addr >= 0xFFC0) {
+                    // RIA (FFC0..FFFF)
+                    ria_pins |= RIA816_CS;
+                }
+                else if (addr >= 0xFFA0) {
+                    // CGIA (FFA0..FFBF)
+                    // cgia_pins |= CGIA_CS;
+                }
+                else if (addr >= 0xFF80) {
+                    // SD-1 (FF80..FF9F)
+                    // sd1_pins |= YMF825_CS;
                 }
             }
             else {
@@ -241,6 +259,15 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     // the RESTORE key, along with CIA-2 IRQ, is connected to the NMI line,
     if (sys->kbd.scanout_column_masks[8] & 1) {
         pins |= M6502_NMI;
+    }
+
+    /* tick RIA816:
+     */
+    {
+        ria_pins = ria816_tick(&sys->ria, ria_pins);
+        if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
+            pins = M6502_COPY_DATA(pins, ria_pins);
+        }
     }
 
     /* tick the VIC-II display chip:

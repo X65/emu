@@ -238,6 +238,7 @@
 #include "chips/m6526.h"
 #include "chips/m6569.h"
 #include "chips/m6581.h"
+#include "chips/ria816.h"
 #include "chips/mem.h"
 
 #include <stdint.h>
@@ -322,6 +323,7 @@ typedef struct {
     m6502_t cpu;
     m6526_t cia_1;
     m6526_t cia_2;
+    ria816_t ria;
     m6569_t vic;
     m6581_t sid;
     uint64_t pins;
