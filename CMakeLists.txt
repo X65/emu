@@ -30,6 +30,7 @@ add_executable(emu
     src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
+    src/util/ringbuffer.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})

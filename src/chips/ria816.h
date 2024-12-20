@@ -56,6 +56,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "util/ringbuffer.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -142,6 +144,9 @@ extern "C" {
 
 // ria816 state
 typedef struct {
+    uint8_t reg[RIA816_NUM_REGS];
+    ring_buffer_t uart_rx;
+    ring_buffer_t uart_tx;
     uint64_t pins;
 } ria816_t;
 
