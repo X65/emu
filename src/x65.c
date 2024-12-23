@@ -274,6 +274,11 @@ void app_input(const sapp_event* event) {
             break;
         case SAPP_EVENTTYPE_KEY_DOWN:
         case SAPP_EVENTTYPE_KEY_UP:
+            if (event->key_code == SAPP_KEYCODE_Q) {
+                if (event->modifiers == SAPP_MODIFIER_SUPER || event->modifiers == SAPP_MODIFIER_CTRL) {
+                    sapp_request_quit();
+                }
+            }
             switch (event->key_code) {
                 case SAPP_KEYCODE_SPACE: c = 0x20; break;
                 case SAPP_KEYCODE_LEFT: c = 0x08; break;
