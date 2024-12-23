@@ -10,3 +10,10 @@ add_library(imgui STATIC
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
 )
+
+include(ExternalProject)
+ExternalProject_Add(os-816
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/ext/os-816
+    INSTALL_DIR ${CMAKE_BINARY_DIR}
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+)
