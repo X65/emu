@@ -43,9 +43,6 @@ extern const char* GIT_BRANCH;
 #define APP_NAME "X65 emu"
 const char* app_name = APP_NAME;
 
-const char* app_bug_address = "https://github.com/X65/emu/issues";
-const char* app_doc = "X65 microcomputer emulator";
-
 typedef struct {
     uint32_t version;
     x65_t x65;
@@ -616,7 +613,9 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     else
         snprintf(app_version, sizeof(app_version), "%s@%s", GIT_REV, GIT_BRANCH);
 
-    snprintf(program_version, sizeof(program_version), "emu %s\n%s", app_version, app_doc);
+    snprintf(program_version, sizeof(program_version), "emu %s\n%s", app_version, full_name);
+
+    args_parse(argc, argv);
 
     sargs_setup(&(sargs_desc){
         .argc = argc,

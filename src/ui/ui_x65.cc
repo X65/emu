@@ -105,7 +105,7 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 
     ImGui::TextLinkOpenURL("Homepage", "https://x65.zone/");
     ImGui::SameLine();
-    ImGui::TextLinkOpenURL("Releases", "https://github.com/X65/emu/releases");
+    ImGui::TextLinkOpenURL("Releases", app_releases_address);
     ImGui::SameLine();
     ImGui::TextLinkOpenURL("Bugs", app_bug_address);
 
@@ -172,6 +172,10 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
         ImGui::Text("Emscripten: %d.%d.%d", __EMSCRIPTEN_major__, __EMSCRIPTEN_minor__, __EMSCRIPTEN_tiny__);
 #endif
         ImGui::Separator();
+        ImGui::Text("ROM = %s", arguments.rom);
+        ImGui::Text("OUTPUT_FILE = %s", arguments.output_file);
+        ImGui::Text("VERBOSE = %s", arguments.verbose ? "yes" : "no");
+        ImGui::Text("SILENT = %s", arguments.silent ? "yes" : "no");
 
         if (copy_to_clipboard) {
             ImGui::LogText("\n```\n");

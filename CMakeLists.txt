@@ -30,6 +30,7 @@ add_executable(emu
     src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
+    src/args.c
     src/ui/ui_console.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
