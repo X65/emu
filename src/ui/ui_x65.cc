@@ -583,6 +583,10 @@ void ui_x65_discard(ui_x65_t* ui) {
 void ui_x65_draw(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     _ui_x65_draw_menu(ui);
+    ImGui::DockSpaceOverViewport(
+        0,
+        ImGui::GetMainViewport(),
+        ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
     if (ui->memmap.open) {
         _ui_x65_update_memmap(ui);
     }
