@@ -105,6 +105,7 @@ typedef struct {
     ui_dasm_t dasm[4];
     ui_dbg_t dbg;
     ui_snapshot_t snapshot;
+    bool show_about;
 } ui_x65_t;
 
 void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* desc);

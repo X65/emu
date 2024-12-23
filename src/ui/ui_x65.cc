@@ -2,6 +2,7 @@
 #include "./ui_x65.h"
 
 #include "imgui.h"
+#include "args.h"
 
 #include "ui/ui_chip.h"
 #include "ui/ui_util.h"
@@ -82,9 +83,103 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             }
             ImGui::EndMenu();
         }
-        ui_util_options_menu();
+        if (ImGui::BeginMenu("Tools")) {
+            ImGui::MenuItem("About...", NULL, &ui->show_about);
+            ui_util_options_menu();
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
+}
+
+static void _ui_x65_draw_about(ui_x65_t* ui) {
+    CHIPS_ASSERT(ui);
+    if (!ui->show_about) {
+        return;
+    }
+    if (!ImGui::Begin("About Emu", &ui->show_about, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::End();
+        return;
+    }
+    ImGui::Text("%s (%s)", app_name, app_version);
+
+    ImGui::TextLinkOpenURL("Homepage", "https://x65.zone/");
+    ImGui::SameLine();
+    ImGui::TextLinkOpenURL("Releases", "https://github.com/X65/emu/releases");
+    ImGui::SameLine();
+    ImGui::TextLinkOpenURL("Bugs", app_bug_address);
+
+    ImGui::Separator();
+    ImGui::Text("By Tomasz Sterna and X65 project contributors.");
+    ImGui::Text("Licensed under the 0BSD License, see LICENSE for more information.");
+    ImGui::Text("Based on");
+    ImGui::SameLine();
+    ImGui::TextLinkOpenURL("chip-emulators", "https://github.com/floooh/chips");
+    ImGui::SameLine();
+    ImGui::Text("by Andre Weissflog.");
+
+    static bool show_config_info = false;
+    ImGui::Checkbox("Config/Build Information", &show_config_info);
+    if (show_config_info) {
+        bool copy_to_clipboard = ImGui::Button("Copy to clipboard");
+        ImVec2 child_size = ImVec2(0, ImGui::GetTextLineHeightWithSpacing() * 18);
+        ImGui::BeginChild(ImGui::GetID("cfg_infos"), child_size, ImGuiChildFlags_FrameStyle);
+        if (copy_to_clipboard) {
+            ImGui::LogToClipboard();
+            ImGui::LogText("```\n");  // Back quotes will make text appears without formatting when pasting on GitHub
+        }
+
+        ImGui::Text("%s (%s)", app_name, app_version);
+        ImGui::Separator();
+        ImGui::Text(
+            "sizeof(size_t): %d, sizeof(ImDrawIdx): %d, sizeof(ImDrawVert): %d",
+            (int)sizeof(size_t),
+            (int)sizeof(ImDrawIdx),
+            (int)sizeof(ImDrawVert));
+        ImGui::Text("define: __cplusplus=%d", (int)__cplusplus);
+#ifdef _WIN32
+        ImGui::Text("define: _WIN32");
+#endif
+#ifdef _WIN64
+        ImGui::Text("define: _WIN64");
+#endif
+#ifdef __linux__
+        ImGui::Text("define: __linux__");
+#endif
+#ifdef __APPLE__
+        ImGui::Text("define: __APPLE__");
+#endif
+#ifdef _MSC_VER
+        ImGui::Text("define: _MSC_VER=%d", _MSC_VER);
+#endif
+#ifdef _MSVC_LANG
+        ImGui::Text("define: _MSVC_LANG=%d", (int)_MSVC_LANG);
+#endif
+#ifdef __MINGW32__
+        ImGui::Text("define: __MINGW32__");
+#endif
+#ifdef __MINGW64__
+        ImGui::Text("define: __MINGW64__");
+#endif
+#ifdef __GNUC__
+        ImGui::Text("define: __GNUC__=%d", (int)__GNUC__);
+#endif
+#ifdef __clang_version__
+        ImGui::Text("define: __clang_version__=%s", __clang_version__);
+#endif
+#ifdef __EMSCRIPTEN__
+        ImGui::Text("define: __EMSCRIPTEN__");
+        ImGui::Text("Emscripten: %d.%d.%d", __EMSCRIPTEN_major__, __EMSCRIPTEN_minor__, __EMSCRIPTEN_tiny__);
+#endif
+        ImGui::Separator();
+
+        if (copy_to_clipboard) {
+            ImGui::LogText("\n```\n");
+            ImGui::LogFinish();
+        }
+        ImGui::EndChild();
+    }
+    ImGui::End();
 }
 
 /* keep disassembler layer at the start */
@@ -395,6 +490,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     ui->x65 = ui_desc->x65;
     ui->boot_cb = ui_desc->boot_cb;
     ui_snapshot_init(&ui->snapshot, &ui_desc->snapshot);
+    ui->show_about = false;
     int x = 20, y = 20, dx = 10, dy = 10;
     {
         ui_dbg_desc_t desc = { 0 };
@@ -587,6 +683,7 @@ void ui_x65_draw(ui_x65_t* ui) {
         0,
         ImGui::GetMainViewport(),
         ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
+    _ui_x65_draw_about(ui);
     if (ui->memmap.open) {
         _ui_x65_update_memmap(ui);
     }

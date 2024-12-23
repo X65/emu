@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include "icon.c"
+#include "./args.h"
 
 extern const char* GIT_TAG;
 extern const char* GIT_REV;
@@ -42,8 +43,8 @@ extern const char* GIT_BRANCH;
 #define APP_NAME "X65 emu"
 const char* app_name = APP_NAME;
 
-const char* app_bug_address = " https://github.com/X65/emu/issues ";
-static char app_doc[] = "X65 microcomputer emulator";
+const char* app_bug_address = "https://github.com/X65/emu/issues";
+const char* app_doc = "X65 microcomputer emulator";
 
 typedef struct {
     uint32_t version;
@@ -601,8 +602,8 @@ static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) 
 }
 #endif
 
-static char app_version[256];
-static char program_version[256];
+char app_version[256];
+char program_version[256];
 
 sapp_desc sokol_main(int argc, char* argv[]) {
     if (strlen(GIT_TAG))
@@ -633,6 +634,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
                 .pixels = (sapp_range){ &app_icon.pixel_data, app_icon.width * app_icon.height * 4 },
             },
         },
+        .enable_clipboard = true,
         .enable_dragndrop = true,
         .html5_bubble_mouse_events = true,
         .logger.func = slog_func,
