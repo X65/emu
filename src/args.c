@@ -14,6 +14,7 @@ static struct argp_option options[] = {
     { "quiet", 'q', 0, 0, "Don't produce any output" },
     { "silent", 's', 0, OPTION_ALIAS },
     { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
+    { "ini", 'i', ".INI", 0, ".ini file used to store window position" },
     { 0 }
 };
 
@@ -22,11 +23,12 @@ struct arguments arguments = { NULL, 0, 0, "-" };
 void args_dump(void) {
     printf(
         "ROM = %s\nOUTPUT_FILE = %s\n"
-        "VERBOSE = %s\nSILENT = %s\n",
+        "VERBOSE = %s\nSILENT = %s\nINI_FILE = %s\n",
         arguments.rom,
         arguments.output_file,
         arguments.verbose ? "yes" : "no",
-        arguments.silent ? "yes" : "no");
+        arguments.silent ? "yes" : "no",
+        arguments.ini_file);
 }
 
 static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
@@ -37,6 +39,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 's': args->silent = 1; break;
         case 'v': args->verbose = 1; break;
         case 'o': args->output_file = arg; break;
+        case 'i': args->ini_file = arg; break;
 
         case ARGP_KEY_ARG:
             if (argp_state->arg_num >= 2) /* Too many arguments. */

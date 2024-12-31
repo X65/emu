@@ -9,12 +9,14 @@
 #define SOKOL_IMGUI_IMPL
 #include "sokol_imgui.h"
 #include "gfx.h"
-#include <stdlib.h> // calloc
+#include <stdlib.h>  // calloc
+
+#include "args.h"
 
 #define UI_DELETE_STACK_SIZE (32)
 
 #if defined(__clang__)
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+    #pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
 static struct {
@@ -67,7 +69,9 @@ static void commit_listener(void* user_data) {
 }
 
 void ui_init(ui_draw_t draw_cb) {
-    simgui_desc_t simgui_desc = { };
+    simgui_desc_t simgui_desc = {
+        .ini_filename = arguments.ini_file,
+    };
     simgui_setup(&simgui_desc);
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     auto& style = ImGui::GetStyle();
@@ -107,7 +111,7 @@ void ui_discard(void) {
 }
 
 void ui_draw(void) {
-    simgui_new_frame({sapp_width(), sapp_height(), sapp_frame_duration(), sapp_dpi_scale() });
+    simgui_new_frame({ sapp_width(), sapp_height(), sapp_frame_duration(), sapp_dpi_scale() });
     if (state.draw_cb) {
         state.draw_cb();
     }
@@ -131,8 +135,8 @@ ui_texture_t ui_create_texture(int w, int h) {
 
 void ui_update_texture(ui_texture_t h, void* data, int data_byte_size) {
     sg_image img = simgui_image_from_imtextureid(h);
-    sg_image_data img_data = { };
-    img_data.subimage[0][0] = { .ptr = data, .size = (size_t) data_byte_size };
+    sg_image_data img_data = {};
+    img_data.subimage[0][0] = { .ptr = data, .size = (size_t)data_byte_size };
     sg_update_image(img, img_data);
 }
 
@@ -149,17 +153,18 @@ ui_texture_t ui_create_screenshot_texture(chips_display_info_t info) {
     size_t dst_w = (info.screen.width + 1) >> 1;
     size_t dst_h = (info.screen.height + 1) >> 1;
     size_t dst_num_bytes = (size_t)(dst_w * dst_h * 4);
-    uint32_t* dst = (uint32_t*) calloc(1, dst_num_bytes);
+    uint32_t* dst = (uint32_t*)calloc(1, dst_num_bytes);
 
     if (info.palette.ptr) {
         assert(info.frame.bytes_per_pixel == 1);
-        const uint8_t* pixels = (uint8_t*) info.frame.buffer.ptr;
-        const uint32_t* palette = (uint32_t*) info.palette.ptr;
+        const uint8_t* pixels = (uint8_t*)info.frame.buffer.ptr;
+        const uint32_t* palette = (uint32_t*)info.palette.ptr;
         const size_t num_palette_entries = info.palette.size / sizeof(uint32_t);
         for (size_t y = 0; y < (size_t)info.screen.height; y++) {
             for (size_t x = 0; x < (size_t)info.screen.width; x++) {
                 uint8_t p = pixels[(y + info.screen.y) * info.frame.dim.width + (x + info.screen.x)];
-                assert(p < num_palette_entries); (void)num_palette_entries;
+                assert(p < num_palette_entries);
+                (void)num_palette_entries;
                 uint32_t c = (palette[p] >> 2) & 0x3F3F3F3F;
                 size_t dst_x = x >> 1;
                 size_t dst_y = y >> 1;
@@ -174,7 +179,7 @@ ui_texture_t ui_create_screenshot_texture(chips_display_info_t info) {
     }
     else {
         assert(info.frame.bytes_per_pixel == 4);
-        const uint32_t* pixels = (uint32_t*) info.frame.buffer.ptr;
+        const uint32_t* pixels = (uint32_t*)info.frame.buffer.ptr;
         for (size_t y = 0; y < (size_t)info.screen.height; y++) {
             for (size_t x = 0; x < (size_t)info.screen.width; x++) {
                 uint32_t c = pixels[(y + info.screen.y) * info.frame.dim.width + (x + info.screen.x)];
@@ -192,8 +197,8 @@ ui_texture_t ui_create_screenshot_texture(chips_display_info_t info) {
     }
 
     sg_image_desc img_desc = {
-        .width = (int) (info.portrait ? dst_h : dst_w),
-        .height = (int) (info.portrait ? dst_w : dst_h),
+        .width = (int)(info.portrait ? dst_h : dst_w),
+        .height = (int)(info.portrait ? dst_w : dst_h),
         .pixel_format = SG_PIXELFORMAT_RGBA8,
     };
     img_desc.data.subimage[0][0] = { .ptr = dst, .size = dst_num_bytes };

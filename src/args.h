@@ -11,6 +11,7 @@ extern struct arguments {
     char* rom;
     int silent, verbose;
     char* output_file;
+    char* ini_file;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

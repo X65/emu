@@ -176,6 +176,7 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
         ImGui::Text("OUTPUT_FILE = %s", arguments.output_file);
         ImGui::Text("VERBOSE = %s", arguments.verbose ? "yes" : "no");
         ImGui::Text("SILENT = %s", arguments.silent ? "yes" : "no");
+        ImGui::Text("INI_FILE = %s", arguments.ini_file);
 
         if (copy_to_clipboard) {
             ImGui::LogText("\n```\n");
