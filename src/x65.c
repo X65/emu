@@ -193,28 +193,28 @@ void app_init(void) {
     // important: initialize webapi after ui
     webapi_init(&(webapi_desc_t){
         .funcs = {
-                  .boot = web_boot,
-                  .reset = web_reset,
-                  .ready = web_ready,
-                  .load = web_load,
-                  .dbg_connect = web_dbg_connect,
-                  .dbg_disconnect = web_dbg_disconnect,
-                  .dbg_add_breakpoint = web_dbg_add_breakpoint,
-                  .dbg_remove_breakpoint = web_dbg_remove_breakpoint,
-                  .dbg_break = web_dbg_break,
-                  .dbg_continue = web_dbg_continue,
-                  .dbg_step_next = web_dbg_step_next,
-                  .dbg_step_into = web_dbg_step_into,
-                  .dbg_cpu_state = web_dbg_cpu_state,
-                  .dbg_request_disassembly = web_dbg_request_disassemly,
-                  .dbg_read_memory = web_dbg_read_memory,
-                  }
+            .boot = web_boot,
+            .reset = web_reset,
+            .ready = web_ready,
+            .load = web_load,
+            .dbg_connect = web_dbg_connect,
+            .dbg_disconnect = web_dbg_disconnect,
+            .dbg_add_breakpoint = web_dbg_add_breakpoint,
+            .dbg_remove_breakpoint = web_dbg_remove_breakpoint,
+            .dbg_break = web_dbg_break,
+            .dbg_continue = web_dbg_continue,
+            .dbg_step_next = web_dbg_step_next,
+            .dbg_step_into = web_dbg_step_into,
+            .dbg_cpu_state = web_dbg_cpu_state,
+            .dbg_request_disassembly = web_dbg_request_disassemly,
+            .dbg_read_memory = web_dbg_read_memory,
+        },
     });
 #endif
     bool delay_input = false;
-    if (sargs_exists("file")) {
+    if (arguments.rom) {
         delay_input = true;
-        fs_start_load_file(FS_SLOT_IMAGE, sargs_value("file"));
+        fs_start_load_file(FS_SLOT_IMAGE, arguments.rom);
     }
     if (sargs_exists("prg")) {
         fs_load_base64(FS_SLOT_IMAGE, "url.prg", sargs_value("prg"));
@@ -342,6 +342,9 @@ static void handle_file_loading(void) {
         }
         else if (fs_ext(FS_SLOT_IMAGE, "bin") || fs_ext(FS_SLOT_IMAGE, "prg") || fs_ext(FS_SLOT_IMAGE, "")) {
             load_success = x65_quickload(&state.x65, fs_data(FS_SLOT_IMAGE));
+        }
+        else if (fs_ext(FS_SLOT_IMAGE, "xex")) {
+            load_success = x65_quickload_xex(&state.x65, fs_data(FS_SLOT_IMAGE));
         }
         if (load_success) {
             if (clock_frame_count_60hz() > (load_delay_frames + 10)) {
@@ -615,13 +618,13 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 
     snprintf(program_version, sizeof(program_version), "emu %s\n%s", app_version, full_name);
 
-    args_parse(argc, argv);
-
     sargs_setup(&(sargs_desc){
         .argc = argc,
         .argv = argv,
         .buf_size = (int)sysconf(_SC_ARG_MAX),
     });
+    args_parse(argc, argv);
+
     const chips_display_info_t info = x65_display_info(0);
     return (sapp_desc){
         .init_cb = app_init,

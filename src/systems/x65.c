@@ -624,6 +624,50 @@ bool x65_quickload(x65_t* sys, chips_range_t data) {
     return true;
 }
 
+bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
+    CHIPS_ASSERT(sys && sys->valid && data.ptr);
+    if (data.size < 2) {
+        return false;
+    }
+    const uint8_t* ptr = (uint8_t*)data.ptr;
+
+    // $FFFF is required in first block
+    if (ptr[0] != 0xff || ptr[1] != 0xff) {
+        return false;
+    }
+
+    while (ptr < ((uint8_t*)data.ptr + data.size)) {
+        size_t data_left = (uint8_t*)data.ptr + data.size - ptr;
+        if (data_left < 4) {
+            return false;
+        }
+        if (ptr[0] == 0xff || ptr[1] == 0xff) {
+            // skip header
+            ptr += 2;
+            data_left -= 2;
+            if (data_left < 4) {
+                return false;
+            }
+        }
+
+        const uint16_t start_addr = ptr[1] << 8 | ptr[0];
+        ptr += 2;
+        const uint16_t end_addr = ptr[1] << 8 | ptr[0];
+        ptr += 2;
+
+        data_left = (uint8_t*)data.ptr + data.size - ptr;
+        if (data_left < (end_addr - start_addr + 1) || start_addr > end_addr) {
+            return false;
+        }
+        uint16_t addr = start_addr;
+        while (addr <= end_addr && addr >= start_addr) {
+            mem_wr(&sys->mem_cpu, addr++, *ptr++);
+        }
+    }
+
+    return true;
+}
+
 chips_display_info_t x65_display_info(x65_t* sys) {
     chips_display_info_t res = {
         .frame = {

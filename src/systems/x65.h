@@ -380,6 +380,8 @@ x65_joystick_type_t x65_joystick_type(x65_t* sys);
 void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask);
 // quickload a .bin/.prg file
 bool x65_quickload(x65_t* sys, chips_range_t data);
+// quickload a .xex file
+bool x65_quickload_xex(x65_t* sys, chips_range_t data);
 // insert tape as .TAP file (c1530 must be enabled)
 bool x65_insert_tape(x65_t* sys, chips_range_t data);
 // remove tape file

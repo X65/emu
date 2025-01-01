@@ -1,6 +1,7 @@
 #include "./args.h"
 
 #include <argp.h>
+#include <sokol_args.h>
 
 #define BUGS_ADDRESS "https://github.com/X65/emu/issues"
 const char* app_bug_address = BUGS_ADDRESS;
@@ -18,7 +19,7 @@ static struct argp_option options[] = {
     { 0 }
 };
 
-struct arguments arguments = { NULL, 0, 0, "-" };
+struct arguments arguments = { NULL, 0, 0, "-", NULL };
 
 void args_dump(void) {
     printf(
@@ -62,5 +63,9 @@ static struct argp argp = { options,
 
 void args_parse(int argc, char* argv[]) {
     argp_program_version = program_version;
-    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+    argp_parse(&argp, argc, argv, 0, NULL, &arguments);
+
+    if (sargs_exists("file")) {
+        arguments.rom = sargs_value("file");
+    }
 }

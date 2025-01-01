@@ -4,4 +4,8 @@
     ".clang-format": "yaml"
   },
   "editor.formatOnSave": true,
+  "cmake.launchBehavior": "breakAndReuseTerminal",
+  "cmake.parallelJobs": 0,
+  "cmake.parseBuildDiagnostics": true,
+  "cmake.saveBeforeBuild": true
 }
