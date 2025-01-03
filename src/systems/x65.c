@@ -625,6 +625,9 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     }
     const uint8_t* ptr = (uint8_t*)data.ptr;
 
+    bool reset_lo_loaded = false;
+    bool reset_hi_loaded = false;
+
     // $FFFF is required in first block
     if (ptr[0] != 0xff || ptr[1] != 0xff) {
         return false;
@@ -655,10 +658,15 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         }
         uint16_t addr = start_addr;
         while (addr <= end_addr && addr >= start_addr) {
+            if (addr == 0xfffc) reset_lo_loaded = true;
+            if (addr == 0xfffd) reset_hi_loaded = true;
             mem_wr(&sys->mem_cpu, addr++, *ptr++);
         }
     }
-    printf("loaded XEX\n");
+
+    if (reset_lo_loaded && reset_hi_loaded) {
+        sys->running = true;
+    }
 
     return true;
 }
