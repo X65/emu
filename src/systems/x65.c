@@ -638,7 +638,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         if (data_left < 4) {
             return false;
         }
-        if (ptr[0] == 0xff || ptr[1] == 0xff) {
+        if (ptr[0] == 0xff && ptr[1] == 0xff) {
             // skip header
             ptr += 2;
             data_left -= 2;

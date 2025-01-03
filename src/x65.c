@@ -393,6 +393,9 @@ static void ui_boot_cb(x65_t* sys) {
     clock_init();
     x65_desc_t desc = x65_desc(sys->joystick_type);
     x65_init(sys, &desc);
+    if (arguments.rom) {
+        fs_start_load_file(FS_SLOT_IMAGE, arguments.rom);
+    }
 }
 
 static void ui_update_snapshot_screenshot(size_t slot) {
