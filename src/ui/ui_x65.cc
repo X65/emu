@@ -211,22 +211,13 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
         case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem_cpu, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
         case _UI_X65_MEMLAYER_ROM:
-            if ((addr >= 0xA000) && (addr < 0xC000)) {
-                /* BASIC ROM */
-                return x65->rom_basic[addr - 0xA000];
-            }
-            else if ((addr >= 0xD000) && (addr < 0xE000)) {
+            if ((addr >= 0xD000) && (addr < 0xE000)) {
                 /* Character ROM */
                 return x65->rom_char[addr - 0xD000];
-            }
-            else if (addr >= 0xE000) {
-                /* Kernal ROM */
-                return x65->rom_kernal[addr - 0xE000];
             }
             else {
                 return 0xFF;
             }
-            break;
         case _UI_X65_MEMLAYER_VIC: return mem_rd(&x65->mem_vic, addr);
         case _UI_X65_MEMLAYER_COLOR:
             if ((addr >= 0xD800) && (addr < 0xDC00)) {
@@ -248,17 +239,9 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
         case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem_cpu, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
         case _UI_X65_MEMLAYER_ROM:
-            if ((addr >= 0xA000) && (addr < 0xC000)) {
-                /* BASIC ROM */
-                x65->rom_basic[addr - 0xA000] = data;
-            }
-            else if ((addr >= 0xD000) && (addr < 0xE000)) {
+            if ((addr >= 0xD000) && (addr < 0xE000)) {
                 /* Character ROM */
                 x65->rom_char[addr - 0xD000] = data;
-            }
-            else if (addr >= 0xE000) {
-                /* Kernal ROM */
-                x65->rom_kernal[addr - 0xE000] = data;
             }
             break;
         case _UI_X65_MEMLAYER_VIC: mem_wr(&x65->mem_vic, addr, data); break;
@@ -275,18 +258,13 @@ static void _ui_x65_update_memmap(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     const x65_t* x65 = ui->x65;
     bool all_ram = (x65->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0;
-    bool basic_rom =
-        (x65->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM);
-    bool kernal_rom = (x65->cpu_port & X65_CPUPORT_HIRAM) != 0;
     bool io_enabled = !all_ram && ((x65->cpu_port & X65_CPUPORT_CHAREN) != 0);
     bool char_rom = !all_ram && ((x65->cpu_port & X65_CPUPORT_CHAREN) == 0);
     ui_memmap_reset(&ui->memmap);
     ui_memmap_layer(&ui->memmap, "IO");
     ui_memmap_region(&ui->memmap, "IO REGION", 0xD000, 0x1000, io_enabled);
     ui_memmap_layer(&ui->memmap, "ROM");
-    ui_memmap_region(&ui->memmap, "BASIC ROM", 0xA000, 0x2000, basic_rom);
     ui_memmap_region(&ui->memmap, "CHAR ROM", 0xD000, 0x1000, char_rom);
-    ui_memmap_region(&ui->memmap, "KERNAL ROM", 0xE000, 0x2000, kernal_rom);
     ui_memmap_layer(&ui->memmap, "RAM");
     ui_memmap_region(&ui->memmap, "RAM", 0x0000, 0x10000, true);
 }

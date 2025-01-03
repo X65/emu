@@ -113,8 +113,6 @@ x65_desc_t x65_desc(x65_joystick_type_t joy_type) {
         },
         .roms = {
             .chars = { .ptr=dump_c64_char_bin, .size=sizeof(dump_c64_char_bin) },
-            .basic = { .ptr=dump_c64_basic_bin, .size=sizeof(dump_c64_basic_bin) },
-            .kernal = { .ptr=dump_c64_kernalv3_bin, .size=sizeof(dump_c64_kernalv3_bin) },
         },
 #if defined(CHIPS_USE_UI)
         .debug = ui_x65_get_debug(&state.ui)

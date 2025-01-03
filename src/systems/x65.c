@@ -38,11 +38,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     sys->audio.num_samples = _X65_DEFAULT(desc->audio.num_samples, X65_DEFAULT_AUDIO_SAMPLES);
     CHIPS_ASSERT(sys->audio.num_samples <= X65_MAX_AUDIO_SAMPLES);
     CHIPS_ASSERT(desc->roms.chars.ptr && (desc->roms.chars.size == sizeof(sys->rom_char)));
-    CHIPS_ASSERT(desc->roms.basic.ptr && (desc->roms.basic.size == sizeof(sys->rom_basic)));
-    CHIPS_ASSERT(desc->roms.kernal.ptr && (desc->roms.kernal.size == sizeof(sys->rom_kernal)));
     memcpy(sys->rom_char, desc->roms.chars.ptr, sizeof(sys->rom_char));
-    memcpy(sys->rom_basic, desc->roms.basic.ptr, sizeof(sys->rom_basic));
-    memcpy(sys->rom_kernal, desc->roms.kernal.ptr, sizeof(sys->rom_kernal));
 
     // initialize the hardware
     sys->cpu_port = 0xF7;  // for initial memory mapping
@@ -372,29 +368,16 @@ static uint16_t _x65_vic_fetch(uint16_t addr, void* user_data) {
 
 static void _x65_update_memory_map(x65_t* sys) {
     sys->io_mapped = false;
-    uint8_t* read_ptr;
     // shortcut if HIRAM and LORAM is 0, everything is RAM
     if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0) {
         mem_map_ram(&sys->mem_cpu, 0, 0xA000, 0x6000, sys->ram + 0xA000);
     }
     else {
-        // A000..BFFF is either RAM-behind-BASIC-ROM or RAM
-        if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) {
-            read_ptr = sys->rom_basic;
-        }
-        else {
-            read_ptr = sys->ram + 0xA000;
-        }
-        mem_map_rw(&sys->mem_cpu, 0, 0xA000, 0x2000, read_ptr, sys->ram + 0xA000);
+        // A000..BFFF is RAM
+        mem_map_rw(&sys->mem_cpu, 0, 0xA000, 0x2000, sys->ram + 0xA000, sys->ram + 0xA000);
 
-        // E000..FFFF is either RAM-behind-KERNAL-ROM or RAM
-        if (sys->cpu_port & X65_CPUPORT_HIRAM) {
-            read_ptr = sys->rom_kernal;
-        }
-        else {
-            read_ptr = sys->ram + 0xE000;
-        }
-        mem_map_rw(&sys->mem_cpu, 0, 0xE000, 0x2000, read_ptr, sys->ram + 0xE000);
+        // E000..FFFF is RAM
+        mem_map_rw(&sys->mem_cpu, 0, 0xE000, 0x2000, sys->ram + 0xE000, sys->ram + 0xE000);
 
         // D000..DFFF can be Char-ROM or I/O
         if (sys->cpu_port & X65_CPUPORT_CHAREN) {
@@ -675,6 +658,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
             mem_wr(&sys->mem_cpu, addr++, *ptr++);
         }
     }
+    printf("loaded XEX\n");
 
     return true;
 }

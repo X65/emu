@@ -312,9 +312,7 @@ typedef struct {
     chips_audio_desc_t audio;           // audio output options
     // ROM images
     struct {
-        chips_range_t chars;   // 4 KByte character ROM dump
-        chips_range_t basic;   // 8 KByte BASIC dump
-        chips_range_t kernal;  // 8 KByte KERNAL dump
+        chips_range_t chars;  // 4 KByte character ROM dump
     } roms;
 } x65_desc_t;
 
@@ -352,11 +350,9 @@ typedef struct {
         float sample_buffer[X65_MAX_AUDIO_SAMPLES];
     } audio;
 
-    uint8_t color_ram[1024];     // special static color ram
-    uint8_t ram[1 << 16];        // general ram
-    uint8_t rom_char[0x1000];    // 4 KB character ROM image
-    uint8_t rom_basic[0x2000];   // 8 KB BASIC ROM image
-    uint8_t rom_kernal[0x2000];  // 8 KB KERNAL V3 ROM image
+    uint8_t color_ram[1024];   // special static color ram
+    uint8_t ram[1 << 16];      // general ram
+    uint8_t rom_char[0x1000];  // 4 KB character ROM image
     alignas(64) uint8_t fb[M6569_FRAMEBUFFER_SIZE_BYTES];
 } x65_t;
 
