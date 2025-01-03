@@ -31,6 +31,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
 
     memset(sys, 0, sizeof(x65_t));
     sys->valid = true;
+    sys->running = false;
     sys->joystick_type = desc->joystick_type;
     sys->debug = desc->debug;
     sys->audio.callback = desc->audio.callback;
@@ -104,7 +105,17 @@ void x65_reset(x65_t* sys) {
     m6581_reset(&sys->sid);
 }
 
+void x65_set_running(x65_t* sys, bool running) {
+    CHIPS_ASSERT(sys && sys->valid);
+    sys->running = running;
+}
+
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
+    if (!sys->running) {
+        // keep CPU in RESET state
+        pins |= M6502_RES;
+    }
+
     // tick the CPU
     pins = m6502_tick(&sys->cpu, pins);
     const uint16_t addr = M6502_GET_ADDR(pins);

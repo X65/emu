@@ -26,6 +26,9 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65 && ui->boot_cb);
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("System")) {
+            if (ImGui::MenuItem(ui->x65->running ? "Running" : "Run", 0, ui->x65->running)) {
+                x65_set_running(ui->x65, !ui->x65->running);
+            }
             ui_snapshot_menus(&ui->snapshot);
             if (ImGui::MenuItem("Reset")) {
                 x65_reset(ui->x65);

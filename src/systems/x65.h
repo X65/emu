@@ -328,6 +328,8 @@ typedef struct {
     m6581_t sid;
     uint64_t pins;
 
+    bool running;  // whether CPU is running or held in RESET state
+
     x65_joystick_type_t joystick_type;
     bool io_mapped;            // true when D000..DFFF has IO area mapped in
     uint8_t cpu_port;          // last state of CPU port (for memory mapping)
@@ -364,6 +366,8 @@ void x65_init(x65_t* sys, const x65_desc_t* desc);
 void x65_discard(x65_t* sys);
 // reset a X65 instance
 void x65_reset(x65_t* sys);
+// start/stop X65 instance
+void x65_set_running(x65_t* sys, bool running);
 // get framebuffer and display attributes
 chips_display_info_t x65_display_info(x65_t* sys);
 // tick X65 instance for a given number of microseconds, return number of ticks executed
