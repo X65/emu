@@ -18,8 +18,6 @@ typedef struct {
     int x, y;          /* initial window position */
     int w, h;          /* initial window width and height */
     bool open;         /* initial open state */
-    bool auto_scroll;
-    bool scroll_to_bottom;
 } ui_console_desc_t;
 
 typedef struct {
@@ -29,16 +27,13 @@ typedef struct {
     float init_x, init_y;
     float init_w, init_h;
     bool open;
-    bool auto_scroll;
-    bool scroll_to_bottom;
     bool valid;
-    char input_buf[256];
-    void* content;
 } ui_console_t;
 
 void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc);
 void ui_console_discard(ui_console_t* win);
 void ui_console_draw(ui_console_t* win);
+void ui_console_process_tx(ui_console_t* win);
 
 #ifdef __cplusplus
 } /* extern "C" */

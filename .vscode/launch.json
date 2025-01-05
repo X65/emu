@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}/build",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "../roms/64c.251913-01.xex"],
+      "args": ["-i", "emu.ini", "../roms/smon-x65.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

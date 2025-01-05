@@ -11,53 +11,159 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
-void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc) {
-    CHIPS_ASSERT(win && desc);
-    CHIPS_ASSERT(desc->title);
-    memset(win, 0, sizeof(ui_console_t));
-    win->title = desc->title;
-    win->rx = desc->rx;
-    win->tx = desc->tx;
-    win->init_x = (float)desc->x;
-    win->init_y = (float)desc->y;
-    win->init_w = (float)((desc->w == 0) ? 400 : desc->w);
-    win->init_h = (float)((desc->h == 0) ? 256 : desc->h);
-    win->open = desc->open;
-    win->auto_scroll = desc->auto_scroll;
-    win->scroll_to_bottom = false;
-    win->content = new std::string();
-    win->valid = true;
-}
+struct ExampleAppConsole {
+    char InputBuf[256];
+    ImVector<char*> Items;
+    ImVector<char*> History;
+    int HistoryPos;  // -1: new line, 0..History.Size-1 browsing history.
+    ImGuiTextFilter Filter;
+    bool AutoScroll;
+    bool ScrollToBottom;
 
-void ui_console_discard(ui_console_t* win) {
-    CHIPS_ASSERT(win && win->valid);
-    win->valid = false;
-    static_cast<std::string*>(win->content)->clear();
-}
+    ring_buffer_t* rx;
+    ring_buffer_t* tx;
 
-void ui_console_draw(ui_console_t* win) {
-    CHIPS_ASSERT(win && win->valid && win->title);
-    if (!win->open) {
-        return;
+    size_t CursorX;
+
+    ExampleAppConsole() {
+        ClearLog();
+        memset(InputBuf, 0, sizeof(InputBuf));
+        HistoryPos = -1;
+        CursorX = 0;
+
+        AutoScroll = true;
+        ScrollToBottom = false;
     }
-    ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(win->title, &win->open)) {
+    ~ExampleAppConsole() {
+        ClearLog();
+        for (int i = 0; i < History.Size; i++)
+            ImGui::MemFree(History[i]);
+    }
+
+    // Portable helpers
+    static int Stricmp(const char* s1, const char* s2) {
+        int d;
+        while ((d = toupper(*s2) - toupper(*s1)) == 0 && *s1) {
+            s1++;
+            s2++;
+        }
+        return d;
+    }
+    static int Strnicmp(const char* s1, const char* s2, int n) {
+        int d = 0;
+        while (n > 0 && (d = toupper(*s2) - toupper(*s1)) == 0 && *s1) {
+            s1++;
+            s2++;
+            n--;
+        }
+        return d;
+    }
+    static char* Strdup(const char* s) {
+        IM_ASSERT(s);
+        size_t len = strlen(s) + 1;
+        void* buf = ImGui::MemAlloc(len);
+        IM_ASSERT(buf);
+        return (char*)memcpy(buf, (const void*)s, len);
+    }
+    static void Strtrim(char* s) {
+        char* str_end = s + strlen(s);
+        while (str_end > s && str_end[-1] == ' ')
+            str_end--;
+        *str_end = 0;
+    }
+
+    void ClearLog() {
+        for (int i = 0; i < Items.Size; i++)
+            ImGui::MemFree(Items[i]);
+        Items.clear();
+    }
+
+    void AddLog(const char* fmt, ...) IM_FMTARGS(2) {
+        // FIXME-OPT
+        char buf[1024];
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, args);
+        buf[IM_ARRAYSIZE(buf) - 1] = 0;
+        va_end(args);
+        Items.push_back(Strdup(buf));
+    }
+
+    void AddChar(const char c) {
+        switch (c) {
+            case '\n': {
+                void* line = ImGui::MemAlloc(CursorX + 1);
+                IM_ASSERT(line);
+                memset(line, ' ', CursorX);
+                ((char*)line)[CursorX] = '\0';
+                Items.push_back((char*)line);
+            } break;
+            case '\r': {
+                CursorX = 0;
+            } break;
+            default: {
+                if ((uint8_t)c >= 32 && (uint8_t)c < 128) {
+                    if (Items.empty()) {
+                        Items.push_back(Strdup(""));
+                    }
+                    char* line = Items.back();
+
+                    const size_t line_len = strlen(line);
+                    const size_t min_len = CursorX + 1;  // position 0 requires at least 1 char
+                    if (line_len < min_len) {
+                        char* new_line = (char*)ImGui::MemAlloc(min_len + 1);
+                        memset(new_line, ' ', min_len);
+                        memcpy(new_line, line, line_len);
+                        ((char*)new_line)[min_len] = '\0';
+                        Items[Items.Size - 1] = new_line;
+                        ImGui::MemFree(line);
+                        line = new_line;
+                    }
+
+                    ((char*)line)[CursorX] = c;
+                    ++CursorX;
+                }
+            }
+        }
+    }
+
+    void Draw(const char* title, bool* p_open) {
+        ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin(title, p_open)) {
+            ImGui::End();
+            return;
+        }
+
         // As a specific feature guaranteed by the library, after calling Begin() the last Item represent the title bar.
         // So e.g. IsItemHovered() will return true when hovering the title bar.
         // Here we create a context menu only available from the title bar.
         if (ImGui::BeginPopupContextItem()) {
-            if (ImGui::MenuItem("Close Console")) win->open = false;
+            if (ImGui::MenuItem("Close Console")) *p_open = false;
             ImGui::EndPopup();
         }
 
-        ImGui::SameLine();
+        // TODO: display items starting from the bottom
+
         if (ImGui::SmallButton("Clear")) {
-            static_cast<std::string*>(win->content)->clear();
+            ClearLog();
         }
         ImGui::SameLine();
         bool copy_to_clipboard = ImGui::SmallButton("Copy");
+        // static float t = 0.0f; if (ImGui::GetTime() - t > 0.02f) { t = ImGui::GetTime(); AddLog("Spam %f", t); }
 
+        ImGui::Separator();
+
+        // Options menu
+        if (ImGui::BeginPopup("Options")) {
+            ImGui::Checkbox("Auto-scroll", &AutoScroll);
+            ImGui::EndPopup();
+        }
+
+        // Options, Filter
+        ImGui::SetNextItemShortcut(ImGuiMod_Ctrl | ImGuiKey_O, ImGuiInputFlags_Tooltip);
+        if (ImGui::Button("Options")) ImGui::OpenPopup("Options");
+        ImGui::SameLine();
+        Filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
         ImGui::Separator();
 
         // Reserve enough left-over height for 1 separator + 1 input text
@@ -68,16 +174,8 @@ void ui_console_draw(ui_console_t* win) {
                 ImGuiChildFlags_NavFlattened,
                 ImGuiWindowFlags_HorizontalScrollbar)) {
             if (ImGui::BeginPopupContextWindow()) {
-                if (ImGui::Selectable("Clear")) {
-                    static_cast<std::string*>(win->content)->clear();
-                }
+                if (ImGui::Selectable("Clear")) ClearLog();
                 ImGui::EndPopup();
-            }
-
-            // Pull characters from tx buffer
-            uint8_t data;
-            if (rb_get(win->tx, &data)) {
-                static_cast<std::string*>(win->content)->append((char*)(&data));
             }
 
             // Display every line as a separate entry so we can change their color or add custom widgets.
@@ -106,34 +204,32 @@ void ui_console_draw(ui_console_t* win) {
             // - Consider using manual call to IsRectVisible() and skipping extraneous decoration from your items.
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1));  // Tighten spacing
             if (copy_to_clipboard) ImGui::LogToClipboard();
-            // for (const char* item : Items) {
-            //     if (!Filter.PassFilter(item)) continue;
+            for (const char* item : Items) {
+                if (!Filter.PassFilter(item)) continue;
 
-            //     // Normally you would store more information in your item than just a string.
-            //     // (e.g. make Items[] an array of structure, store color/type etc.)
-            //     ImVec4 color;
-            //     bool has_color = false;
-            //     if (strstr(item, "[error]")) {
-            //         color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
-            //         has_color = true;
-            //     }
-            //     else if (strncmp(item, "# ", 2) == 0) {
-            //         color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f);
-            //         has_color = true;
-            //     }
-            //     if (has_color) ImGui::PushStyleColor(ImGuiCol_Text, color);
-            //     ImGui::TextUnformatted(item);
-            //     if (has_color) ImGui::PopStyleColor();
-            // }
-            std::string* content = static_cast<std::string*>(win->content);
-            ImGui::TextUnformatted(content->begin().base(), content->end().base());
+                // Normally you would store more information in your item than just a string.
+                // (e.g. make Items[] an array of structure, store color/type etc.)
+                ImVec4 color;
+                bool has_color = false;
+                if (strstr(item, "[error]")) {
+                    color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                    has_color = true;
+                }
+                else if (strncmp(item, "# ", 2) == 0) {
+                    color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f);
+                    has_color = true;
+                }
+                if (has_color) ImGui::PushStyleColor(ImGuiCol_Text, color);
+                ImGui::TextUnformatted(item);
+                if (has_color) ImGui::PopStyleColor();
+            }
             if (copy_to_clipboard) ImGui::LogFinish();
 
             // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the
             // frame. Using a scrollbar or mouse-wheel will take away from the bottom edge.
-            if (win->scroll_to_bottom || (win->auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
+            if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
                 ImGui::SetScrollHereY(1.0f);
-            win->scroll_to_bottom = false;
+            ScrollToBottom = false;
 
             ImGui::PopStyleVar();
         }
@@ -142,26 +238,140 @@ void ui_console_draw(ui_console_t* win) {
 
         // Command-line
         bool reclaim_focus = false;
-        ImGuiInputTextFlags input_text_flags =
-            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_EscapeClearsAll;
+        ImGuiInputTextFlags input_text_flags = ImGuiInputTextFlags_EnterReturnsTrue
+            | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_CallbackHistory;
         if (ImGui::InputText(
                 "Input",
-                win->input_buf,
-                IM_ARRAYSIZE(win->input_buf),
+                InputBuf,
+                IM_ARRAYSIZE(InputBuf),
                 input_text_flags,
-                NULL,
-                (void*)win)) {
-            char* s = win->input_buf;
-            while (*win->input_buf) {
-                if (!rb_put(win->rx, *win->input_buf)) break;
-                memcpy(win->input_buf, win->input_buf + 1, strlen(win->input_buf));
-            }
+                &TextEditCallbackStub,
+                (void*)this)) {
+            char* s = InputBuf;
+            Strtrim(s);
+            if (s[0]) ExecCommand(s);
+            strcpy(s, "");
             reclaim_focus = true;
         }
 
         // Auto-focus on window apparition
         ImGui::SetItemDefaultFocus();
         if (reclaim_focus) ImGui::SetKeyboardFocusHere(-1);  // Auto focus previous widget
+
+        ImGui::End();
     }
-    ImGui::End();
+
+    void ExecCommand(const char* command_line) {
+        // Insert into history. First find match and delete it so it can be pushed to the back.
+        // This isn't trying to be smart or optimal.
+        HistoryPos = -1;
+        for (int i = History.Size - 1; i >= 0; i--)
+            if (Stricmp(History[i], command_line) == 0) {
+                ImGui::MemFree(History[i]);
+                History.erase(History.begin() + i);
+                break;
+            }
+        History.push_back(Strdup(command_line));
+
+        // Process command
+        if (Stricmp(command_line, "CLEAR") == 0) {
+            ClearLog();
+        }
+        else if (Stricmp(command_line, "HISTORY") == 0) {
+            AddLog("# %s\n", command_line);
+            int first = History.Size - 10;
+            for (int i = first > 0 ? first : 0; i < History.Size; i++)
+                AddLog("%3d: %s\n", i, History[i]);
+        }
+        else {
+            const char* s = command_line;
+            while (*s) {
+                if (!rb_put(rx, *s)) break;
+                ++s;
+            }
+            rb_put(rx, '\r');  // CR
+            rb_put(rx, '\n');  // LF
+        }
+
+        // On command input, we scroll to bottom even if AutoScroll==false
+        ScrollToBottom = true;
+    }
+
+    // In C++11 you'd be better off using lambdas for this sort of forwarding callbacks
+    static int TextEditCallbackStub(ImGuiInputTextCallbackData* data) {
+        ExampleAppConsole* console = (ExampleAppConsole*)data->UserData;
+        return console->TextEditCallback(data);
+    }
+
+    int TextEditCallback(ImGuiInputTextCallbackData* data) {
+        // AddLog("cursor: %d, selection: %d-%d", data->CursorPos, data->SelectionStart, data->SelectionEnd);
+        switch (data->EventFlag) {
+            case ImGuiInputTextFlags_CallbackHistory: {
+                // Example of HISTORY
+                const int prev_history_pos = HistoryPos;
+                if (data->EventKey == ImGuiKey_UpArrow) {
+                    if (HistoryPos == -1)
+                        HistoryPos = History.Size - 1;
+                    else if (HistoryPos > 0)
+                        HistoryPos--;
+                }
+                else if (data->EventKey == ImGuiKey_DownArrow) {
+                    if (HistoryPos != -1)
+                        if (++HistoryPos >= History.Size) HistoryPos = -1;
+                }
+
+                // A better implementation would preserve the data on the current input line along with cursor position.
+                if (prev_history_pos != HistoryPos) {
+                    const char* history_str = (HistoryPos >= 0) ? History[HistoryPos] : "";
+                    data->DeleteChars(0, data->BufTextLen);
+                    data->InsertChars(0, history_str);
+                }
+            }
+        }
+        return 0;
+    }
+};
+
+static ExampleAppConsole console;
+
+void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc) {
+    CHIPS_ASSERT(win && desc);
+    CHIPS_ASSERT(desc->title);
+    memset(win, 0, sizeof(ui_console_t));
+    win->title = desc->title;
+    win->rx = desc->rx;
+    win->tx = desc->tx;
+    win->init_x = (float)desc->x;
+    win->init_y = (float)desc->y;
+    win->init_w = (float)((desc->w == 0) ? 400 : desc->w);
+    win->init_h = (float)((desc->h == 0) ? 256 : desc->h);
+    win->open = desc->open;
+    win->valid = true;
+
+    console.rx = desc->rx;
+    console.tx = desc->tx;
+}
+
+void ui_console_discard(ui_console_t* win) {
+    CHIPS_ASSERT(win && win->valid);
+    win->valid = false;
+    console.ClearLog();
+}
+
+void ui_console_process_tx(ui_console_t* win) {
+    // Pull characters from tx buffer
+    uint8_t data;
+    while (rb_get(win->tx, &data)) {
+        console.AddChar(data);
+    }
+}
+
+void ui_console_draw(ui_console_t* win) {
+    CHIPS_ASSERT(win && win->valid && win->title);
+
+    ui_console_process_tx(win);
+
+    if (win->open) {
+        console.Draw(win->title, &win->open);
+    }
 }
