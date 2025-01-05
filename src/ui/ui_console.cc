@@ -19,11 +19,9 @@ struct ExampleAppConsole {
     ImGuiTextFilter Filter;
     bool AutoScroll;
     bool ScrollToBottom;
-
-    ring_buffer_t* rx;
-    ring_buffer_t* tx;
-
     size_t CursorX;
+
+    ui_console_t* win;
 
     ExampleAppConsole() {
         ClearLog();
@@ -128,7 +126,8 @@ struct ExampleAppConsole {
     }
 
     void Draw(const char* title, bool* p_open) {
-        ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin(title, p_open)) {
             ImGui::End();
             return;
@@ -249,8 +248,13 @@ struct ExampleAppConsole {
                 (void*)this)) {
             char* s = InputBuf;
             Strtrim(s);
-            if (s[0]) ExecCommand(s);
+            ExecCommand(s);
             strcpy(s, "");
+            reclaim_focus = true;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            // The user pressed the Escape key
+            ExecCommand("\x1B");
             reclaim_focus = true;
         }
 
@@ -262,16 +266,18 @@ struct ExampleAppConsole {
     }
 
     void ExecCommand(const char* command_line) {
-        // Insert into history. First find match and delete it so it can be pushed to the back.
-        // This isn't trying to be smart or optimal.
-        HistoryPos = -1;
-        for (int i = History.Size - 1; i >= 0; i--)
-            if (Stricmp(History[i], command_line) == 0) {
-                ImGui::MemFree(History[i]);
-                History.erase(History.begin() + i);
-                break;
-            }
-        History.push_back(Strdup(command_line));
+        if (command_line[0]) {
+            // Insert into history. First find match and delete it so it can be pushed to the back.
+            // This isn't trying to be smart or optimal.
+            HistoryPos = -1;
+            for (int i = History.Size - 1; i >= 0; i--)
+                if (Stricmp(History[i], command_line) == 0) {
+                    ImGui::MemFree(History[i]);
+                    History.erase(History.begin() + i);
+                    break;
+                }
+            History.push_back(Strdup(command_line));
+        }
 
         // Process command
         if (Stricmp(command_line, "CLEAR") == 0) {
@@ -286,11 +292,11 @@ struct ExampleAppConsole {
         else {
             const char* s = command_line;
             while (*s) {
-                if (!rb_put(rx, *s)) break;
+                if (!rb_put(win->rx, *s)) break;
                 ++s;
             }
-            rb_put(rx, '\r');  // CR
-            rb_put(rx, '\n');  // LF
+            rb_put(win->rx, '\r');  // CR
+            rb_put(win->rx, '\n');  // LF
         }
 
         // On command input, we scroll to bottom even if AutoScroll==false
@@ -348,8 +354,7 @@ void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc) {
     win->open = desc->open;
     win->valid = true;
 
-    console.rx = desc->rx;
-    console.tx = desc->tx;
+    console.win = win;
 }
 
 void ui_console_discard(ui_console_t* win) {
