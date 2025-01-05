@@ -300,6 +300,12 @@ typedef enum {
 #define X65_KEY_F7       (0xF7)  // F7
 #define X65_KEY_F8       (0xF8)  // F8
 
+// IO base addresses
+#define X65_IO_BASE        (0xFF00)
+#define X65_IO_YMF825_BASE (0xFF80)
+#define X65_IO_CGIA_BASE   (0xFFA0)
+#define X65_IO_RIA_BASE    (0xFFC0)
+
 // config parameters for x65_init()
 typedef struct {
     x65_joystick_type_t joystick_type;  // default is X65_JOYSTICK_NONE

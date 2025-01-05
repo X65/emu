@@ -94,6 +94,29 @@ void x65_reset(x65_t* sys) {
 void x65_set_running(x65_t* sys, bool running) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->running = running;
+    if (sys->running) {
+        // copy CPU vectors from RAM to RIA (in case it were fastloaded)
+        sys->ria.reg[RIA816_CPU_N_COP] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_COP);
+        sys->ria.reg[RIA816_CPU_N_COP + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_COP + 1);
+        sys->ria.reg[RIA816_CPU_N_BRK] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_BRK);
+        sys->ria.reg[RIA816_CPU_N_BRK + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_BRK + 1);
+        sys->ria.reg[RIA816_CPU_N_ABORTB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB);
+        sys->ria.reg[RIA816_CPU_N_ABORTB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB + 1);
+        sys->ria.reg[RIA816_CPU_N_NMIB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB);
+        sys->ria.reg[RIA816_CPU_N_NMIB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB + 1);
+        sys->ria.reg[RIA816_CPU_N_IRQB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB);
+        sys->ria.reg[RIA816_CPU_N_IRQB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB + 1);
+        sys->ria.reg[RIA816_CPU_E_COP] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_COP);
+        sys->ria.reg[RIA816_CPU_E_COP + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_COP + 1);
+        sys->ria.reg[RIA816_CPU_E_ABORTB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB);
+        sys->ria.reg[RIA816_CPU_E_ABORTB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB + 1);
+        sys->ria.reg[RIA816_CPU_E_NMIB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB);
+        sys->ria.reg[RIA816_CPU_E_NMIB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB + 1);
+        sys->ria.reg[RIA816_CPU_E_RESETB] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB);
+        sys->ria.reg[RIA816_CPU_E_RESETB + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB + 1);
+        sys->ria.reg[RIA816_CPU_E_IRQB_BRK] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK);
+        sys->ria.reg[RIA816_CPU_E_IRQB_BRK + 1] = mem_rd(&sys->mem_cpu, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK + 1);
+    }
 }
 
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
@@ -144,17 +167,16 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 cia2_pins |= M6526_CS;
             }
         }
-        else if ((addr & 0xFF00) == 0xFF00) {
-            mem_access = true;  // FIXME: remove
-            if (addr >= 0xFFC0) {
+        else if ((addr & X65_IO_BASE) == X65_IO_BASE) {
+            if (addr >= X65_IO_RIA_BASE) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= 0xFFA0) {
+            else if (addr >= X65_IO_CGIA_BASE) {
                 // CGIA (FFA0..FFBF)
                 // cgia_pins |= CGIA_CS;
             }
-            else if (addr >= 0xFF80) {
+            else if (addr >= X65_IO_YMF825_BASE) {
                 // SD-1 (FF80..FF9F)
                 // sd1_pins |= YMF825_CS;
             }
