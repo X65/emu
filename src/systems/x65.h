@@ -274,11 +274,6 @@ typedef enum {
 #define X65_JOYSTICK_RIGHT (1 << 3)
 #define X65_JOYSTICK_BTN   (1 << 4)
 
-// CPU port memory mapping bits
-#define X65_CPUPORT_LORAM  (1 << 0)
-#define X65_CPUPORT_HIRAM  (1 << 1)
-#define X65_CPUPORT_CHAREN (1 << 2)
-
 // special keyboard keys
 #define X65_KEY_SPACE    (0x20)  // space
 #define X65_KEY_CSRLEFT  (0x08)  // cursor left (shift+cursor right)
@@ -330,7 +325,6 @@ typedef struct {
 
     x65_joystick_type_t joystick_type;
     bool io_mapped;            // true when D000..DFFF has IO area mapped in
-    uint8_t cpu_port;          // last state of CPU port (for memory mapping)
     uint8_t kbd_joy1_mask;     // current joystick-1 state from keyboard-joystick emulation
     uint8_t kbd_joy2_mask;     // current joystick-2 state from keyboard-joystick emulation
     uint8_t joy_joy1_mask;     // current joystick-1 state from x65_joystick()

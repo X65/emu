@@ -41,18 +41,9 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     memcpy(sys->rom_char, desc->roms.chars.ptr, sizeof(sys->rom_char));
 
     // initialize the hardware
-    sys->cpu_port = 0xF7;  // for initial memory mapping
     sys->io_mapped = true;
 
-    sys->pins = m6502_init(
-        &sys->cpu,
-        &(m6502_desc_t){
-            .m6510_in_cb = _x65_cpu_port_in,
-            .m6510_out_cb = _x65_cpu_port_out,
-            .m6510_io_pullup = 0x17,
-            .m6510_io_floating = 0xC8,
-            .m6510_user_data = sys,
-        });
+    sys->pins = m6502_init(&sys->cpu, &(m6502_desc_t){});
     m6526_init(&sys->cia_1);
     m6526_init(&sys->cia_2);
     ria816_init(&sys->ria);
@@ -88,7 +79,6 @@ void x65_discard(x65_t* sys) {
 
 void x65_reset(x65_t* sys) {
     CHIPS_ASSERT(sys && sys->valid);
-    sys->cpu_port = 0xF7;
     sys->kbd_joy1_mask = sys->kbd_joy2_mask = 0;
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
     sys->io_mapped = true;
@@ -124,7 +114,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         When the RDY pin is active (during bad lines), no CPU/chip
         communication takes place starting with the first read access.
     */
-    bool cpu_io_access = false;
     bool color_ram_access = false;
     bool mem_access = false;
     uint64_t vic_pins = pins & M6502_PIN_MASK;
@@ -133,50 +122,45 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     uint64_t ria_pins = pins & M6502_PIN_MASK;
     uint64_t sid_pins = pins & M6502_PIN_MASK;
     if ((pins & (M6502_RDY | M6502_RW)) != (M6502_RDY | M6502_RW)) {
-        if (M6510_CHECK_IO(pins)) {
-            cpu_io_access = true;
+        if (sys->io_mapped && ((addr & 0xF000) == 0xD000)) {
+            if (addr < 0xD400) {
+                // VIC-II (D000..D3FF)
+                vic_pins |= M6569_CS;
+            }
+            else if (addr < 0xD800) {
+                // SID (D400..D7FF)
+                sid_pins |= M6581_CS;
+            }
+            else if (addr < 0xDC00) {
+                // read or write the special color Static-RAM bank (D800..DBFF)
+                color_ram_access = true;
+            }
+            else if (addr < 0xDD00) {
+                // CIA-1 (DC00..DCFF)
+                cia1_pins |= M6526_CS;
+            }
+            else if (addr < 0xDE00) {
+                // CIA-2 (DD00..DDFF)
+                cia2_pins |= M6526_CS;
+            }
+        }
+        else if ((addr & 0xFF00) == 0xFF00) {
+            mem_access = true;  // FIXME: remove
+            if (addr >= 0xFFC0) {
+                // RIA (FFC0..FFFF)
+                ria_pins |= RIA816_CS;
+            }
+            else if (addr >= 0xFFA0) {
+                // CGIA (FFA0..FFBF)
+                // cgia_pins |= CGIA_CS;
+            }
+            else if (addr >= 0xFF80) {
+                // SD-1 (FF80..FF9F)
+                // sd1_pins |= YMF825_CS;
+            }
         }
         else {
-            if (sys->io_mapped && ((addr & 0xF000) == 0xD000)) {
-                if (addr < 0xD400) {
-                    // VIC-II (D000..D3FF)
-                    vic_pins |= M6569_CS;
-                }
-                else if (addr < 0xD800) {
-                    // SID (D400..D7FF)
-                    sid_pins |= M6581_CS;
-                }
-                else if (addr < 0xDC00) {
-                    // read or write the special color Static-RAM bank (D800..DBFF)
-                    color_ram_access = true;
-                }
-                else if (addr < 0xDD00) {
-                    // CIA-1 (DC00..DCFF)
-                    cia1_pins |= M6526_CS;
-                }
-                else if (addr < 0xDE00) {
-                    // CIA-2 (DD00..DDFF)
-                    cia2_pins |= M6526_CS;
-                }
-            }
-            else if ((addr & 0xFF00) == 0xFF00) {
-                mem_access = true;  // FIXME: remove
-                if (addr >= 0xFFC0) {
-                    // RIA (FFC0..FFFF)
-                    ria_pins |= RIA816_CS;
-                }
-                else if (addr >= 0xFFA0) {
-                    // CGIA (FFA0..FFBF)
-                    // cgia_pins |= CGIA_CS;
-                }
-                else if (addr >= 0xFF80) {
-                    // SD-1 (FF80..FF9F)
-                    // sd1_pins |= YMF825_CS;
-                }
-            }
-            else {
-                mem_access = true;
-            }
+            mem_access = true;
         }
     }
 
@@ -296,11 +280,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     /* remaining CPU IO and memory accesses, those don't fit into the
        "universal tick model" (yet?)
     */
-    if (cpu_io_access) {
-        // ...the integrated IO port in the M6510 CPU at addresses 0 and 1
-        pins = m6510_iorq(&sys->cpu, pins);
-    }
-    else if (color_ram_access) {
+    if (color_ram_access) {
         if (pins & M6502_RW) {
             M6502_SET_DATA(pins, sys->color_ram[addr & 0x03FF]);
         }
@@ -319,30 +299,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
     return pins;
-}
-
-static uint8_t _x65_cpu_port_in(void* user_data) {
-    x65_t* sys = (x65_t*)user_data;
-    /*
-        Input from the integrated M6510 CPU IO port
-    */
-    uint8_t val = 7;
-    return val;
-}
-
-static void _x65_cpu_port_out(uint8_t data, void* user_data) {
-    x65_t* sys = (x65_t*)user_data;
-    /*
-        Output to the integrated M6510 CPU IO port
-
-        bits 0..2:  [out] memory configuration
-    */
-    /* only update memory configuration if the relevant bits have changed */
-    bool need_mem_update = 0 != ((sys->cpu_port ^ data) & 7);
-    sys->cpu_port = data;
-    if (need_mem_update) {
-        _x65_update_memory_map(sys);
-    }
 }
 
 static uint16_t _x65_vic_fetch(uint16_t addr, void* user_data) {
@@ -369,7 +325,7 @@ static uint16_t _x65_vic_fetch(uint16_t addr, void* user_data) {
 static void _x65_update_memory_map(x65_t* sys) {
     sys->io_mapped = false;
     // shortcut if HIRAM and LORAM is 0, everything is RAM
-    if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0) {
+    if (false) {
         mem_map_ram(&sys->mem_cpu, 0, 0xA000, 0x6000, sys->ram + 0xA000);
     }
     else {
@@ -380,7 +336,7 @@ static void _x65_update_memory_map(x65_t* sys) {
         mem_map_rw(&sys->mem_cpu, 0, 0xE000, 0x2000, sys->ram + 0xE000, sys->ram + 0xE000);
 
         // D000..DFFF can be Char-ROM or I/O
-        if (sys->cpu_port & X65_CPUPORT_CHAREN) {
+        if (true) {
             sys->io_mapped = true;
         }
         else {
@@ -665,7 +621,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     }
 
     if (reset_lo_loaded && reset_hi_loaded) {
-        sys->running = true;
+        x65_set_running(sys, true);
     }
 
     return true;

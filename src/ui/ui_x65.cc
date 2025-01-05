@@ -257,9 +257,8 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
 static void _ui_x65_update_memmap(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     const x65_t* x65 = ui->x65;
-    bool all_ram = (x65->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0;
-    bool io_enabled = !all_ram && ((x65->cpu_port & X65_CPUPORT_CHAREN) != 0);
-    bool char_rom = !all_ram && ((x65->cpu_port & X65_CPUPORT_CHAREN) == 0);
+    bool io_enabled = true;
+    bool char_rom = true;
     ui_memmap_reset(&ui->memmap);
     ui_memmap_layer(&ui->memmap, "IO");
     ui_memmap_region(&ui->memmap, "IO REGION", 0xD000, 0x1000, io_enabled);
