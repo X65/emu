@@ -6,7 +6,6 @@
 #include "common.h"
 #include "chips/m6502.h"
 #include "chips/m6526.h"
-#include "chips/m6569.h"
 #include "chips/m6581.h"
 #include "chips/kbd.h"
 #include "chips/clk.h"
@@ -24,7 +23,6 @@
     #include "ui/ui_m6502.h"
     #include "ui/ui_m6526.h"
     #include "ui/ui_m6581.h"
-    #include "ui/ui_m6569.h"
     #include "ui/ui_audio.h"
     #include "ui/ui_kbd.h"
     #include "ui/ui_snapshot.h"
@@ -110,9 +108,6 @@ x65_desc_t x65_desc(x65_joystick_type_t joy_type) {
         .audio = {
             .callback = { .func = push_audio },
             .sample_rate = saudio_sample_rate(),
-        },
-        .roms = {
-            .chars = { .ptr=dump_c64_char_bin, .size=sizeof(dump_c64_char_bin) },
         },
 #if defined(CHIPS_USE_UI)
         .debug = ui_x65_get_debug(&state.ui)
@@ -603,7 +598,7 @@ static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_
 
 static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) {
     for (int i = 0; i < num_bytes; i++) {
-        *dst_ptr++ = mem_rd(&state.x65.mem_cpu, addr++);
+        *dst_ptr++ = mem_rd(&state.x65.mem, addr++);
     }
 }
 #endif

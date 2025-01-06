@@ -234,9 +234,9 @@
 #*/
 #include "chips/chips_common.h"
 #include "chips/kbd.h"
+#include "chips/cgia.h"
 #include "chips/m6502.h"
 #include "chips/m6526.h"
-#include "chips/m6569.h"
 #include "chips/m6581.h"
 #include "chips/ria816.h"
 #include "chips/mem.h"
@@ -311,10 +311,6 @@ typedef struct {
     x65_joystick_type_t joystick_type;  // default is X65_JOYSTICK_NONE
     chips_debug_t debug;                // optional debugging hook
     chips_audio_desc_t audio;           // audio output options
-    // ROM images
-    struct {
-        chips_range_t chars;  // 4 KByte character ROM dump
-    } roms;
 } x65_desc_t;
 
 // X65 emulator state
@@ -323,23 +319,21 @@ typedef struct {
     m6526_t cia_1;
     m6526_t cia_2;
     ria816_t ria;
-    m6569_t vic;
+    cgia_t cgia;
     m6581_t sid;
     uint64_t pins;
 
     bool running;  // whether CPU is running or held in RESET state
 
     x65_joystick_type_t joystick_type;
-    bool io_mapped;            // true when D000..DFFF has IO area mapped in
-    uint8_t kbd_joy1_mask;     // current joystick-1 state from keyboard-joystick emulation
-    uint8_t kbd_joy2_mask;     // current joystick-2 state from keyboard-joystick emulation
-    uint8_t joy_joy1_mask;     // current joystick-1 state from x65_joystick()
-    uint8_t joy_joy2_mask;     // current joystick-2 state from x65_joystick()
-    uint16_t vic_bank_select;  // upper 4 address bits from CIA-2 port A
+    bool io_mapped;         // true when D000..DFFF has IO area mapped in
+    uint8_t kbd_joy1_mask;  // current joystick-1 state from keyboard-joystick emulation
+    uint8_t kbd_joy2_mask;  // current joystick-2 state from keyboard-joystick emulation
+    uint8_t joy_joy1_mask;  // current joystick-1 state from x65_joystick()
+    uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
-    kbd_t kbd;      // keyboard matrix state
-    mem_t mem_cpu;  // CPU-visible memory mapping
-    mem_t mem_vic;  // VIC-visible memory mapping
+    kbd_t kbd;  // keyboard matrix state
+    mem_t mem;  // CPU-visible memory mapping
     bool valid;
     chips_debug_t debug;
 
@@ -350,10 +344,8 @@ typedef struct {
         float sample_buffer[X65_MAX_AUDIO_SAMPLES];
     } audio;
 
-    uint8_t color_ram[1024];   // special static color ram
-    uint8_t ram[1 << 16];      // general ram
-    uint8_t rom_char[0x1000];  // 4 KB character ROM image
-    alignas(64) uint8_t fb[M6569_FRAMEBUFFER_SIZE_BYTES];
+    uint8_t ram[1 << 16];  // general ram
+    alignas(64) uint8_t fb[CGIA_FRAMEBUFFER_SIZE_BYTES];
 } x65_t;
 
 // initialize a new X65 instance

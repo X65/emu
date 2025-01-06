@@ -26,11 +26,13 @@ add_subdirectory(src/common)
 
 include_directories(src/common)
 add_executable(emu
+    src/chips/cgia.c
     src/chips/ria816.c
     src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
     src/args.c
+    src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c

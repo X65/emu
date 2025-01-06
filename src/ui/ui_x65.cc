@@ -60,7 +60,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem("MOS 6526 #1 (CIA)", 0, &ui->cia[0].open);
             ImGui::MenuItem("MOS 6526 #2 (CIA)", 0, &ui->cia[1].open);
             ImGui::MenuItem("MOS 6581 (SID)", 0, &ui->sid.open);
-            ImGui::MenuItem("MOS 6569 (VIC-II)", 0, &ui->vic.open);
+            ImGui::MenuItem("CGIA", 0, &ui->cgia.open);
             ImGui::MenuItem("RIA UART", 0, &ui->ria_uart.open);
             ImGui::EndMenu();
         }
@@ -208,25 +208,11 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem_cpu, addr);
+        case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
-        case _UI_X65_MEMLAYER_ROM:
-            if ((addr >= 0xD000) && (addr < 0xE000)) {
-                /* Character ROM */
-                return x65->rom_char[addr - 0xD000];
-            }
-            else {
-                return 0xFF;
-            }
-        case _UI_X65_MEMLAYER_VIC: return mem_rd(&x65->mem_vic, addr);
-        case _UI_X65_MEMLAYER_COLOR:
-            if ((addr >= 0xD800) && (addr < 0xDC00)) {
-                /* static COLOR RAM */
-                return x65->color_ram[addr - 0xD800];
-            }
-            else {
-                return 0xFF;
-            }
+        case _UI_X65_MEMLAYER_ROM: return 0xFF;
+        case _UI_X65_MEMLAYER_VIC: return 0xFF;
+        case _UI_X65_MEMLAYER_COLOR: return 0xFF;
         default: return 0xFF;
     }
 }
@@ -236,21 +222,11 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem_cpu, addr, data); break;
+        case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
-        case _UI_X65_MEMLAYER_ROM:
-            if ((addr >= 0xD000) && (addr < 0xE000)) {
-                /* Character ROM */
-                x65->rom_char[addr - 0xD000] = data;
-            }
-            break;
-        case _UI_X65_MEMLAYER_VIC: mem_wr(&x65->mem_vic, addr, data); break;
-        case _UI_X65_MEMLAYER_COLOR:
-            if ((addr >= 0xD800) && (addr < 0xDC00)) {
-                /* static COLOR RAM */
-                x65->color_ram[addr - 0xD800] = data;
-            }
-            break;
+        case _UI_X65_MEMLAYER_ROM: break;
+        case _UI_X65_MEMLAYER_VIC: break;
+        case _UI_X65_MEMLAYER_COLOR: break;
     }
 }
 
@@ -273,7 +249,7 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
-    int scanline = x65->vic.rs.v_count;
+    int scanline = 0;  // x65->vic.rs.v_count;
     for (int i = 0; (i < dbg_win->dbg.num_breakpoints) && (trap_id == 0); i++) {
         const ui_dbg_breakpoint_t* bp = &dbg_win->dbg.breakpoints[i];
         if (bp->enabled) {
@@ -292,7 +268,7 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
                     break;
                 /* next badline */
                 case UI_DBG_BREAKTYPE_USER + 2:
-                    if ((ui->dbg_scanline != scanline) && x65->vic.rs.badline) {
+                    if ((ui->dbg_scanline != scanline) /*&& x65->vic.rs.badline*/) {
                         trap_id = UI_DBG_BP_BASE_TRAPID + i;
                     }
                     break;
@@ -438,34 +414,40 @@ static const ui_chip_pin_t _ui_x65_sid_pins[] = {
     { "RW", 14, M6581_RW }
 };
 
-static const ui_chip_pin_t _ui_x65_vic_pins[] = {
-    { "DB0", 0,  M6569_D0  },
-    { "DB1", 1,  M6569_D1  },
-    { "DB2", 2,  M6569_D2  },
-    { "DB3", 3,  M6569_D3  },
-    { "DB4", 4,  M6569_D4  },
-    { "DB5", 5,  M6569_D5  },
-    { "DB6", 6,  M6569_D6  },
-    { "DB7", 7,  M6569_D7  },
-    { "CS",  9,  M6569_CS  },
-    { "RW",  10, M6569_RW  },
-    { "IRQ", 11, M6569_IRQ },
-    { "BA",  12, M6569_BA  },
-    { "AEC", 13, M6569_AEC },
-    { "A0",  14, M6569_A0  },
-    { "A1",  15, M6569_A1  },
-    { "A2",  16, M6569_A2  },
-    { "A3",  17, M6569_A3  },
-    { "A4",  18, M6569_A4  },
-    { "A5",  19, M6569_A5  },
-    { "A6",  20, M6569_A6  },
-    { "A7",  21, M6569_A7  },
-    { "A8",  22, M6569_A8  },
-    { "A9",  23, M6569_A9  },
-    { "A10", 24, M6569_A10 },
-    { "A11", 25, M6569_A11 },
-    { "A12", 26, M6569_A12 },
-    { "A13", 27, M6569_A13 }
+static const ui_chip_pin_t _ui_x65_cgia_pins[] = {
+    { "D0",  0,  CGIA_D0     },
+    { "D1",  1,  CGIA_D1     },
+    { "D2",  2,  CGIA_D2     },
+    { "D3",  3,  CGIA_D3     },
+    { "D4",  4,  CGIA_D4     },
+    { "D5",  5,  CGIA_D5     },
+    { "D6",  6,  CGIA_D6     },
+    { "D7",  7,  CGIA_D7     },
+    { "A/G", 9,  CGIA_AG     },
+    { "A/S", 10, CGIA_AS     },
+    { "I/X", 11, CGIA_INTEXT },
+    { "INV", 12, CGIA_INV    },
+    { "CSS", 13, CGIA_CSS    },
+    { "GM0", 14, CGIA_GM0    },
+    { "GM1", 15, CGIA_GM0    },
+    { "GM2", 16, CGIA_GM0    },
+    { "GM3", 17, CGIA_GM0    },
+    { "A0",  18, CGIA_A0     },
+    { "A1",  19, CGIA_A1     },
+    { "A2",  20, CGIA_A2     },
+    { "A3",  21, CGIA_A3     },
+    { "A4",  22, CGIA_A4     },
+    { "A5",  23, CGIA_A5     },
+    { "A6",  24, CGIA_A6     },
+    { "A7",  25, CGIA_A7     },
+    { "A8",  26, CGIA_A8     },
+    { "A9",  27, CGIA_A9     },
+    { "A10", 28, CGIA_A10    },
+    { "A11", 29, CGIA_A11    },
+    { "A12", 30, CGIA_A12    },
+    { "FS",  32, CGIA_FS     },
+    { "HS",  33, CGIA_HS     },
+    { "RP",  34, CGIA_RP     }
 };
 
 void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
@@ -484,8 +466,8 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.y = y;
         desc.m6502 = &ui->x65->cpu;
         desc.freq_hz = X65_FREQUENCY;
-        desc.scanline_ticks = M6569_HTOTAL;
-        desc.frame_ticks = M6569_HTOTAL * M6569_VTOTAL;
+        desc.scanline_ticks = 128;  // M6569_HTOTAL;
+        desc.frame_ticks = 256;     // M6569_HTOTAL * M6569_VTOTAL;
         desc.read_cb = _ui_x65_mem_read;
         desc.break_cb = _ui_x65_eval_bp;
         desc.texture_cbs = ui_desc->dbg_texture;
@@ -555,13 +537,13 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
-        ui_m6569_desc_t desc = { 0 };
-        desc.title = "MOS 6569 (VIC-II)";
-        desc.vic = &ui->x65->vic;
+        ui_cgia_desc_t desc = { 0 };
+        desc.title = "CGIA";
+        desc.cgia = &ui->x65->cgia;
         desc.x = x;
         desc.y = y;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "6569", 28, _ui_x65_vic_pins);
-        ui_m6569_init(&ui->vic, &desc);
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "CGIA", 36, _ui_x65_cgia_pins);
+        ui_cgia_init(&ui->cgia, &desc);
     }
     x += dx;
     y += dy;
@@ -627,7 +609,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
         }
         desc.cpu_type = UI_DASM_CPUTYPE_M6502;
-        desc.start_addr = mem_rd16(&ui->x65->mem_cpu, 0xFFFC);
+        desc.start_addr = mem_rd16(&ui->x65->mem, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
         static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };
@@ -648,7 +630,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_m6526_discard(&ui->cia[0]);
     ui_m6526_discard(&ui->cia[1]);
     ui_m6581_discard(&ui->sid);
-    ui_m6569_discard(&ui->vic);
+    ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
     ui_kbd_discard(&ui->kbd);
     ui_audio_discard(&ui->audio);
@@ -678,7 +660,7 @@ void ui_x65_draw(ui_x65_t* ui) {
     ui_m6526_draw(&ui->cia[0]);
     ui_m6526_draw(&ui->cia[1]);
     ui_m6581_draw(&ui->sid);
-    ui_m6569_draw(&ui->vic);
+    ui_cgia_draw(&ui->cgia);
     ui_console_draw(&ui->ria_uart);
     ui_memmap_draw(&ui->memmap);
     for (int i = 0; i < 4; i++) {

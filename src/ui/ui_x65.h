@@ -64,11 +64,12 @@
 #include "ui/ui_kbd.h"
 #include "ui/ui_m6502.h"
 #include "ui/ui_m6526.h"
-#include "ui/ui_m6569.h"
+#include "ui/ui_cgia.h"
 #include "ui/ui_m6581.h"
 #include "ui/ui_memedit.h"
 #include "ui/ui_memmap.h"
 #include "ui/ui_snapshot.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -96,7 +97,7 @@ typedef struct {
     ui_m6502_t cpu;
     ui_m6526_t cia[2];
     ui_m6581_t sid;
-    ui_m6569_t vic;
+    ui_cgia_t cgia;
     ui_console_t ria_uart;
     ui_audio_t audio;
     ui_kbd_t kbd;
