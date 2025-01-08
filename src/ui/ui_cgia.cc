@@ -47,10 +47,10 @@ static void _ui_cgia_draw_hwcolors(ui_cgia_t* win) {
     }
     ImGui::Separator();
     ImGui::Text("Text Mode Colors:");
-    ImVec4 tm_green = ImColor(win->cgia->hwcolors[CGIA_HWCOLOR_ALNUM_GREEN]);
-    ImVec4 tm_dark_green = ImColor(win->cgia->hwcolors[CGIA_HWCOLOR_ALNUM_DARK_GREEN]);
-    ImVec4 tm_orange = ImColor(win->cgia->hwcolors[CGIA_HWCOLOR_ALNUM_ORANGE]);
-    ImVec4 tm_dark_orange = ImColor(win->cgia->hwcolors[CGIA_HWCOLOR_ALNUM_DARK_ORANGE]);
+    ImVec4 tm_green = ImColor(win->cgia->hwcolors[8]);
+    ImVec4 tm_dark_green = ImColor(win->cgia->hwcolors[9]);
+    ImVec4 tm_orange = ImColor(win->cgia->hwcolors[10]);
+    ImVec4 tm_dark_orange = ImColor(win->cgia->hwcolors[11]);
     ImGui::ColorButton("##tm_green", tm_green, ImGuiColorEditFlags_NoAlpha, size);
     ImGui::SameLine();
     ImGui::ColorButton("##tm_dark_green", tm_dark_green, ImGuiColorEditFlags_NoAlpha, size);
@@ -62,10 +62,9 @@ static void _ui_cgia_draw_hwcolors(ui_cgia_t* win) {
 
 static void _ui_cgia_draw_values(ui_cgia_t* win) {
     ImGui::Text("H Period:     %4d", win->cgia->h_period);
-    ImGui::Text("H Sync Start: %4d", win->cgia->h_sync_start);
-    ImGui::Text("H Sync End:   %4d", win->cgia->h_sync_end);
     ImGui::Text("H Counter:    %4d", win->cgia->h_count);
     ImGui::Text("Line Counter: %4d", win->cgia->l_count);
+    ImGui::Text("Active Line: %4d", win->cgia->active_line);
 }
 
 void ui_cgia_draw(ui_cgia_t* win) {

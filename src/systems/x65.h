@@ -253,9 +253,9 @@ extern "C" {
 // bump snapshot version when x65_t memory layout changes
 #define X65_SNAPSHOT_VERSION (1)
 
-#define X65_FREQUENCY             (985248)  // clock frequency in Hz
-#define X65_MAX_AUDIO_SAMPLES     (1024)    // max number of audio samples in internal sample buffer
-#define X65_DEFAULT_AUDIO_SAMPLES (128)     // default number of samples in internal sample buffer
+#define X65_FREQUENCY             (7159090)  // clock frequency in Hz
+#define X65_MAX_AUDIO_SAMPLES     (1024)     // max number of audio samples in internal sample buffer
+#define X65_DEFAULT_AUDIO_SAMPLES (128)      // default number of samples in internal sample buffer
 
 // X65 joystick types
 typedef enum {
@@ -302,8 +302,8 @@ typedef enum {
 
 // IO base addresses
 #define X65_IO_BASE        (0xFF00)
+#define X65_IO_CGIA_BASE   (0xFF00)
 #define X65_IO_YMF825_BASE (0xFF80)
-#define X65_IO_CGIA_BASE   (0xFFA0)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
 // config parameters for x65_init()

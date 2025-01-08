@@ -627,8 +627,8 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .frame_cb = app_frame,
         .event_cb = app_input,
         .cleanup_cb = app_cleanup,
-        .width = 2 * info.screen.width + BORDER_LEFT + BORDER_RIGHT,
-        .height = 2 * info.screen.height + BORDER_TOP + BORDER_BOTTOM,
+        .width = info.screen.width + BORDER_LEFT + BORDER_RIGHT,
+        .height = info.screen.height + BORDER_TOP + BORDER_BOTTOM,
         .window_title = app_name,
         .icon.images = {
             {

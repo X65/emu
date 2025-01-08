@@ -149,13 +149,13 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= X65_IO_CGIA_BASE) {
-                // CGIA (FFA0..FFBF)
-                cgia_pins |= CGIA_CS;
-            }
             else if (addr >= X65_IO_YMF825_BASE) {
                 // SD-1 (FF80..FF9F)
                 // sd1_pins |= YMF825_CS;
+            }
+            else if (addr >= X65_IO_CGIA_BASE) {
+                // CGIA (FF00..FF7F)
+                cgia_pins |= CGIA_CS;
             }
         }
         else {
@@ -598,7 +598,7 @@ chips_display_info_t x65_display_info(x65_t* sys) {
             }
         },
         .screen = {
-            .x = 0,
+            .x = CGIA_LINE_BUFFER_PADDING,
             .y = 0,
             .width = CGIA_DISPLAY_WIDTH,
             .height = CGIA_DISPLAY_HEIGHT,

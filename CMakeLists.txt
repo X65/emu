@@ -20,6 +20,7 @@ add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
 include_directories(ext/sokol/util)
+include_directories(ext)
 
 include_directories(src)
 add_subdirectory(src/common)
