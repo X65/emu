@@ -151,8 +151,8 @@ extern "C" {
 #define CGIA_HWCOLOR_NUM (CGIA_COLORS_NUM)
 
 // pixel width and height of entire visible area, including border
-#define CGIA_DISPLAY_WIDTH  (768)
-#define CGIA_DISPLAY_HEIGHT (480)
+#define CGIA_DISPLAY_WIDTH  MODE_H_ACTIVE_PIXELS
+#define CGIA_DISPLAY_HEIGHT MODE_V_ACTIVE_LINES
 
 // framebuffer width and height
 #define CGIA_LINE_BUFFER_PADDING    (-SCHAR_MIN)  // maximum scroll of signed 8 bit
