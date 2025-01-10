@@ -96,28 +96,29 @@ extern "C" {
 #define CGIA_PIN_CS (40) /* chip-select */
 
 // pin bit masks
-#define CGIA_A0 (1ULL << CGIA_PIN_A0)
-#define CGIA_A1 (1ULL << CGIA_PIN_A1)
-#define CGIA_A2 (1ULL << CGIA_PIN_A2)
-#define CGIA_A3 (1ULL << CGIA_PIN_A3)
-#define CGIA_A4 (1ULL << CGIA_PIN_A4)
-#define CGIA_A5 (1ULL << CGIA_PIN_A5)
-#define CGIA_A6 (1ULL << CGIA_PIN_A6)
-#define CGIA_D0 (1ULL << CGIA_PIN_D0)
-#define CGIA_D1 (1ULL << CGIA_PIN_D1)
-#define CGIA_D2 (1ULL << CGIA_PIN_D2)
-#define CGIA_D3 (1ULL << CGIA_PIN_D3)
-#define CGIA_D4 (1ULL << CGIA_PIN_D4)
-#define CGIA_D5 (1ULL << CGIA_PIN_D5)
-#define CGIA_D6 (1ULL << CGIA_PIN_D6)
-#define CGIA_D7 (1ULL << CGIA_PIN_D7)
-#define CGIA_RW (1ULL << CGIA_PIN_RW)
-#define CGIA_CS (1ULL << CGIA_PIN_CS)
+#define CGIA_A0      (1ULL << CGIA_PIN_A0)
+#define CGIA_A1      (1ULL << CGIA_PIN_A1)
+#define CGIA_A2      (1ULL << CGIA_PIN_A2)
+#define CGIA_A3      (1ULL << CGIA_PIN_A3)
+#define CGIA_A4      (1ULL << CGIA_PIN_A4)
+#define CGIA_A5      (1ULL << CGIA_PIN_A5)
+#define CGIA_A6      (1ULL << CGIA_PIN_A6)
+#define CGIA_D0      (1ULL << CGIA_PIN_D0)
+#define CGIA_D1      (1ULL << CGIA_PIN_D1)
+#define CGIA_D2      (1ULL << CGIA_PIN_D2)
+#define CGIA_D3      (1ULL << CGIA_PIN_D3)
+#define CGIA_D4      (1ULL << CGIA_PIN_D4)
+#define CGIA_D5      (1ULL << CGIA_PIN_D5)
+#define CGIA_D6      (1ULL << CGIA_PIN_D6)
+#define CGIA_D7      (1ULL << CGIA_PIN_D7)
+#define CGIA_DB_PINS (0xFF0000ULL)
+#define CGIA_RW      (1ULL << CGIA_PIN_RW)
+#define CGIA_CS      (1ULL << CGIA_PIN_CS)
 
 // helper macros to set and extract address and data to/from pin mask
 
 // extract 7-bit address bus from 64-bit pins
-#define CGIA_GET_ADDR(p) ((uint16_t)(p & 0x7FULL))
+#define CGIA_GET_ADDR(p) ((uint8_t)(p & 0x7FULL))
 // merge 7-bit address bus value into 64-bit pins
 #define CGIA_SET_ADDR(p, a) \
     { p = ((p & ~0x7FULL) | ((a) & 0x7FULL)); }
@@ -166,6 +167,9 @@ extern "C" {
 // a memory-fetch callback, used to read video memory bytes into the CGIA
 typedef uint64_t (*cgia_fetch_t)(uint64_t pins, void* user_data);
 
+// CGIA has 7 address lines
+#define CGIA_NUM_REGS (1U << 7)
+
 // the cgia setup parameters
 typedef struct {
     // the CPU tick rate in hz
@@ -182,6 +186,9 @@ typedef struct {
 typedef struct {
     // last pin state
     uint64_t pins;
+
+    // internal registers (memory mapped)
+    uint8_t reg[CGIA_NUM_REGS];
 
     // internal counters
     int h_count;

@@ -42,7 +42,7 @@ void cgia_reset(cgia_t* vpu) {
     vpu->l_count = 0;
 }
 
-uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
+static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
     // DVI pixel count
     vpu->h_count += CGIA_FIXEDPOINT_SCALE;
 
@@ -62,6 +62,33 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
                 vpu->l_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) / FB_V_REPEAT;
 
             cgia_render(vpu->active_line, (uint32_t*)(vpu->fb + (vpu->l_count * CGIA_FRAMEBUFFER_WIDTH)));
+        }
+    }
+
+    return pins;
+}
+
+#define CGIA_REG16(ADDR) (uint16_t)((uint16_t)(vpu->reg[ADDR]) | ((uint16_t)(vpu->reg[ADDR + 1]) << 8))
+
+static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
+    return vpu->reg[addr];
+}
+
+static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
+    vpu->reg[addr] = data;
+}
+
+uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
+    pins = _cgia_tick(vpu, pins);
+    if (pins & CGIA_CS) {
+        uint8_t addr = CGIA_GET_ADDR(pins);
+        if (pins & CGIA_RW) {
+            uint8_t data = _cgia_read(vpu, addr);
+            CGIA_SET_DATA(pins, data);
+        }
+        else {
+            uint8_t data = CGIA_GET_DATA(pins);
+            _cgia_write(vpu, addr, data);
         }
     }
     vpu->pins = pins;
@@ -143,11 +170,8 @@ static inline uint32_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
 uint8_t vram_cache[2][256 * 256];
 
 static inline uint32_t* fill_back(uint32_t* buf, uint32_t columns, uint32_t color_idx) {
-    // dma_channel_wait_for_finish_blocking(back_chan);
-    // dma_channel_set_write_addr(back_chan, buf, false);
-    // dma_channel_set_read_addr(back_chan, &cgia_rgb_palette[color_idx], false);
     const uint pixels = columns * CGIA_COLUMN_PX;
-    // dma_channel_set_trans_count(back_chan, pixels, true);
+    memset(buf, color_idx, pixels);
     return buf + pixels;
 }
 
