@@ -522,7 +522,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     y += dy;
     {
         ui_cgia_desc_t desc = { 0 };
-        desc.title = "CGIA";
+        desc.title = "CGIA - Color Graphic Interface Adaptor";
         desc.cgia = &ui->x65->cgia;
         desc.x = x;
         desc.y = y;

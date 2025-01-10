@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}/build",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "../roms/smon-x65.xex"],
+      "args": ["-i", "emu.ini", "../roms/carrion-One_Zak_And_His_Kracken.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]
