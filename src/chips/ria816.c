@@ -29,7 +29,7 @@ static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
     return pins;
 }
 
-#define RIA816_REG16(ADDR) (uint16_t)(c->reg[ADDR] | (c->reg[ADDR + 1] << 8))
+#define RIA816_REG16(ADDR) (uint16_t)((uint16_t)(c->reg[ADDR]) | ((uint16_t)(c->reg[ADDR + 1]) << 8))
 
 static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
@@ -44,8 +44,10 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         // division accelerator
         case RIA816_MATH_DIVAB:
         case RIA816_MATH_DIVAB + 1: {
-            uint16_t mul = RIA816_REG16(RIA816_MATH_OPERA) / RIA816_REG16(RIA816_MATH_OPERB);
-            data = (addr == RIA816_MATH_DIVAB) ? (mul & 0xFF) : (mul >> 8);
+            const int16_t oper_a = RIA816_REG16(RIA816_MATH_OPERA);
+            const uint16_t oper_b = RIA816_REG16(RIA816_MATH_OPERB);
+            uint16_t div = oper_b ? (oper_a / oper_b) : 0xFFFF;
+            data = (addr == RIA816_MATH_DIVAB) ? (div & 0xFF) : (div >> 8);
         } break;
 
         case RIA816_UART_READY: {
