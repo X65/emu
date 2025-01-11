@@ -9,7 +9,7 @@
                   +-----------+
             RW -->|           |--> A0
                   |           |...
-            CS -->|           |--> A6
+            CS -->|           |--> A23
                   |           |
                   |           |
                   |   CGIA    |
@@ -55,9 +55,7 @@ extern "C" {
 /*
     Pin definitions
 
-    The 7 address bus pins A0 to A6 are on the same location as the
-    first 7 CPU address bus pins.
-
+    The address bus pins are on the same location as the CPU address bus pins.
     The data bus pins are on the same location as the CPU's.
 
     The control pins start at location 40.
@@ -65,19 +63,32 @@ extern "C" {
     Pin 40 is chip-select.
     R/W is directly connected from M6502_RW.
 
-    CGIA uses back-channel to directly access RAM. Think dual-port memory.
-    In RP hardware it is implemented internally in software.
+    CGIA has its own 2*64kB of fast SRAM memory to generate video from.
+    It is used to mirror two banks of CPU RAM (bckgnd_bank and sprite_bank).
+    It is done when an internal bank register is changed, then if the bank
+    is not currently cached a DMA copy of 64kB is triggered from CPU memory.
+    Afterwards, CGIA monitors every memory write on data bus and updates local
+    VRAM caches accordingly.
 
 */
 
 // address bus pins
-#define CGIA_PIN_A0 (0)
-#define CGIA_PIN_A1 (1)
-#define CGIA_PIN_A2 (2)
-#define CGIA_PIN_A3 (3)
-#define CGIA_PIN_A4 (4)
-#define CGIA_PIN_A5 (5)
-#define CGIA_PIN_A6 (6)
+#define CGIA_PIN_A0  (0)
+#define CGIA_PIN_A1  (1)
+#define CGIA_PIN_A2  (2)
+#define CGIA_PIN_A3  (3)
+#define CGIA_PIN_A4  (4)
+#define CGIA_PIN_A5  (5)
+#define CGIA_PIN_A6  (6)
+#define CGIA_PIN_A7  (7)
+#define CGIA_PIN_A8  (8)
+#define CGIA_PIN_A9  (9)
+#define CGIA_PIN_A10 (10)
+#define CGIA_PIN_A11 (11)
+#define CGIA_PIN_A12 (12)
+#define CGIA_PIN_A13 (13)
+#define CGIA_PIN_A14 (14)
+#define CGIA_PIN_A15 (15)
 
 // data bus pins
 #define CGIA_PIN_D0 (16)
@@ -103,6 +114,15 @@ extern "C" {
 #define CGIA_A4      (1ULL << CGIA_PIN_A4)
 #define CGIA_A5      (1ULL << CGIA_PIN_A5)
 #define CGIA_A6      (1ULL << CGIA_PIN_A6)
+#define CGIA_A7      (1ULL << CGIA_PIN_A7)
+#define CGIA_A8      (1ULL << CGIA_PIN_A8)
+#define CGIA_A9      (1ULL << CGIA_PIN_A9)
+#define CGIA_A10     (1ULL << CGIA_PIN_A10)
+#define CGIA_A11     (1ULL << CGIA_PIN_A11)
+#define CGIA_A12     (1ULL << CGIA_PIN_A12)
+#define CGIA_A13     (1ULL << CGIA_PIN_A13)
+#define CGIA_A14     (1ULL << CGIA_PIN_A14)
+#define CGIA_A15     (1ULL << CGIA_PIN_A15)
 #define CGIA_D0      (1ULL << CGIA_PIN_D0)
 #define CGIA_D1      (1ULL << CGIA_PIN_D1)
 #define CGIA_D2      (1ULL << CGIA_PIN_D2)
@@ -117,11 +137,13 @@ extern "C" {
 
 // helper macros to set and extract address and data to/from pin mask
 
-// extract 7-bit address bus from 64-bit pins
-#define CGIA_GET_ADDR(p) ((uint8_t)(p & 0x7FULL))
-// merge 7-bit address bus value into 64-bit pins
+// extract 7-bit register address from 64-bit pins
+#define CGIA_GET_REG_ADDR(p) ((uint8_t)(p & 0x7FULL))
+// extract 16-bit address bus from 64-bit pins
+#define CGIA_GET_ADDR(p) ((uint16_t)(p & 0xFFFFULL))
+// merge 16-bit address bus value into 64-bit pins
 #define CGIA_SET_ADDR(p, a) \
-    { p = ((p & ~0x7FULL) | ((a) & 0x7FULL)); }
+    { p = ((p & ~0xFFFFULL) | ((a) & 0xFFFFULL)); }
 // extract 8-bit data bus from 64-bit pins
 #define CGIA_GET_DATA(p) ((uint8_t)(((p) & 0xFF0000ULL) >> 16))
 // merge 8-bit data bus value into 64-bit pins
@@ -151,15 +173,22 @@ extern "C" {
 // hardware color palette
 #define CGIA_HWCOLOR_NUM (CGIA_COLORS_NUM)
 
-// pixel width and height of entire visible area, including border
-#define CGIA_DISPLAY_WIDTH  MODE_H_ACTIVE_PIXELS
-#define CGIA_DISPLAY_HEIGHT MODE_V_ACTIVE_LINES
-
 // framebuffer width and height
-#define CGIA_LINE_BUFFER_PADDING    (-SCHAR_MIN)  // maximum scroll of signed 8 bit
-#define CGIA_FRAMEBUFFER_WIDTH      (CGIA_DISPLAY_WIDTH + 2 * CGIA_LINE_BUFFER_PADDING)
-#define CGIA_FRAMEBUFFER_HEIGHT     (CGIA_DISPLAY_HEIGHT)
+#define CGIA_FRAMEBUFFER_WIDTH      (MODE_H_ACTIVE_PIXELS)
+#define CGIA_FRAMEBUFFER_HEIGHT     (MODE_V_ACTIVE_LINES)
 #define CGIA_FRAMEBUFFER_SIZE_BYTES (CGIA_FRAMEBUFFER_WIDTH * CGIA_FRAMEBUFFER_HEIGHT)
+
+// linebuffer used to rasterize a line
+#define CGIA_LINEBUFFER_PADDING (-SCHAR_MIN)  // maximum scroll of signed 8 bit
+#define CGIA_LINEBUFFER_WIDTH   (CGIA_FRAMEBUFFER_WIDTH / FB_H_REPEAT + 2 * CGIA_LINEBUFFER_PADDING)
+
+// pixel width and height of entire visible area
+#define CGIA_DISPLAY_WIDTH  (MODE_H_ACTIVE_PIXELS)
+#define CGIA_DISPLAY_HEIGHT (MODE_V_ACTIVE_LINES)
+
+// rasterized pixel width and height of entire visible area
+#define CGIA_ACTIVE_WIDTH  (MODE_H_ACTIVE_PIXELS / FB_H_REPEAT)
+#define CGIA_ACTIVE_HEIGHT (MODE_V_ACTIVE_LINES / FB_V_REPEAT)
 
 // fixed point precision for more precise error accumulation
 #define CGIA_FIXEDPOINT_SCALE (256)
@@ -191,11 +220,11 @@ typedef struct {
     uint8_t reg[CGIA_NUM_REGS];
 
     // internal counters
-    int h_count;
-    int h_period;
-    int l_count;
+    uint h_count;
+    uint h_period;
+    uint l_count;
 
-    int active_line;
+    uint active_line;
 
     // the fetch callback function
     cgia_fetch_t fetch_cb;
@@ -205,18 +234,24 @@ typedef struct {
     uint8_t* fb;
     // hardware colors
     uint32_t* hwcolors;
+    // VRAM banks
+    uint8_t* vram[2];
+    // rasterizer linebuffer
+    uint32_t linebuffer[CGIA_LINEBUFFER_WIDTH];
 } cgia_t;
 
 // initialize a new cgia_t instance
-void cgia_init(cgia_t* vdg, const cgia_desc_t* desc);
+void cgia_init(cgia_t* vpu, const cgia_desc_t* desc);
 // reset a cgia_t instance
-void cgia_reset(cgia_t* vdg);
+void cgia_reset(cgia_t* vpu);
 // tick the cgia_t instance, this will call the fetch_cb and generate the image
-uint64_t cgia_tick(cgia_t* vdg, uint64_t pins);
+uint64_t cgia_tick(cgia_t* vpu, uint64_t pins);
 // prepare cgia_t snapshot for saving
 void cgia_snapshot_onsave(cgia_t* snapshot);
 // fixup cgia_t snapshot after loading
 void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
+// copy VRAM - after fastload
+void cgia_mirror_vram(cgia_t* vpu);
 
 #ifdef __cplusplus
 }  // extern "C"

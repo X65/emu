@@ -3,6 +3,7 @@
 #include "ui/ui_util.h"
 
 #include "imgui.h"
+#include <cmath>
 
 #ifndef __cplusplus
     #error "implementation must be compiled as C++"
@@ -57,10 +58,10 @@ static void _ui_cgia_draw_hwcolors(ui_cgia_t* win) {
 }
 
 static void _ui_cgia_draw_color(const ui_cgia_t* win, const char* label, uint8_t val) {
-    ImGui::Text("%s%X", label, val);
+    ImGui::Text("%s%02X", label, val);
     ImGui::SameLine();
     char desc_id[64];
-    sprintf(desc_id, "%d 0x%02X##regclr", val, val);
+    sprintf(desc_id, "%3d 0x%02X##regclr", val, val);
     ImGui::ColorButton(desc_id, ImColor(win->cgia->hwcolors[val]), ImGuiColorEditFlags_NoAlpha, ImVec2(12, 12));
 }
 
@@ -95,6 +96,7 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     const fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
     for (int i = 0; i < CGIA_PLANES; i++) {
+        ImGui::PushID(i);
         const bool plane_active = chip->planes & (1u << i);
         const bool plane_type_sprite = chip->planes & (0x10u << i);
         char label[64];
@@ -136,9 +138,9 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 // ImGui::Text("border: %d columns", chip->plane[i].regs.affine.border_columns);
                 // ImGui::Text("row_height: %d", chip->plane[i].regs.affine.row_height);
                 ui_util_b8("texture_bits: ", chip->plane[i].regs.affine.texture_bits);
-                ImGui::Text("width: %d", 2 ^ (chip->plane[i].regs.affine.texture_bits & 0x0F));
+                ImGui::Text("width: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits & 0x0F)));
                 ImGui::SameLine();
-                ImGui::Text("height: %d", 2 ^ (chip->plane[i].regs.affine.texture_bits >> 4));
+                ImGui::Text("height: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits >> 4)));
                 ImGui::Text("u: %d", chip->plane[i].regs.affine.u);
                 ImGui::SameLine();
                 ImGui::Text("v: %d", chip->plane[i].regs.affine.v);
@@ -150,6 +152,7 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 ImGui::Text("dy: %d", chip->plane[i].regs.affine.dy);
             }
         }
+        ImGui::PopID();
     }
 }
 

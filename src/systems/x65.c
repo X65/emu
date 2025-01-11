@@ -9,7 +9,7 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
-static uint64_t _x65_vdg_fetch(uint64_t pins, void* user_data);
+static uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data);
 static void _x65_update_memory_map(x65_t* sys);
 static void _x65_init_key_map(x65_t* sys);
 static void _x65_init_memory_map(x65_t* sys);
@@ -44,7 +44,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .ptr = &sys->fb,
             .size = sizeof(sys->fb),
         },
-        .fetch_cb = _x65_vdg_fetch,
+        .fetch_cb = _x65_vpu_fetch,
         .user_data = sys,
     });
     m6581_init(
@@ -102,6 +102,8 @@ void x65_set_running(x65_t* sys, bool running) {
         sys->ria.reg[RIA816_CPU_E_RESETB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB + 1);
         sys->ria.reg[RIA816_CPU_E_IRQB_BRK] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK);
         sys->ria.reg[RIA816_CPU_E_IRQB_BRK + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK + 1);
+        // and CGIA VRAM
+        cgia_mirror_vram(&sys->cgia);
     }
 }
 
@@ -285,10 +287,10 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     return pins;
 }
 
-uint64_t _x65_vdg_fetch(uint64_t pins, void* user_data) {
+uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
     x65_t* sys = (x65_t*)user_data;
     const uint16_t addr = CGIA_GET_ADDR(pins);
-    uint8_t data = sys->ram[(addr + 0x8000) & 0xFFFF];
+    uint8_t data = sys->ram[addr];
     CGIA_SET_DATA(pins, data);
     return pins;
 }
@@ -598,7 +600,7 @@ chips_display_info_t x65_display_info(x65_t* sys) {
             }
         },
         .screen = {
-            .x = CGIA_LINE_BUFFER_PADDING,
+            .x = 0,
             .y = 0,
             .width = CGIA_DISPLAY_WIDTH,
             .height = CGIA_DISPLAY_HEIGHT,

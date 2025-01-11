@@ -5,6 +5,7 @@
 #include "firmware/src/ria/cgia/cgia.h"
 #undef cgia_init
 
+#include <stdio.h>
 #include <string.h>
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -15,9 +16,13 @@
 #define _CGIA_RGBA(r, g, b) \
     (0xFF000000 | _CGIA_CLAMP((r * 4) / 3) | (_CGIA_CLAMP((g * 4) / 3) << 8) | (_CGIA_CLAMP((b * 4) / 3) << 16))
 
+// used to access regs from firmware render function which expects global symbol
+static cgia_t* CGIA_vpu;
+static uint8_t vram_cache[2][256 * 256];
+
 void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CHIPS_ASSERT(vpu && desc);
-    CHIPS_ASSERT(desc->framebuffer.ptr && (desc->framebuffer.size <= CGIA_FRAMEBUFFER_SIZE_BYTES));
+    CHIPS_ASSERT(desc->framebuffer.ptr && (desc->framebuffer.size == CGIA_FRAMEBUFFER_SIZE_BYTES));
     CHIPS_ASSERT(desc->fetch_cb);
     CHIPS_ASSERT((desc->tick_hz > 0) && (desc->tick_hz < (MODE_BIT_CLK_KHZ * 1000)));
 
@@ -34,12 +39,18 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     vpu->h_period = (int)tmp;
 
     vpu->hwcolors = cgia_rgb_palette;
+
+    vpu->vram[0] = vram_cache[0];
+    vpu->vram[1] = vram_cache[1];
+
+    CGIA_vpu = vpu;
 }
 
 void cgia_reset(cgia_t* vpu) {
     CHIPS_ASSERT(vpu);
     vpu->h_count = 0;
     vpu->l_count = 0;
+    CGIA_vpu = NULL;
 }
 
 static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
@@ -57,11 +68,22 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             // trigger_vbl = true;
         }
 
-        if (vpu->l_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
-            vpu->active_line =
-                vpu->l_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) / FB_V_REPEAT;
+        uint32_t* src = vpu->linebuffer + CGIA_LINEBUFFER_PADDING;
 
-            cgia_render(vpu->active_line, (uint32_t*)(vpu->fb + (vpu->l_count * CGIA_FRAMEBUFFER_WIDTH)));
+        if (vpu->l_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
+            vpu->active_line = vpu->l_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
+
+            if (vpu->active_line % FB_V_REPEAT == 0) {
+                // rasterize new line
+                cgia_render(vpu->active_line / FB_V_REPEAT, src);
+            }
+        }
+
+        uint8_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
+        for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
+            for (uint r = 0; r < FB_H_REPEAT; ++r) {
+                *dst++ = *src & 0xFF;
+            }
         }
     }
 
@@ -91,6 +113,9 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
             _cgia_write(vpu, addr, data);
         }
     }
+
+    cgia_task();
+
     vpu->pins = pins;
     return pins;
 }
@@ -167,32 +192,39 @@ static inline uint32_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
 
 #define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
 #define FRAME_HEIGHT CGIA_DISPLAY_HEIGHT
-uint8_t vram_cache[2][256 * 256];
 
-static inline uint32_t* fill_back(uint32_t* buf, uint32_t columns, uint32_t color_idx) {
-    const uint pixels = columns * CGIA_COLUMN_PX;
-    memset(buf, color_idx, pixels);
-    return buf + pixels;
+static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t color_idx) {
+    uint pixels = columns * CGIA_COLUMN_PX;
+    while (pixels) {
+        *rgbbuf++ = color_idx;
+        --pixels;
+    }
+    return rgbbuf;
 }
 
 #include "firmware/src/ria/cgia/cgia_encode.h"
 
 uint32_t*
 cgia_encode_mode_2_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
+    printf("cgia_encode_mode_2_shared\n");
     return rgbbuf;
 }
 uint32_t*
 cgia_encode_mode_2_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
+    printf("cgia_encode_mode_2_mapped\n");
     return rgbbuf;
 }
 uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
+    printf("cgia_encode_vt\n");
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
+    printf("cgia_encode_mode_3_shared\n");
     return rgbbuf;
 }
 uint32_t* cgia_encode_mode_3_mapped(uint32_t* rgbbuf, uint32_t columns) {
+    printf("cgia_encode_mode_3_mapped\n");
     return rgbbuf;
 }
 
@@ -202,6 +234,7 @@ uint32_t* cgia_encode_mode_4_shared(
     uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_4_shared\n");
     return rgbbuf;
 }
 
@@ -211,6 +244,7 @@ uint32_t* cgia_encode_mode_4_mapped(
     uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_4_mapped\n");
     return rgbbuf;
 }
 
@@ -220,6 +254,7 @@ uint32_t* cgia_encode_mode_4_doubled_shared(
     uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_4_doubled_shared\n");
     return rgbbuf;
 }
 
@@ -229,29 +264,64 @@ uint32_t* cgia_encode_mode_4_doubled_mapped(
     uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_4_doubled_mapped\n");
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_5_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_5_shared\n");
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_5_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_5_mapped\n");
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_5_doubled_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_5_doubled_shared\n");
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    printf("cgia_encode_mode_5_doubled_mapped %p %d\n", rgbbuf, columns);
+    uint pixels = columns * CGIA_COLUMN_PX;
+    uint8_t color = 0;
+    while (pixels) {
+        *rgbbuf++ = color;
+        --pixels;
+        *rgbbuf++ = color;
+        --pixels;
+        ++color;
+    }
     return rgbbuf;
 }
 
 uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
+    printf("cgia_encode_mode_7\n");
     return rgbbuf;
 }
 
-void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_data, uint32_t width) {}
+void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_data, uint32_t width) {
+    printf("cgia_encode_sprite\n");
+}
 
+#define CGIA (*((struct cgia_t*)CGIA_vpu->reg))
 #include "firmware/src/ria/cgia/cgia.c"
+
+static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
+    for (size_t i = 0; i < 256 * 256; ++i) {
+        uint64_t pins = vpu->fetch_cb((vram_wanted_bank_mask[bank] | i), vpu->user_data);
+        vram_cache[bank][i] = CGIA_GET_DATA(pins);
+    }
+}
+static void _cgia_transfer_vcache_bank(uint8_t bank) {
+    assert(CGIA_vpu);
+    if (vram_wanted_bank_mask[bank] != vram_cache_bank_mask[bank]) {
+        _cgia_copy_vcache_bank(CGIA_vpu, bank);
+    }
+}
+void cgia_mirror_vram(cgia_t* vpu) {
+    _cgia_copy_vcache_bank(vpu, 0);
+    _cgia_copy_vcache_bank(vpu, 1);
+}

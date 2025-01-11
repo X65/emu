@@ -195,13 +195,13 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 #define _UI_X65_MEMLAYER_RAM (1) /* RAM blocks */
 #define _UI_X65_MEMLAYER_ROM (2) /* ROM blocks */
 // #define _UI_X65_MEMLAYER_1541   (3)     /* optional 1541 floppy drive */
-#define _UI_X65_MEMLAYER_VIC   (4) /* VIC visible mapping */
-#define _UI_X65_MEMLAYER_COLOR (5) /* special static color RAM */
+#define _UI_X65_MEMLAYER_VRAM0 (4) /* CGIA VRAM bank 0 */
+#define _UI_X65_MEMLAYER_VRAM1 (5) /* CGIA VRAM bank 1 */
 #define _UI_X65_CODELAYER_NUM  (4) /* number of valid layers for disassembler */
 #define _UI_X65_MEMLAYER_NUM   (6)
 
-static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = { "CPU Mapped",  "RAM Banks",  "ROM Banks",
-                                                                    "1541 Floppy", "VIC Mapped", "Color RAM" };
+static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = { "CPU Mapped",  "RAM Banks",       "ROM Banks",
+                                                                    "1541 Floppy", "Background Bank", "Sprite Bank" };
 
 static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     CHIPS_ASSERT(user_data);
@@ -211,8 +211,8 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
         case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
         case _UI_X65_MEMLAYER_ROM: return 0xFF;
-        case _UI_X65_MEMLAYER_VIC: return 0xFF;
-        case _UI_X65_MEMLAYER_COLOR: return 0xFF;
+        case _UI_X65_MEMLAYER_VRAM0: return x65->cgia.vram[0][addr];
+        case _UI_X65_MEMLAYER_VRAM1: return x65->cgia.vram[1][addr];
         default: return 0xFF;
     }
 }
@@ -225,8 +225,8 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
         case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
         case _UI_X65_MEMLAYER_ROM: break;
-        case _UI_X65_MEMLAYER_VIC: break;
-        case _UI_X65_MEMLAYER_COLOR: break;
+        case _UI_X65_MEMLAYER_VRAM0: x65->cgia.vram[0][addr] = data; break;
+        case _UI_X65_MEMLAYER_VRAM1: x65->cgia.vram[1][addr] = data; break;
     }
 }
 
