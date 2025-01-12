@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #ifndef CHIPS_ASSERT
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)
@@ -141,10 +142,15 @@ void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* vpu) {
 #define __not_in_flash_func(f) f
 #define dma_channel_wait_for_finish_blocking(ch)
 
+typedef enum {
+    INTERP_DEFAULT,
+    INTERP_MODE7,
+} interp_mode_t;
+
 typedef struct {
-    uint32_t accum[2];
-    uint32_t base[3];
-    uint32_t ctrl[2];
+    uintptr_t accum[2];
+    uintptr_t base[3];
+    interp_mode_t mode;
 } interp_hw_t;
 
 static interp_hw_t interp_hw_array[2];
@@ -152,9 +158,9 @@ static interp_hw_t interp_hw_array[2];
 #define interp1 (&interp_hw_array[1])
 
 typedef struct {
-    uint32_t accum[2];
-    uint32_t base[3];
-    uint32_t ctrl[2];
+    uintptr_t accum[2];
+    uintptr_t base[3];
+    interp_mode_t mode;
 } interp_hw_save_t;
 
 void interp_save(interp_hw_t* interp, interp_hw_save_t* saver) {
@@ -163,8 +169,7 @@ void interp_save(interp_hw_t* interp, interp_hw_save_t* saver) {
     saver->base[0] = interp->base[0];
     saver->base[1] = interp->base[1];
     saver->base[2] = interp->base[2];
-    saver->ctrl[0] = interp->ctrl[0];
-    saver->ctrl[1] = interp->ctrl[1];
+    saver->mode = interp->mode;
 }
 
 void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
@@ -173,21 +178,40 @@ void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
     interp->base[0] = saver->base[0];
     interp->base[1] = saver->base[1];
     interp->base[2] = saver->base[2];
-    interp->ctrl[0] = saver->ctrl[0];
-    interp->ctrl[1] = saver->ctrl[1];
+    interp->mode = saver->mode;
 }
 
-static inline void set_default_interp_config() {}
+static inline void set_default_interp_config() {
+    interp0->mode = INTERP_DEFAULT;
+    interp0->base[0] = 1;
+    interp0->base[1] = 1;
+    interp1->mode = INTERP_DEFAULT;
+    interp1->base[0] = 1;
+    interp1->base[1] = 1;
+}
 static inline void set_interp_scans(
     uint8_t row_height,
     const uint8_t* memory_scan,
     const uint8_t* colour_scan,
-    const uint8_t* backgr_scan) {}
+    const uint8_t* backgr_scan) {
+    interp0->base[0] = row_height;
+    interp0->accum[0] = (uintptr_t)memory_scan;
+    interp1->accum[0] = (uintptr_t)colour_scan;
+    interp1->accum[1] = (uintptr_t)backgr_scan;
+}
 static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {}
 static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_scan) {}
 
-static inline uint32_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
+static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
     return interp->accum[lane];
+}
+static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
+    interp->accum[0] += interp0->base[0];
+    interp->accum[1] += interp0->base[1];
+    return interp->accum[lane];
+}
+static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) {
+    return interp->accum[lane] + interp0->base[lane];
 }
 
 #define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
@@ -284,16 +308,38 @@ uint32_t* cgia_encode_mode_5_doubled_shared(uint32_t* rgbbuf, uint32_t columns, 
 }
 
 uint32_t* cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    printf("cgia_encode_mode_5_doubled_mapped %p %d\n", rgbbuf, columns);
-    uint pixels = columns * CGIA_COLUMN_PX;
-    uint8_t color = 0;
-    while (pixels) {
-        *rgbbuf++ = color;
-        --pixels;
-        *rgbbuf++ = color;
-        --pixels;
-        ++color;
+    while (columns) {
+        uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
+        uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
+        uintptr_t fg_cl_addr = interp_pop_lane_result(interp1, 0);
+        uint8_t fg_cl = *((uint8_t*)fg_cl_addr);
+        uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
+        uint8_t bits = *((uint8_t*)bits_addr);
+        for (int shift = 6; shift >= 0; shift -= 2) {
+            uint color_no = (bits >> shift) & 0b11;
+            switch (color_no) {
+                case 0b00:
+                    *rgbbuf++ = shared_colors[0];
+                    *rgbbuf++ = shared_colors[0];
+                    break;
+                case 0b01:
+                    *rgbbuf++ = bg_cl;
+                    *rgbbuf++ = bg_cl;
+                    break;
+                case 0b10:
+                    *rgbbuf++ = fg_cl;
+                    *rgbbuf++ = fg_cl;
+                    break;
+                case 0b11:
+                    *rgbbuf++ = shared_colors[1];
+                    *rgbbuf++ = shared_colors[1];
+                    break;
+                default: abort();
+            }
+        }
+        --columns;
     }
+
     return rgbbuf;
 }
 
