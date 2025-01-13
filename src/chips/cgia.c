@@ -206,12 +206,12 @@ static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
     return interp->accum[lane];
 }
 static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
-    interp->accum[0] += interp0->base[0];
-    interp->accum[1] += interp0->base[1];
+    interp->accum[0] += interp->base[0];
+    interp->accum[1] += interp->base[1];
     return interp->accum[lane];
 }
 static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) {
-    return interp->accum[lane] + interp0->base[lane];
+    return interp->accum[lane] + interp->base[lane];
 }
 
 #define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
@@ -242,13 +242,40 @@ uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_
     abort();
 }
 
-inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
-    printf("cgia_encode_mode_3_shared\n");
+uint32_t* cgia_encode_mode_3(uint32_t* rgbbuf, uint32_t columns, bool mapped) {
+    while (columns) {
+        uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
+        uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
+        uintptr_t fg_cl_addr = interp_pop_lane_result(interp1, 0);
+        uint8_t fg_cl = *((uint8_t*)fg_cl_addr);
+        uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
+        uint8_t bits = *((uint8_t*)bits_addr);
+        for (int shift = 7; shift >= 0; shift--) {
+            uint bit_set = (bits >> shift) & 0b1;
+            if (bit_set) {
+                *rgbbuf++ = fg_cl;
+            }
+            else {
+                if (mapped) {
+                    *rgbbuf++ = bg_cl;
+                }
+                else {
+                    rgbbuf++;  // transparent pixel
+                }
+            }
+        }
+        --columns;
+    }
+
     return rgbbuf;
 }
+
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
+    return cgia_encode_mode_3(rgbbuf, columns, false);
+}
+
 inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_mapped(uint32_t* rgbbuf, uint32_t columns) {
-    printf("cgia_encode_mode_3_mapped\n");
-    return rgbbuf;
+    return cgia_encode_mode_3(rgbbuf, columns, true);
 }
 
 inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_4_shared(
