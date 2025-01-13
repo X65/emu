@@ -151,6 +151,8 @@ typedef struct {
     uintptr_t accum[2];
     uintptr_t base[3];
     interp_mode_t mode;
+    uint8_t shift[2];
+    uint32_t mask[2];
 } interp_hw_t;
 
 static interp_hw_t interp_hw_array[2];
@@ -161,6 +163,8 @@ typedef struct {
     uintptr_t accum[2];
     uintptr_t base[3];
     interp_mode_t mode;
+    uint8_t shift[2];
+    uint32_t mask[2];
 } interp_hw_save_t;
 
 void interp_save(interp_hw_t* interp, interp_hw_save_t* saver) {
@@ -170,6 +174,10 @@ void interp_save(interp_hw_t* interp, interp_hw_save_t* saver) {
     saver->base[1] = interp->base[1];
     saver->base[2] = interp->base[2];
     saver->mode = interp->mode;
+    saver->shift[0] = interp->shift[0];
+    saver->shift[1] = interp->shift[1];
+    saver->mask[0] = interp->mask[0];
+    saver->mask[1] = interp->mask[1];
 }
 
 void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
@@ -179,6 +187,33 @@ void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
     interp->base[1] = saver->base[1];
     interp->base[2] = saver->base[2];
     interp->mode = saver->mode;
+    interp->shift[0] = saver->shift[0];
+    interp->shift[1] = saver->shift[1];
+    interp->mask[0] = saver->mask[0];
+    interp->mask[1] = saver->mask[1];
+}
+
+static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
+    return interp->accum[lane];
+}
+static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
+    assert(lane < 3);
+    // compute masked values
+    uint32_t lane0 = ((uint32_t)(interp->accum[0]) >> interp->shift[0]) & interp->mask[0];
+    uint32_t lane1 = ((uint32_t)(interp->accum[1]) >> interp->shift[1]) & interp->mask[1];
+    // advance to next state
+    interp->accum[0] += interp->base[0];
+    interp->accum[1] += interp->base[1];
+
+    if (lane == 2) {
+        return interp->base[2] + (uint32_t)(lane0 + lane1);
+    }
+
+    return interp->accum[lane];
+}
+static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) {
+    assert(lane < 2);
+    return interp->accum[lane] + interp->base[lane];
 }
 
 static inline void set_default_interp_config() {
@@ -199,19 +234,39 @@ static inline void set_interp_scans(
     interp1->accum[0] = (uintptr_t)colour_scan;
     interp1->accum[1] = (uintptr_t)backgr_scan;
 }
-static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {}
-static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_scan) {}
+static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {
+    interp0->mode = INTERP_MODE7;
+    interp1->mode = INTERP_MODE7;
 
-static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
-    return interp->accum[lane];
+    // interp0 will scan texture row
+    const uint texture_width_bits = plane->regs.affine.texture_bits & 0b0111;
+    interp0->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
+    interp0->mask[0] = (1U << (texture_width_bits)) - 1;
+    const uint texture_height_bits = (plane->regs.affine.texture_bits >> 4) & 0b0111;
+    interp0->shift[1] = CGIA_AFFINE_FRACTIONAL_BITS - texture_width_bits;
+    interp0->mask[1] = ((1U << (texture_height_bits)) - 1) << texture_width_bits;
+
+    // interp1 will scan row begin address
+    interp1->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
+    interp1->mask[0] = (1U << (texture_width_bits)) - 1;
+    interp1->shift[1] = 0;
+    interp1->mask[1] = ((1U << (texture_height_bits)) - 1) << CGIA_AFFINE_FRACTIONAL_BITS;
+
+    // start texture rows scan
+    interp1->accum[0] = plane->regs.affine.u;
+    interp1->base[0] = plane->regs.affine.dx;
+    interp1->accum[1] = plane->regs.affine.v;
+    interp1->base[1] = plane->regs.affine.dy;
+    interp1->base[2] = 0;
 }
-static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
-    interp->accum[0] += interp->base[0];
-    interp->accum[1] += interp->base[1];
-    return interp->accum[lane];
-}
-static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) {
-    return interp->accum[lane] + interp->base[lane];
+static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_scan) {
+    interp0->base[2] = (uintptr_t)memory_scan;
+    const uint32_t xy = (uint32_t)interp_pop_lane_result(interp1, 2);
+    // start texture columns scan
+    interp0->accum[0] = (xy & 0x00FF) << CGIA_AFFINE_FRACTIONAL_BITS;
+    interp0->base[0] = plane->regs.affine.du;
+    interp0->accum[1] = (xy & 0xFF00);
+    interp0->base[1] = plane->regs.affine.dv;
 }
 
 #define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
@@ -380,8 +435,17 @@ cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t sh
     return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, true);
 }
 
-inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
-    printf("cgia_encode_mode_7\n");
+uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
+    while (columns) {
+        for (int p = 0; p < 8; ++p) {
+            uintptr_t cl_addr = interp_pop_lane_result(interp0, 2);
+            assert(cl_addr >= (uintptr_t)vram_cache[0]);
+            assert(cl_addr < (uintptr_t)vram_cache[2]);
+            *rgbbuf++ = *((uint8_t*)cl_addr);
+        }
+        --columns;
+    }
+
     return rgbbuf;
 }
 

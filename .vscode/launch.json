@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}/build",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "../roms/veto-the_mill.xex"],
+      "args": ["-i", "emu.ini", "../roms/affine-mascot.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]
