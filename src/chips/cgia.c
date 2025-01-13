@@ -228,31 +228,30 @@ static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t c
 
 #include "firmware/src/ria/cgia/cgia_encode.h"
 
-uint32_t*
+inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_2_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
     printf("cgia_encode_mode_2_shared\n");
     return rgbbuf;
 }
-uint32_t*
+inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_2_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
     printf("cgia_encode_mode_2_mapped\n");
     return rgbbuf;
 }
 uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
-    printf("cgia_encode_vt\n");
-    return rgbbuf;
+    abort();
 }
 
-uint32_t* cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
     printf("cgia_encode_mode_3_shared\n");
     return rgbbuf;
 }
-uint32_t* cgia_encode_mode_3_mapped(uint32_t* rgbbuf, uint32_t columns) {
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_mapped(uint32_t* rgbbuf, uint32_t columns) {
     printf("cgia_encode_mode_3_mapped\n");
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_4_shared(
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_4_shared(
     uint32_t* rgbbuf,
     uint32_t columns,
     uint8_t* character_generator,
@@ -262,7 +261,7 @@ uint32_t* cgia_encode_mode_4_shared(
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_4_mapped(
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_4_mapped(
     uint32_t* rgbbuf,
     uint32_t columns,
     uint8_t* character_generator,
@@ -272,7 +271,7 @@ uint32_t* cgia_encode_mode_4_mapped(
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_4_doubled_shared(
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_4_doubled_shared(
     uint32_t* rgbbuf,
     uint32_t columns,
     uint8_t* character_generator,
@@ -282,7 +281,7 @@ uint32_t* cgia_encode_mode_4_doubled_shared(
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_4_doubled_mapped(
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_4_doubled_mapped(
     uint32_t* rgbbuf,
     uint32_t columns,
     uint8_t* character_generator,
@@ -292,22 +291,7 @@ uint32_t* cgia_encode_mode_4_doubled_mapped(
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_5_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    printf("cgia_encode_mode_5_shared\n");
-    return rgbbuf;
-}
-
-uint32_t* cgia_encode_mode_5_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    printf("cgia_encode_mode_5_mapped\n");
-    return rgbbuf;
-}
-
-uint32_t* cgia_encode_mode_5_doubled_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    printf("cgia_encode_mode_5_doubled_shared\n");
-    return rgbbuf;
-}
-
-uint32_t* cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2], bool doubled, bool mapped) {
     while (columns) {
         uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
         uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
@@ -319,20 +303,26 @@ uint32_t* cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, 
             uint color_no = (bits >> shift) & 0b11;
             switch (color_no) {
                 case 0b00:
-                    *rgbbuf++ = shared_colors[0];
-                    *rgbbuf++ = shared_colors[0];
+                    if (mapped) {
+                        *rgbbuf++ = shared_colors[0];
+                        if (doubled) *rgbbuf++ = shared_colors[0];
+                    }
+                    else {
+                        rgbbuf++;  // transparent pixel
+                        if (doubled) rgbbuf++;
+                    }
                     break;
                 case 0b01:
                     *rgbbuf++ = bg_cl;
-                    *rgbbuf++ = bg_cl;
+                    if (doubled) *rgbbuf++ = bg_cl;
                     break;
                 case 0b10:
                     *rgbbuf++ = fg_cl;
-                    *rgbbuf++ = fg_cl;
+                    if (doubled) *rgbbuf++ = fg_cl;
                     break;
                 case 0b11:
                     *rgbbuf++ = shared_colors[1];
-                    *rgbbuf++ = shared_colors[1];
+                    if (doubled) *rgbbuf++ = shared_colors[1];
                     break;
                 default: abort();
             }
@@ -343,7 +333,27 @@ uint32_t* cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, 
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_5_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, false, false);
+}
+
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_5_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, false, true);
+}
+
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_5_doubled_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, false);
+}
+
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
+    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, true);
+}
+
+inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
     printf("cgia_encode_mode_7\n");
     return rgbbuf;
 }
