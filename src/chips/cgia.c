@@ -282,15 +282,43 @@ static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t c
 
 #include "firmware/src/ria/cgia/cgia_encode.h"
 
+uint32_t*
+cgia_encode_mode_2(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift, bool mapped) {
+    while (columns) {
+        uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
+        uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
+        uintptr_t fg_cl_addr = interp_pop_lane_result(interp1, 0);
+        uint8_t fg_cl = *((uint8_t*)fg_cl_addr);
+        uintptr_t chr_addr = interp_pop_lane_result(interp0, 0);
+        uint8_t chr = *((uint8_t*)chr_addr);
+        uint8_t bits = character_generator[chr << char_shift];
+        for (int shift = 7; shift >= 0; shift--) {
+            uint bit_set = (bits >> shift) & 0b1;
+            if (bit_set) {
+                *rgbbuf++ = fg_cl;
+            }
+            else {
+                if (mapped) {
+                    *rgbbuf++ = bg_cl;
+                }
+                else {
+                    rgbbuf++;  // transparent pixel
+                }
+            }
+        }
+        --columns;
+    }
+
+    return rgbbuf;
+}
+
 inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_2_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
-    printf("cgia_encode_mode_2_shared\n");
-    return rgbbuf;
+    return cgia_encode_mode_2(rgbbuf, columns, character_generator, char_shift, false);
 }
 inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_2_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
-    printf("cgia_encode_mode_2_mapped\n");
-    return rgbbuf;
+    return cgia_encode_mode_2(rgbbuf, columns, character_generator, char_shift, true);
 }
 uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
     abort();

@@ -110,9 +110,9 @@ static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
             ImGui::Text(
                 "LOAD : %s%s%s%s",
                 dl_instr & 0b00010000 ? "LMS " : "",
-                dl_instr & 0b00100000 ? "CLS " : "",
-                dl_instr & 0b01000000 ? "BGS " : "",
-                dl_instr & 0b10000000 ? "CHR " : "");
+                dl_instr & 0b00100000 ? "LFS " : "",
+                dl_instr & 0b01000000 ? "LBS " : "",
+                dl_instr & 0b10000000 ? "LCG " : "");
             break;
         case 0x4:  // Set 8-bit register
             ImGui::Text("REG8 : %02x = %02x (%3d)", (dl_instr & 0b01110000), *(ptr + 1), *(ptr + 1));
@@ -194,7 +194,7 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 ui_util_b8("flags: ", chip->plane[i].regs.bckgnd.flags);
                 _ui_cgia_decode_BG_flags(chip->plane[i].regs.bckgnd.flags);
                 ImGui::Text("border: %d columns", chip->plane[i].regs.bckgnd.border_columns);
-                ImGui::Text("row_height: %d", chip->plane[i].regs.bckgnd.row_height);
+                ImGui::Text("row_height: %d", chip->plane[i].regs.bckgnd.row_height + 1);
                 ImGui::Separator();
                 ImGui::Text("stride: %d", chip->plane[i].regs.bckgnd.stride);
                 _ui_cgia_draw_color(win, "shared_colors: ", chip->plane[i].regs.bckgnd.shared_color[0]);
