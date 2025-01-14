@@ -45,6 +45,8 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     vpu->vram[1] = vram_cache[1];
 
     CGIA_vpu = vpu;
+
+    fwcgia_init();
 }
 
 void cgia_reset(cgia_t* vpu) {
@@ -150,7 +152,6 @@ typedef enum {
 typedef struct {
     uintptr_t accum[2];
     uintptr_t base[3];
-    interp_mode_t mode;
     uint8_t shift[2];
     uint32_t mask[2];
 } interp_hw_t;
@@ -162,7 +163,6 @@ static interp_hw_t interp_hw_array[2];
 typedef struct {
     uintptr_t accum[2];
     uintptr_t base[3];
-    interp_mode_t mode;
     uint8_t shift[2];
     uint32_t mask[2];
 } interp_hw_save_t;
@@ -173,7 +173,6 @@ void interp_save(interp_hw_t* interp, interp_hw_save_t* saver) {
     saver->base[0] = interp->base[0];
     saver->base[1] = interp->base[1];
     saver->base[2] = interp->base[2];
-    saver->mode = interp->mode;
     saver->shift[0] = interp->shift[0];
     saver->shift[1] = interp->shift[1];
     saver->mask[0] = interp->mask[0];
@@ -186,7 +185,6 @@ void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
     interp->base[0] = saver->base[0];
     interp->base[1] = saver->base[1];
     interp->base[2] = saver->base[2];
-    interp->mode = saver->mode;
     interp->shift[0] = saver->shift[0];
     interp->shift[1] = saver->shift[1];
     interp->mask[0] = saver->mask[0];
@@ -216,28 +214,26 @@ static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) 
     return interp->accum[lane] + interp->base[lane];
 }
 
-static inline void set_default_interp_config() {
-    interp0->mode = INTERP_DEFAULT;
-    interp0->base[0] = 1;
-    interp0->base[1] = 1;
-    interp1->mode = INTERP_DEFAULT;
-    interp1->base[0] = 1;
-    interp1->base[1] = 1;
-}
-static inline void set_interp_scans(
+static inline void set_linear_scans(
     uint8_t row_height,
     const uint8_t* memory_scan,
     const uint8_t* colour_scan,
     const uint8_t* backgr_scan) {
+    assert(memory_scan + row_height >= vram_cache[0]);
+    assert((uintptr_t)memory_scan + row_height < (uintptr_t)(vram_cache[2]));
+    assert(colour_scan + 1 >= vram_cache[0]);
+    assert((uintptr_t)colour_scan + 1 < (uintptr_t)(vram_cache[2]));
+    assert(backgr_scan + 1 >= vram_cache[0]);
+    assert((uintptr_t)backgr_scan + 1 < (uintptr_t)(vram_cache[2]));
+
     interp0->base[0] = row_height;
     interp0->accum[0] = (uintptr_t)memory_scan;
+    interp1->base[0] = 1;
     interp1->accum[0] = (uintptr_t)colour_scan;
+    interp1->base[1] = 1;
     interp1->accum[1] = (uintptr_t)backgr_scan;
 }
 static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {
-    interp0->mode = INTERP_MODE7;
-    interp1->mode = INTERP_MODE7;
-
     // interp0 will scan texture row
     const uint texture_width_bits = plane->regs.affine.texture_bits & 0b0111;
     interp0->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
@@ -260,6 +256,9 @@ static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {
     interp1->base[2] = 0;
 }
 static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_scan) {
+    assert(memory_scan >= vram_cache[0]);
+    assert((uintptr_t)memory_scan < (uintptr_t)(vram_cache[2]));
+
     interp0->base[2] = (uintptr_t)memory_scan;
     const uint32_t xy = (uint32_t)interp_pop_lane_result(interp1, 2);
     // start texture columns scan
@@ -453,8 +452,10 @@ void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_da
     printf("cgia_encode_sprite\n");
 }
 
-#define CGIA (*((struct cgia_t*)CGIA_vpu->reg))
+#define CGIA      (*((struct cgia_t*)CGIA_vpu->reg))
+#define cgia_init fwcgia_init
 #include "firmware/src/ria/cgia/cgia.c"
+#undef cgia_init
 
 static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
     for (size_t i = 0; i < 256 * 256; ++i) {
