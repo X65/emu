@@ -93,6 +93,74 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
     }
 }
 
+static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
+    uint8_t* ptr = cgia->vram[0] + offset;
+    uint8_t dl_instr = *ptr;
+    switch (dl_instr & 0x0F) {
+        case 0x0:  // INSTR0 - blank lines
+            ImGui::Text("BLNK : %3d", dl_instr >> 4);
+            break;
+        case 0x1:  // duplicate lines - copy last raster line n-times
+            ImGui::Text("DUPL : %3d", dl_instr >> 4);
+            break;
+        case 0x2:  // INSTR1 - JMP
+            ImGui::Text("JMP  : %04x", (uint16_t)*(ptr + 1) | ((uint16_t)*(ptr + 2) << 8));
+            break;
+        case 0x3:  // Load Memory
+            ImGui::Text(
+                "LOAD : %s%s%s%s",
+                dl_instr & 0b00010000 ? "LMS " : "",
+                dl_instr & 0b00100000 ? "CLS " : "",
+                dl_instr & 0b01000000 ? "BGS " : "",
+                dl_instr & 0b10000000 ? "CHR " : "");
+            break;
+        case 0x4:  // Set 8-bit register
+            ImGui::Text("REG8 : %02x = %02x (%3d)", (dl_instr & 0b01110000), *(ptr + 1), *(ptr + 1));
+            break;
+        case 0x5:  // Set 16-bit register
+            ImGui::Text(
+                "REG16: %02x = %04x (%5d)",
+                (dl_instr & 0b01110000),
+                (uint16_t)*(ptr + 1) | ((uint16_t)*(ptr + 2) << 8),
+                (uint16_t)*(ptr + 1) | ((uint16_t)*(ptr + 2) << 8));
+            break;
+        case 0x6:  // N/A
+        case 0x7:  // N/A
+            ImGui::Text("???%02x: %02x: ", dl_instr & 0x0F, dl_instr);
+            break;
+        case (0x0 | CGIA_MODE_BIT):  // MODE0 (8)
+            ImGui::Text("MODE0: ???");
+            break;
+        case (0x1 | CGIA_MODE_BIT):  // MODE1 (9)
+            ImGui::Text("MODE1: ???");
+            break;
+        case (0x2 | CGIA_MODE_BIT):  // MODE2 (A) - text/tile mode
+            ImGui::Text("MODE2: text/tile");
+            break;
+        case (0x3 | CGIA_MODE_BIT):  // MODE3 (B) - bitmap mode
+            ImGui::Text("MODE3: bitmap");
+            break;
+        case (0x4 | CGIA_MODE_BIT):  // MODE4 (C) - multicolor text/tile mode
+            ImGui::Text("MODE4: multicolor text/tile");
+            break;
+        case (0x5 | CGIA_MODE_BIT):  // MODE5 (D) - multicolor bitmap mode
+            ImGui::Text("MODE5: multicolor bitmap");
+            break;
+        case (0x6 | CGIA_MODE_BIT):  // MODE6 (E) - Hold-and-Modify (HAM) mode
+            ImGui::Text("MODE6: HAM");
+            break;
+        case (0x7 | CGIA_MODE_BIT):  // MODE7 (F) - affine transform mode
+            ImGui::Text("MODE7: affine transform");
+            break;
+    }
+}
+
+static void _ui_cgia_decode_BG_flags(uint8_t flags) {
+    if (flags & 0b00000001) ImGui::Text("  TRANSPARENT");
+    if (flags & 0b00001000) ImGui::Text("  BORDER_TRANSPARENT");
+    if (flags & 0b00010000) ImGui::Text("  DOUBLE_WIDTH");
+}
+
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     const fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
     for (int i = 0; i < CGIA_PLANES; i++) {
@@ -121,7 +189,10 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                     chip->plane[i].offset,
                     (chip->bckgnd_bank << 16) | chip->plane[i].offset);
 
+                ImGui::SameLine();
+                _ui_cgia_decode_DL(win->cgia, chip->plane[i].offset);
                 ui_util_b8("flags: ", chip->plane[i].regs.bckgnd.flags);
+                _ui_cgia_decode_BG_flags(chip->plane[i].regs.bckgnd.flags);
                 ImGui::Text("border: %d columns", chip->plane[i].regs.bckgnd.border_columns);
                 ImGui::Text("row_height: %d", chip->plane[i].regs.bckgnd.row_height);
                 ImGui::Separator();
@@ -138,12 +209,13 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 // ImGui::Text("border: %d columns", chip->plane[i].regs.affine.border_columns);
                 // ImGui::Text("row_height: %d", chip->plane[i].regs.affine.row_height);
                 ui_util_b8("texture_bits: ", chip->plane[i].regs.affine.texture_bits);
-                ImGui::Text("width: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits & 0x0F)));
                 ImGui::SameLine();
-                ImGui::Text("height: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits >> 4)));
-                ImGui::Text("u: %d", chip->plane[i].regs.affine.u);
+                ImGui::Text("w: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits & 0x0F)));
                 ImGui::SameLine();
-                ImGui::Text("v: %d", chip->plane[i].regs.affine.v);
+                ImGui::Text("h: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits >> 4)));
+                ImGui::Text(" u: %d", chip->plane[i].regs.affine.u);
+                ImGui::SameLine();
+                ImGui::Text(" v: %d", chip->plane[i].regs.affine.v);
                 ImGui::Text("du: %d", chip->plane[i].regs.affine.du);
                 ImGui::SameLine();
                 ImGui::Text("dv: %d", chip->plane[i].regs.affine.dv);
