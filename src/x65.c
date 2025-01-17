@@ -41,6 +41,11 @@ extern const char* GIT_BRANCH;
 #define APP_NAME "X65 emu"
 const char* app_name = APP_NAME;
 
+extern void settings_register();
+void settings_load(const char* ini_file);
+int window_width = 0;
+int window_height = 0;
+
 typedef struct {
     uint32_t version;
     x65_t x65;
@@ -152,6 +157,7 @@ void app_init(void) {
     fs_init();
 #ifdef CHIPS_USE_UI
     ui_init(ui_draw_cb);
+    settings_register();
     ui_x65_init(&state.ui, &(ui_x65_desc_t){
         .x65 = &state.x65,
         .boot_cb = ui_boot_cb,
@@ -235,6 +241,9 @@ void app_frame(void) {
 }
 
 void app_input(const sapp_event* event) {
+    window_width = event->window_width;
+    window_height = event->window_height;
+
     // accept dropped files also when ImGui grabs input
     if (event->type == SAPP_EVENTTYPE_FILES_DROPPED) {
         fs_start_load_dropped_file(FS_SLOT_IMAGE);
@@ -621,14 +630,18 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     });
     args_parse(argc, argv);
 
+    if (arguments.ini_file) settings_load(arguments.ini_file);
+
     const chips_display_info_t info = x65_display_info(0);
+    const int default_width = info.screen.width + BORDER_LEFT + BORDER_RIGHT;
+    const int default_height = info.screen.height + BORDER_TOP + BORDER_BOTTOM;
     return (sapp_desc){
         .init_cb = app_init,
         .frame_cb = app_frame,
         .event_cb = app_input,
         .cleanup_cb = app_cleanup,
-        .width = info.screen.width + BORDER_LEFT + BORDER_RIGHT,
-        .height = info.screen.height + BORDER_TOP + BORDER_BOTTOM,
+        .width = window_width >= default_width ? window_width : default_width,
+        .height = window_height >= default_height ? window_height : default_height,
         .window_title = app_name,
         .icon.images = {
             {
