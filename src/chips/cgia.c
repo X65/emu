@@ -53,7 +53,6 @@ void cgia_reset(cgia_t* vpu) {
     CHIPS_ASSERT(vpu);
     vpu->h_count = 0;
     vpu->l_count = 0;
-    CGIA_vpu = NULL;
 }
 
 static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
@@ -105,6 +104,8 @@ static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
 
 uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     pins = _cgia_tick(vpu, pins);
+
+    // handle registers
     if (pins & CGIA_CS) {
         uint8_t addr = CGIA_GET_ADDR(pins);
         if (pins & CGIA_RW) {
@@ -115,6 +116,12 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
             uint8_t data = CGIA_GET_DATA(pins);
             _cgia_write(vpu, addr, data);
         }
+    }
+    // mirror RAM writes to VRAM cache
+    if (!(pins & CGIA_RW)) {
+        uint32_t addr = CGIA_GET_ADDR(pins);
+        uint8_t data = CGIA_GET_DATA(pins);
+        cgia_ram_write(addr, data);
     }
 
     cgia_task();
