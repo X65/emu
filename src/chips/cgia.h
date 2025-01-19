@@ -226,6 +226,17 @@ typedef struct {
 
     uint active_line;
 
+    // copy of CGIA internal registers
+    struct cgia_internal {
+        uint16_t memory_scan;
+        uint16_t colour_scan;
+        uint16_t backgr_scan;
+        uint16_t chargen_offset;
+        uint8_t row_line_count;
+        bool wait_vbl;
+        bool sprites_need_update;
+    } internal[4];
+
     // the fetch callback function
     cgia_fetch_t fetch_cb;
     // optional user-data for the fetch-callback

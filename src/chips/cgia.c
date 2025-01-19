@@ -102,12 +102,14 @@ static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
     vpu->reg[addr] = data;
 }
 
+static void _copy_internal_regs(cgia_t* vpu);
+
 uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     pins = _cgia_tick(vpu, pins);
 
     // handle registers
     if (pins & CGIA_CS) {
-        uint8_t addr = CGIA_GET_ADDR(pins);
+        uint8_t addr = CGIA_GET_REG_ADDR(pins);
         if (pins & CGIA_RW) {
             uint8_t data = _cgia_read(vpu, addr);
             CGIA_SET_DATA(pins, data);
@@ -125,6 +127,7 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     }
 
     cgia_task();
+    _copy_internal_regs(vpu);
 
     vpu->pins = pins;
     return pins;
@@ -507,4 +510,16 @@ static void _cgia_transfer_vcache_bank(uint8_t bank) {
 void cgia_mirror_vram(cgia_t* vpu) {
     _cgia_copy_vcache_bank(vpu, 0);
     _cgia_copy_vcache_bank(vpu, 1);
+}
+
+static void _copy_internal_regs(cgia_t* vpu) {
+    for (int i = 0; i < CGIA_PLANES; ++i) {
+        vpu->internal[i].memory_scan = plane_int[i].memory_scan;
+        vpu->internal[i].colour_scan = plane_int[i].colour_scan;
+        vpu->internal[i].backgr_scan = plane_int[i].backgr_scan;
+        vpu->internal[i].chargen_offset = plane_int[i].char_gen_offset;
+        vpu->internal[i].row_line_count = plane_int[i].row_line_count;
+        vpu->internal[i].wait_vbl = plane_int[i].wait_vbl;
+        vpu->internal[i].sprites_need_update = plane_int[i].sprites_need_update;
+    }
 }

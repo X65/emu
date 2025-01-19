@@ -110,7 +110,7 @@ static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
             ImGui::Text(
                 "LOAD : %s%s%s%s",
                 dl_instr & 0b00010000 ? "LMS " : "",
-                dl_instr & 0b00100000 ? "LFS " : "",
+                dl_instr & 0b00100000 ? "LCS " : "",
                 dl_instr & 0b01000000 ? "LBS " : "",
                 dl_instr & 0b10000000 ? "LCG " : "");
             break;
@@ -177,7 +177,15 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
             else {
                 chip->planes &= ~(1u << i);
             }
+            if (win->cgia->internal[i].wait_vbl) {
+                ImGui::SameLine();
+                ImGui::Text(" Wait VBL");
+            }
             if (plane_type_sprite) {
+                if (win->cgia->internal[i].sprites_need_update) {
+                    ImGui::SameLine();
+                    ImGui::Text(" Need update");
+                }
                 ImGui::Text(
                     "offset:%04X (mem:%06X)",
                     chip->plane[i].offset,
@@ -191,6 +199,12 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
             }
             else {
                 ImGui::Text(
+                    "MS:%04x CS:%04x BS:%04x CG:%04x",
+                    win->cgia->internal[i].memory_scan,
+                    win->cgia->internal[i].colour_scan,
+                    win->cgia->internal[i].backgr_scan,
+                    win->cgia->internal[i].chargen_offset);
+                ImGui::Text(
                     "offset:%04X (mem:%06X)",
                     chip->plane[i].offset,
                     (chip->bckgnd_bank << 16) | chip->plane[i].offset);
@@ -201,6 +215,7 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 _ui_cgia_decode_BG_flags(chip->plane[i].regs.bckgnd.flags);
                 ImGui::Text("border: %d columns", chip->plane[i].regs.bckgnd.border_columns);
                 ImGui::Text("row_height: %d", chip->plane[i].regs.bckgnd.row_height + 1);
+                ImGui::Text("row_line  : %d", win->cgia->internal[i].row_line_count);
                 ImGui::Separator();
                 ImGui::Text("stride: %d", chip->plane[i].regs.bckgnd.stride);
                 ImGui::PushID(0);
