@@ -162,15 +162,21 @@ static void _ui_cgia_decode_BG_flags(uint8_t flags) {
 }
 
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
-    const fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
+    fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
     for (int i = 0; i < CGIA_PLANES; i++) {
         ImGui::PushID(i);
-        const bool plane_active = chip->planes & (1u << i);
+        bool plane_active = chip->planes & (1u << i);
         const bool plane_type_sprite = chip->planes & (0x10u << i);
         char label[64];
         sprintf(label, "Plane %d (%s)", i, plane_type_sprite ? "sprites" : "background");
         if (ImGui::CollapsingHeader(label, plane_active ? 0 : ImGuiTreeNodeFlags_Bullet)) {
-            ImGui::Text("Plane active: %s", plane_active ? "ON " : "OFF");
+            ImGui::Checkbox(plane_active ? "Plane active" : "Plane inactive", &plane_active);
+            if (plane_active) {
+                chip->planes |= (1u << i);
+            }
+            else {
+                chip->planes &= ~(1u << i);
+            }
             if (plane_type_sprite) {
                 ImGui::Text(
                     "offset:%04X (mem:%06X)",
