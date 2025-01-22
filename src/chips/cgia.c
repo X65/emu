@@ -518,10 +518,16 @@ cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t sh
     return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, true);
 }
 
+#define QUANTA_BITS (3)
 uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t base_color[8]) {
     uint8_t code = (cmd & 0x38) >> 3;
-    uint8_t delta = (cmd << 4) & 0xf0;  // Make changes in quanta of 16
+    // Make changes in quanta
+    uint8_t delta = (uint8_t)((cmd & 0x0f) << QUANTA_BITS);
+    // Sign extend delta
+    if (delta & (0b1000 << QUANTA_BITS)) delta |= 0xF0 << QUANTA_BITS;
+
     uint32_t channel_value;
+
     switch (code) {
         case 0b000:  // --- 000 - load base color
             current_color = cgia_rgb_palette[base_color[cmd & 0b111]];
