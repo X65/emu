@@ -553,7 +553,7 @@ uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t
     return current_color;
 }
 uint32_t*
-cgia_encode_mode_6_(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color, bool doubled) {
+cgia_encode_mode_6_common(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color, bool doubled) {
     // get current color from background color
     uint32_t current_color = cgia_rgb_palette[back_color];
     uintptr_t addr;
@@ -599,12 +599,12 @@ cgia_encode_mode_6_(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], u
 
 inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_6(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color) {
-    return cgia_encode_mode_6_(rgbbuf, columns, base_color, back_color, false);
+    return cgia_encode_mode_6_common(rgbbuf, columns, base_color, back_color, false);
 }
 
 inline uint32_t* __attribute__((always_inline))
 cgia_encode_mode_6_doubled(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color) {
-    return cgia_encode_mode_6_(rgbbuf, columns, base_color, back_color, true);
+    return cgia_encode_mode_6_common(rgbbuf, columns, base_color, back_color, true);
 }
 
 uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
