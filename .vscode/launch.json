@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}/build",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "../roms/swboy.xex"],
+      "args": ["-i", "emu.ini", "../roms/Farfar-perso1.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

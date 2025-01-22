@@ -518,6 +518,95 @@ cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t sh
     return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, true);
 }
 
+uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t base_color[8]) {
+    uint8_t code = (cmd & 0x38) >> 3;
+    uint8_t delta = (cmd << 4) & 0xf0;  // Make changes in quanta of 16
+    uint32_t channel_value;
+    switch (code) {
+        case 0b000:  // --- 000 - load base color
+            current_color = cgia_rgb_palette[base_color[cmd & 0b111]];
+            break;
+        case 0b001:  // --- 001 - blend current color
+            break;
+        default:
+            switch (code >> 1) {
+                case 0b01:                                       // --- 01x - Modify Red channel
+                    channel_value = current_color & 0xFF;        // extract RED color value
+                    channel_value += delta;                      // add delta
+                    current_color = current_color & 0xFFFFFF00;  // remove RED channel from current color
+                    current_color |= channel_value & 0xFF;       // merge modified value, clamped to 8 bit
+                    break;
+                case 0b10:                                       // --- 10x - Modify Green channel
+                    channel_value = current_color & 0xFF00;      // extract GREEN color value
+                    channel_value += delta << 8;                 // add delta
+                    current_color = current_color & 0xFFFF00FF;  // remove GREEN channel from current color
+                    current_color |= channel_value & 0xFF00;     // merge modified value, clamped to 8 bit
+                    break;
+                case 0b11:                                       // --- 11x - Modify Blue channel
+                    channel_value = current_color & 0xFF0000;    // extract BLUE color value
+                    channel_value += delta << 16;                // add delta
+                    current_color = current_color & 0xFF00FFFF;  // remove BLUE channel from current color
+                    current_color |= channel_value & 0xFF0000;   // merge modified value, clamped to 8 bit
+                    break;
+            }
+    }
+    return current_color;
+}
+uint32_t*
+cgia_encode_mode_6_(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color, bool doubled) {
+    // get current color from background color
+    uint32_t current_color = cgia_rgb_palette[back_color];
+    uintptr_t addr;
+    uint8_t byte0, byte1, byte2, cmd;
+
+    while (columns) {
+        addr = interp_pop_lane_result(interp0, 0);
+        byte0 = *((uint8_t*)addr);
+        addr = interp_pop_lane_result(interp0, 0);
+        byte1 = *((uint8_t*)addr);
+        addr = interp_pop_lane_result(interp0, 0);
+        byte2 = *((uint8_t*)addr);
+
+        // extract first command
+        cmd = (byte0 >> 2);
+        current_color = cgia_encode_mode_6_command(cmd, current_color, base_color);
+        *rgbbuf++ = current_color;
+        if (doubled) *rgbbuf++ = current_color;
+
+        // extract second command
+        cmd = ((byte0 << 4) & 0x30) | (byte1 >> 4);
+        current_color = cgia_encode_mode_6_command(cmd, current_color, base_color);
+        *rgbbuf++ = current_color;
+        if (doubled) *rgbbuf++ = current_color;
+
+        // extract third command
+        cmd = ((byte1 << 2) & 0x3C) | (byte2 >> 6);
+        current_color = cgia_encode_mode_6_command(cmd, current_color, base_color);
+        *rgbbuf++ = current_color;
+        if (doubled) *rgbbuf++ = current_color;
+
+        // extract fourth command
+        cmd = (byte2 & 0x3F);
+        current_color = cgia_encode_mode_6_command(cmd, current_color, base_color);
+        *rgbbuf++ = current_color;
+        if (doubled) *rgbbuf++ = current_color;
+
+        --columns;
+    }
+
+    return rgbbuf;
+}
+
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_6(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color) {
+    return cgia_encode_mode_6_(rgbbuf, columns, base_color, back_color, false);
+}
+
+inline uint32_t* __attribute__((always_inline))
+cgia_encode_mode_6_doubled(uint32_t* rgbbuf, uint32_t columns, uint8_t base_color[8], uint8_t back_color) {
+    return cgia_encode_mode_6_(rgbbuf, columns, base_color, back_color, true);
+}
+
 uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
     while (columns) {
         for (int p = 0; p < 8; ++p) {

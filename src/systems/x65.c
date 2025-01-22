@@ -298,7 +298,7 @@ uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
 static void _x65_update_memory_map(x65_t* sys) {
     sys->io_mapped = false;
     // shortcut if HIRAM and LORAM is 0, everything is RAM
-    if (false) {
+    if (true) {
         mem_map_ram(&sys->mem, 0, 0xA000, 0x6000, sys->ram + 0xA000);
     }
     else {

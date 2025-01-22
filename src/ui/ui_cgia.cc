@@ -218,14 +218,21 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 ImGui::Text("row_line  : %d", win->cgia->internal[i].row_line_count);
                 ImGui::Separator();
                 ImGui::Text("stride: %d", chip->plane[i].regs.bckgnd.stride);
-                ImGui::PushID(0);
-
-                _ui_cgia_draw_color(win, "shared_colors: ", chip->plane[i].regs.bckgnd.shared_color[0]);
-                ImGui::PopID();
-                ImGui::PushID(1);
+                ImGui::Text("colors:");
+                for (int c = 0; c < 2; ++c) {
+                    ImGui::SameLine();
+                    ImGui::PushID(c);
+                    _ui_cgia_draw_color(win, "", chip->plane[i].regs.bckgnd.shared_color[c]);
+                    ImGui::PopID();
+                }
                 ImGui::SameLine();
-                _ui_cgia_draw_color(win, "", chip->plane[i].regs.bckgnd.shared_color[1]);
-                ImGui::PopID();
+                ImGui::Text("|");
+                for (int c = 2; c < 8; ++c) {
+                    ImGui::SameLine();
+                    ImGui::PushID(c);
+                    _ui_cgia_draw_color(win, "", chip->plane[i].regs.ham.base_color[c]);
+                    ImGui::PopID();
+                }
                 ImGui::Text("scroll_x: %d", chip->plane[i].regs.bckgnd.scroll_x);
                 ImGui::Text("offset_x: %d", chip->plane[i].regs.bckgnd.offset_x);
                 ImGui::Text("scroll_y: %d", chip->plane[i].regs.bckgnd.scroll_y);
