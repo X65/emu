@@ -81,10 +81,10 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             }
         }
 
-        uint8_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
+        uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
         for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
             for (uint r = 0; r < FB_H_REPEAT; ++r) {
-                *dst++ = *src & 0xFF;
+                *dst++ = *src & 0xFFFFFF;
             }
         }
     }
@@ -284,7 +284,7 @@ static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_s
 static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t color_idx) {
     uint pixels = columns * CGIA_COLUMN_PX;
     while (pixels) {
-        *rgbbuf++ = color_idx;
+        *rgbbuf++ = cgia_rgb_palette[color_idx];
         --pixels;
     }
     return rgbbuf;
@@ -305,11 +305,11 @@ cgia_encode_mode_2(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_genera
         for (int shift = 7; shift >= 0; shift--) {
             uint bit_set = (bits >> shift) & 0b1;
             if (bit_set) {
-                *rgbbuf++ = fg_cl;
+                *rgbbuf++ = cgia_rgb_palette[fg_cl];
             }
             else {
                 if (mapped) {
-                    *rgbbuf++ = bg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
                 }
                 else {
                     rgbbuf++;  // transparent pixel
@@ -345,11 +345,11 @@ uint32_t* cgia_encode_mode_3(uint32_t* rgbbuf, uint32_t columns, bool mapped) {
         for (int shift = 7; shift >= 0; shift--) {
             uint bit_set = (bits >> shift) & 0b1;
             if (bit_set) {
-                *rgbbuf++ = fg_cl;
+                *rgbbuf++ = cgia_rgb_palette[fg_cl];
             }
             else {
                 if (mapped) {
-                    *rgbbuf++ = bg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
                 }
                 else {
                     rgbbuf++;  // transparent pixel
@@ -391,8 +391,8 @@ uint32_t* cgia_encode_mode_4(
             switch (color_no) {
                 case 0b00:
                     if (mapped) {
-                        *rgbbuf++ = shared_colors[0];
-                        if (doubled) *rgbbuf++ = shared_colors[0];
+                        *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
                     }
                     else {
                         rgbbuf++;  // transparent pixel
@@ -400,16 +400,16 @@ uint32_t* cgia_encode_mode_4(
                     }
                     break;
                 case 0b01:
-                    *rgbbuf++ = bg_cl;
-                    if (doubled) *rgbbuf++ = bg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[bg_cl];
                     break;
                 case 0b10:
-                    *rgbbuf++ = fg_cl;
-                    if (doubled) *rgbbuf++ = fg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[fg_cl];
                     break;
                 case 0b11:
-                    *rgbbuf++ = shared_colors[1];
-                    if (doubled) *rgbbuf++ = shared_colors[1];
+                    *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
                     break;
                 default: abort();
             }
@@ -469,8 +469,8 @@ uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_
             switch (color_no) {
                 case 0b00:
                     if (mapped) {
-                        *rgbbuf++ = shared_colors[0];
-                        if (doubled) *rgbbuf++ = shared_colors[0];
+                        *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
                     }
                     else {
                         rgbbuf++;  // transparent pixel
@@ -478,16 +478,16 @@ uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_
                     }
                     break;
                 case 0b01:
-                    *rgbbuf++ = bg_cl;
-                    if (doubled) *rgbbuf++ = bg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[bg_cl];
                     break;
                 case 0b10:
-                    *rgbbuf++ = fg_cl;
-                    if (doubled) *rgbbuf++ = fg_cl;
+                    *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[fg_cl];
                     break;
                 case 0b11:
-                    *rgbbuf++ = shared_colors[1];
-                    if (doubled) *rgbbuf++ = shared_colors[1];
+                    *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
                     break;
                 default: abort();
             }
@@ -524,7 +524,7 @@ uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
             uintptr_t cl_addr = interp_pop_lane_result(interp0, 2);
             assert(cl_addr >= (uintptr_t)vram_cache[0]);
             assert(cl_addr < (uintptr_t)vram_cache[2]);
-            *rgbbuf++ = *((uint8_t*)cl_addr);
+            *rgbbuf++ = cgia_rgb_palette[*((uint8_t*)cl_addr)];
         }
         --columns;
     }

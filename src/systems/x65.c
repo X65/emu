@@ -593,7 +593,7 @@ chips_display_info_t x65_display_info(x65_t* sys) {
                 .width = CGIA_FRAMEBUFFER_WIDTH,
                 .height = CGIA_FRAMEBUFFER_HEIGHT,
             },
-            .bytes_per_pixel = 1,
+            .bytes_per_pixel = 4,
             .buffer = {
                 .ptr = sys ? sys->fb : 0,
                 .size = CGIA_FRAMEBUFFER_SIZE_BYTES,
@@ -605,13 +605,8 @@ chips_display_info_t x65_display_info(x65_t* sys) {
             .width = CGIA_DISPLAY_WIDTH,
             .height = CGIA_DISPLAY_HEIGHT,
         },
-        .palette = {
-            .ptr = sys ? sys->cgia.hwcolors : 0,
-            .size = CGIA_HWCOLOR_NUM * sizeof(uint32_t)
-        }
     };
     CHIPS_ASSERT(((sys == 0) && (res.frame.buffer.ptr == 0)) || ((sys != 0) && (res.frame.buffer.ptr != 0)));
-    CHIPS_ASSERT(((sys == 0) && (res.palette.ptr == 0)) || ((sys != 0) && (res.palette.ptr != 0)));
     return res;
 }
 

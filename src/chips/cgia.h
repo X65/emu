@@ -176,7 +176,7 @@ extern "C" {
 // framebuffer width and height
 #define CGIA_FRAMEBUFFER_WIDTH      (MODE_H_ACTIVE_PIXELS)
 #define CGIA_FRAMEBUFFER_HEIGHT     (MODE_V_ACTIVE_LINES)
-#define CGIA_FRAMEBUFFER_SIZE_BYTES (CGIA_FRAMEBUFFER_WIDTH * CGIA_FRAMEBUFFER_HEIGHT)
+#define CGIA_FRAMEBUFFER_SIZE_BYTES (CGIA_FRAMEBUFFER_WIDTH * CGIA_FRAMEBUFFER_HEIGHT * 4)
 
 // linebuffer used to rasterize a line
 #define CGIA_LINEBUFFER_PADDING (-SCHAR_MIN)  // maximum scroll of signed 8 bit
@@ -242,7 +242,7 @@ typedef struct {
     // optional user-data for the fetch-callback
     void* user_data;
     // pointer to uint8_t buffer where decoded video image is written too
-    uint8_t* fb;
+    uint32_t* fb;
     // hardware colors
     uint32_t* hwcolors;
     // VRAM banks

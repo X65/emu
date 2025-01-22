@@ -345,7 +345,7 @@ typedef struct {
     } audio;
 
     uint8_t ram[1 << 16];  // general ram
-    alignas(64) uint8_t fb[CGIA_FRAMEBUFFER_SIZE_BYTES];
+    alignas(64) uint32_t fb[CGIA_FRAMEBUFFER_SIZE_BYTES / 4];
 } x65_t;
 
 // initialize a new X65 instance
