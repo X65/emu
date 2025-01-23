@@ -519,7 +519,7 @@ cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t sh
 }
 
 #define QUANTA_BITS (3)
-uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t base_color[8]) {
+uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t base_colors[8]) {
     uint8_t code = (cmd & 0x38) >> 3;
     // Make changes in quanta
     uint8_t delta = (uint8_t)((cmd & 0x0f) << QUANTA_BITS);
@@ -530,9 +530,40 @@ uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t
 
     switch (code) {
         case 0b000:  // --- 000 - load base color
-            current_color = cgia_rgb_palette[base_color[cmd & 0b111]];
+            current_color = cgia_rgb_palette[base_colors[cmd & 0b111]];
             break;
         case 0b001:  // --- 001 - blend current color
+            const uint32_t base_color = cgia_rgb_palette[base_colors[cmd & 0b111]];
+#if 0
+            // Extract individual color channels
+            uint8_t r1 = base_color & 0xFF;
+            uint8_t g1 = (base_color >> 8) & 0xFF;
+            uint8_t b1 = (base_color >> 16) & 0xFF;
+            uint8_t r2 = current_color & 0xFF;
+            uint8_t g2 = (current_color >> 8) & 0xFF;
+            uint8_t b2 = (current_color >> 16) & 0xFF;
+            // Compute averages (no overflow due to uint16_t promotion in addition)
+            uint8_t r_avg = (r1 + r2) / 2;
+            uint8_t g_avg = (g1 + g2) / 2;
+            uint8_t b_avg = (b1 + b2) / 2;
+            // Combine back into a single RGB888 value
+            current_color = (r_avg << 16) | (g_avg << 8) | b_avg;
+#else
+            // fast blend using bit shifting and masking voodoo:
+            // - remove lowest bits of channels to make place for overflow
+            //   and not accumulate overflow with next channel lowest bit
+            // - add everything at once (potentially overflowing to next channel)
+            // - shift back into position, averaging the sum
+            uint32_t fast_blend = ((base_color & 0xFEFEFE) + (current_color & 0xFEFEFE)) >> 1;
+            // With above operation we lost lowest bits precision
+            // We could ignore it, but we will accumulate total error and color fringing over raster time
+            // Let's add it back:
+            // - extract lowest bits of all channels
+            // - add them and average by dividing (shifting)
+            // - mask-out highest channel bits that potentially underflowed from next channel
+            // - and finally add the fix to the previously blended value
+            current_color = fast_blend + ((((base_color & 0x010101) + (current_color & 0x010101)) >> 1) & 0x7F7F7F);
+#endif
             break;
         default:
             switch (code >> 1) {
