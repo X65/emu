@@ -227,14 +227,10 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
 static void _ui_x65_update_memmap(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     const x65_t* x65 = ui->x65;
-    const uint8_t ext_en = x65->ria.reg[RIA816_HW_IO];
     ui_memmap_reset(&ui->memmap);
     ui_memmap_layer(&ui->memmap, "IO");
-    ui_memmap_region(&ui->memmap, "IO REGION", 0xD000, 0x1000, ext_en & 0b00000001);
-    ui_memmap_layer(&ui->memmap, "ROM");
-    ui_memmap_region(&ui->memmap, "BASIC ROM", 0xA000, 0x2000, ext_en & 0b00000010);
-    ui_memmap_region(&ui->memmap, "CHAR ROM", 0xD000, 0x1000, ext_en & 0b00000100);
-    ui_memmap_region(&ui->memmap, "KERNAL ROM", 0xE000, 0x2000, ext_en & 0b00001000);
+    ui_memmap_region(&ui->memmap, "DEVICES", X65_IO_BASE, 0x200, true);
+    ui_memmap_region(&ui->memmap, "EXTENSION", X65_EXT_BASE, 0x200, x65->ria.reg[RIA816_HW_IO]);
     ui_memmap_layer(&ui->memmap, "RAM");
     ui_memmap_region(&ui->memmap, "RAM", 0x0000, 0x10000, true);
 }

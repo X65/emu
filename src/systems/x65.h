@@ -299,8 +299,13 @@ typedef enum {
 #define X65_KEY_F7       (0xF7)  // F7
 #define X65_KEY_F8       (0xF8)  // F8
 
+// Extension bus devices
+// split in 8 slots of 64 bytes
+#define X65_EXT_BASE     (0xFC00)
+#define X65_EXT_SLOTS    (8)
+#define X65_EXT_SLOT_LEN (0x200 / X65_EXT_SLOTS)
 // IO base addresses
-#define X65_IO_BASE        (0xFF00)
+#define X65_IO_BASE        (0xFE00)
 #define X65_IO_CGIA_BASE   (0xFF00)
 #define X65_IO_YMF825_BASE (0xFF80)
 #define X65_IO_RIA_BASE    (0xFFC0)

@@ -10,7 +10,6 @@
 #endif
 
 static uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data);
-static void _x65_update_memory_map(x65_t* sys);
 static void _x65_init_key_map(x65_t* sys);
 static void _x65_init_memory_map(x65_t* sys);
 
@@ -65,7 +64,6 @@ void x65_reset(x65_t* sys) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->kbd_joy1_mask = sys->kbd_joy2_mask = 0;
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
-    _x65_update_memory_map(sys);
     sys->pins |= M6502_RES;
     m6526_reset(&sys->cia_1);
     m6526_reset(&sys->cia_2);
@@ -249,69 +247,11 @@ uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
     return pins;
 }
 
-static void _x65_update_memory_map(x65_t* sys) {
-    // uint8_t* read_ptr;
-    // // shortcut if HIRAM and LORAM is 0, everything is RAM
-    // if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0) {
-    //     mem_map_ram(&sys->mem_cpu, 0, 0xA000, 0x6000, sys->ram + 0xA000);
-    // }
-    // else {
-    //     // A000..BFFF is either RAM-behind-BASIC-ROM or RAM
-    //     if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) {
-    //         read_ptr = sys->rom_basic;
-    //     }
-    //     else {
-    //         read_ptr = sys->ram + 0xA000;
-    //     }
-    //     mem_map_rw(&sys->mem_cpu, 0, 0xA000, 0x2000, read_ptr, sys->ram + 0xA000);
-
-    //     // E000..FFFF is either RAM-behind-KERNAL-ROM or RAM
-    //     if (sys->cpu_port & X65_CPUPORT_HIRAM) {
-    //         read_ptr = sys->rom_kernal;
-    //     }
-    //     else {
-    //         read_ptr = sys->ram + 0xE000;
-    //     }
-    //     mem_map_rw(&sys->mem_cpu, 0, 0xE000, 0x2000, read_ptr, sys->ram + 0xE000);
-
-    //     // D000..DFFF can be Char-ROM or I/O
-    //     if (sys->cpu_port & X65_CPUPORT_CHAREN) {
-    //         sys->io_mapped = true;
-    //     }
-    //     else {
-    //         mem_map_rw(&sys->mem_cpu, 0, 0xD000, 0x1000, sys->rom_char, sys->ram + 0xD000);
-    //     }
-    // }
-}
-
 static void _x65_init_memory_map(x65_t* sys) {
     mem_init(&sys->mem);
 
-    /*
-        the C64 has a weird RAM init pattern of 64 bytes 00 and 64 bytes FF
-        alternating, probably with some randomness sprinkled in
-        (see this thread: http://csdb.dk/forums/?roomid=11&topicid=116800&firstpost=2)
-        this is important at least for the value of the 'ghost byte' at 0x3FFF,
-        which is 0xFF
-    */
-    size_t i;
-    for (i = 0; i < (1 << 16);) {
-        for (size_t j = 0; j < 64; j++, i++) {
-            sys->ram[i] = 0x00;
-        }
-        for (size_t j = 0; j < 64; j++, i++) {
-            sys->ram[i] = 0xFF;
-        }
-    }
-    CHIPS_ASSERT(i == 0x10000);
-
-    /* setup the initial CPU memory map
-       0000..9FFF and C000.CFFF is always RAM
-    */
-    mem_map_ram(&sys->mem, 0, 0x0000, 0xA000, sys->ram);
-    mem_map_ram(&sys->mem, 0, 0xC000, 0x1000, sys->ram + 0xC000);
-    // A000..BFFF, D000..DFFF and E000..FFFF are configurable
-    _x65_update_memory_map(sys);
+    /* setup the CPU memory map */
+    mem_map_ram(&sys->mem, 0, 0x0000, 0x10000, sys->ram);
 }
 
 static void _x65_init_key_map(x65_t* sys) {

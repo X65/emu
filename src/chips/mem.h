@@ -112,8 +112,8 @@ extern "C" {
 #define MEM_ADDR_RANGE (1U<<16)
 #define MEM_ADDR_MASK (MEM_ADDR_RANGE-1)
 
-/* page size (1 KByte) */
-#define MEM_PAGE_SHIFT (10U)
+/* page size (256 bytes) */
+#define MEM_PAGE_SHIFT (8U)
 #define MEM_PAGE_SIZE (1U<<MEM_PAGE_SHIFT)
 #define MEM_PAGE_MASK (MEM_PAGE_SIZE-1)
 
