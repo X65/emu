@@ -8,9 +8,9 @@
       "type": "lldb",
       "request": "launch",
       "name": "Launch",
-      "cwd": "${workspaceFolder}/build",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "../roms/Farfar-perso1.xex"],
+      "args": ["-i", "emu.ini", "roms/MODE6_Farfar-perso1.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]
