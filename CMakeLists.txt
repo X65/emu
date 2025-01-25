@@ -33,7 +33,6 @@ add_executable(emu
     src/x65.c
     src/x65-ui-impl.cc
     src/args.c
-    src/settings.cc
     src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_x65.cc

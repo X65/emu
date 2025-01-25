@@ -64,6 +64,8 @@ typedef struct {
 typedef struct {
     int num_slots;
     ui_settings_slot_t slots[UI_SETTINGS_MAX_SLOTS];
+    int window_width;
+    int window_height;
 } ui_settings_t;
 
 // initialize settings instance

@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-i", "emu.ini", "roms/MODE6_Farfar-perso1.xex"],
+      "args": ["roms/MODE6_Farfar-perso1.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

@@ -42,8 +42,8 @@ extern const char* GIT_BRANCH;
 #define APP_NAME "X65 emu"
 const char* app_name = APP_NAME;
 
-extern void settings_register();
-void settings_load(const char* ini_file);
+static const char* settings_key = "Emu.x65";
+extern ui_settings_t* settings_load(const char* imgui_ini_key);
 int window_width = 0;
 int window_height = 0;
 
@@ -162,7 +162,7 @@ void app_init(void) {
     ui_init(&(ui_desc_t){
         .draw_cb = ui_draw_cb,
         .save_settings_cb = ui_save_settings_cb,
-        .imgui_ini_key = "floooh.chips.x65",
+        .imgui_ini_key = settings_key,
     });
     ui_x65_init(&state.ui, &(ui_x65_desc_t){
         .x65 = &state.x65,
@@ -408,6 +408,8 @@ static void ui_draw_cb(const ui_draw_info_t* draw_info) {
 
 static void ui_save_settings_cb(ui_settings_t* settings) {
     ui_x65_save_settings(&state.ui, settings);
+    settings->window_width = window_width;
+    settings->window_height = window_height;
 }
 
 static void ui_boot_cb(x65_t* sys) {
@@ -650,6 +652,12 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .buf_size = (int)sysconf(_SC_ARG_MAX),
     });
     args_parse(argc, argv);
+
+    ui_settings_t* ui_setts = settings_load(settings_key);
+    if (ui_setts) {
+        window_width = ui_setts->window_width;
+        window_height = ui_setts->window_height;
+    }
 
     const chips_display_info_t info = x65_display_info(0);
     const int default_width = info.screen.width + BORDER_LEFT + BORDER_RIGHT;

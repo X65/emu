@@ -261,6 +261,7 @@ static void load_imgui_ini(void) {
 }
 
 // ImGui Settings handler implementation
+static const char* main_window_key = "MainWindow";
 
 // clear all settings data
 static void imgui_ClearAllFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler) {
@@ -278,18 +279,28 @@ static void imgui_ReadInitFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler) {
 static void* imgui_ReadOpenFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name) {
     (void)ctx; (void)handler;
     ui_settings_add(&state.settings, name, false);
-    // NOTE: cannot return nullptr since this means 'no valid ini entry'
-    return (void*)&state.settings;
+    if (strcmp(name, main_window_key) != 0) {
+        // NOTE: cannot return nullptr since this means 'no valid ini entry'
+        return (void*)&state.settings;
+    }
+    else {
+        return (void*)&state.settings.window_width;
+    }
 }
 
 // read: Called for every line of text within an ini entry
 static void imgui_ReadLineFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line) {
-    (void)ctx; (void)handler; (void)entry;
-    assert(state.settings.num_slots > 0);
-    int cur_slot_idx = state.settings.num_slots - 1;
-    int is_open = 0;
-    if (sscanf(line, "IsOpen=%i", &is_open) == 1) {
-        state.settings.slots[cur_slot_idx].open = true;
+    (void)ctx; (void)handler;
+    if (entry == &state.settings.window_width) {
+        if (sscanf(line, "Size=%d,%d", &state.settings.window_width, &state.settings.window_height) == 2) return;
+    }
+    else {
+        assert(state.settings.num_slots > 0);
+        int cur_slot_idx = state.settings.num_slots - 1;
+        int is_open = 0;
+        if (sscanf(line, "IsOpen=%i", &is_open) == 1) {
+            state.settings.slots[cur_slot_idx].open = true;
+        }
     }
 }
 
@@ -305,6 +316,8 @@ static void imgui_WriteAllFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler, I
         ui_settings_t settings;
         ui_settings_init(&settings);
         state.save_settings_cb(&settings);
+        buf->appendf("[%s][%s]\n", handler->TypeName, main_window_key);
+        buf->appendf("Size=%d,%d\n", settings.window_width, settings.window_height);
         buf->reserve(buf->size() + settings.num_slots * 64);
         for (int i = 0; i < settings.num_slots; i++) {
             const ui_settings_slot_t* slot = &settings.slots[i];
@@ -320,7 +333,7 @@ static void imgui_WriteAllFn(ImGuiContext* ctx, ImGuiSettingsHandler* handler, I
 static void register_imgui_settings_handler(void) {
     const char* type_name = "floooh.chips";
     ImGuiSettingsHandler ini_handler;
-    ini_handler.TypeName = type_name;;
+    ini_handler.TypeName = type_name;
     ini_handler.TypeHash = ImHashStr(type_name);
     ini_handler.ClearAllFn = imgui_ClearAllFn;
     ini_handler.ReadInitFn = imgui_ReadInitFn;
@@ -329,4 +342,18 @@ static void register_imgui_settings_handler(void) {
     ini_handler.ApplyAllFn = imgui_ApplyAllFn;
     ini_handler.WriteAllFn = imgui_WriteAllFn;
     ImGui::AddSettingsHandler(&ini_handler);
+}
+
+extern "C" ui_settings_t* settings_load(const char* imgui_ini_key) {
+    ImGuiContext* prev_ctx = ImGui::GetCurrentContext();
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+    ImGuiIO* io = &ImGui::GetIO();
+    io->IniFilename = NULL;
+    snprintf(state.imgui_ini_key, sizeof(state.imgui_ini_key), "%s", imgui_ini_key);
+    register_imgui_settings_handler();
+    load_imgui_ini();
+    ImGui::DestroyContext(ctx);
+    ImGui::SetCurrentContext(prev_ctx);
+    return &state.settings;
 }
