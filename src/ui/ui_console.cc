@@ -1,6 +1,7 @@
 #include "./ui_console.h"
 
 #include "imgui.h"
+#include "ui/ui_util.h"
 #include "util/ringbuffer.h"
 
 #include <cstring>
@@ -351,7 +352,7 @@ void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc) {
     win->init_y = (float)desc->y;
     win->init_w = (float)((desc->w == 0) ? 400 : desc->w);
     win->init_h = (float)((desc->h == 0) ? 256 : desc->h);
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->valid = true;
 
     console.win = win;
@@ -373,10 +374,21 @@ void ui_console_process_tx(ui_console_t* win) {
 
 void ui_console_draw(ui_console_t* win) {
     CHIPS_ASSERT(win && win->valid && win->title);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
 
     ui_console_process_tx(win);
 
     if (win->open) {
         console.Draw(win->title, &win->open);
     }
+}
+
+void ui_console_save_settings(ui_console_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_console_load_settings(ui_console_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }

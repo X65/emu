@@ -50,7 +50,7 @@ typedef struct {
     } icon;
     int flash_success_count;
     int flash_error_count;
-    void (*draw_extra_cb)(void);
+    gfx_draw_extra_t draw_extra_cb;
 } gfx_state_t;
 static gfx_state_t state;
 
@@ -78,6 +78,15 @@ static const float gfx_verts_flipped_rot[] = {
     0.0f, 1.0f, 0.0f, 1.0f,
     1.0f, 1.0f, 0.0f, 0.0f
 };
+
+static sg_range gfx_select_vertices(void) {
+    return (sg_range){
+        .ptr = sg_query_features().origin_top_left ?
+               (state.display.portrait ? gfx_verts_rot : gfx_verts) :
+               (state.display.portrait ? gfx_verts_flipped_rot : gfx_verts_flipped),
+        .size = sizeof(gfx_verts),
+    };
+}
 
 // a bit-packed speaker-off icon
 static const struct {
@@ -156,6 +165,11 @@ void gfx_flash_error(void) {
 void gfx_disable_speaker_icon(void) {
     assert(state.valid);
     state.disable_speaker_icon = true;
+}
+
+chips_dim_t gfx_pixel_aspect(void) {
+    assert(state.valid);
+    return state.offscreen.pixel_aspect;
 }
 
 sg_image gfx_create_icon_texture(const uint8_t* packed_pixels, int width, int height, int stride) {
@@ -320,12 +334,7 @@ void gfx_init(const gfx_desc_t* desc) {
         .colors[0] = { .load_action = SG_LOADACTION_CLEAR, .clear_value = { 0.05f, 0.05f, 0.05f, 1.0f } }
     };
     state.display.vbuf = sg_make_buffer(&(sg_buffer_desc){
-        .data = {
-            .ptr = sg_query_features().origin_top_left ?
-                   (state.display.portrait ? gfx_verts_rot : gfx_verts) :
-                   (state.display.portrait ? gfx_verts_flipped_rot : gfx_verts_flipped),
-            .size = sizeof(gfx_verts)
-        }
+        .data = gfx_select_vertices(),
     });
 
     state.display.pip = sg_make_pipeline(&(sg_pipeline_desc){
@@ -394,13 +403,13 @@ static void apply_viewport(chips_dim_t canvas, chips_rect_t view, chips_dim_t pi
         vp_y = (float)border.top;
         vp_h = ch;
         vp_w = (ch * emu_aspect);
-        vp_x = border.left + (cw - vp_w) / 2;
+        vp_x = border.left + (cw - vp_w) * 0.5f;
     }
     else {
         vp_x = (float)border.left;
         vp_w = cw;
         vp_h = (cw / emu_aspect);
-        vp_y = (float)border.top;
+        vp_y = border.top + (ch - vp_h) * 0.5f;
     }
     sg_apply_viewportf(vp_x, vp_y, vp_w, vp_h, true);
 }
@@ -509,7 +518,11 @@ void gfx_draw(chips_display_info_t display_info) {
     sdtx_draw();
     sgl_draw();
     if (state.draw_extra_cb) {
-        state.draw_extra_cb();
+        state.draw_extra_cb(&(gfx_draw_info_t){
+            .display_image = state.offscreen.img,
+            .display_sampler = state.offscreen.smp,
+            .display_info = display_info,
+        });
     }
     sg_end_pass();
     sg_commit();

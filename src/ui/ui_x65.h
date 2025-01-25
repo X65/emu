@@ -25,11 +25,13 @@
     - mem.h
     - ui_chip.h
     - ui_util.h
+    - ui_settings.h
     - ui_m6502.h
     - ui_m6526.h
     - ui_m6569.h
     - ui_m6581.h
     - ui_audio.h
+    - ui_display.h
     - ui_dasm.h
     - ui_dbg.h
     - ui_memedit.h
@@ -56,11 +58,15 @@
         distribution.
 #*/
 #include "systems/x65.h"
+#define UI_DBG_USE_M6502
+#include "ui/ui_settings.h"
+#include "ui/ui_util.h"
 #include "ui/ui_audio.h"
 #include "ui/ui_chip.h"
 #include "ui/ui_console.h"
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
+#include "ui/ui_display.h"
 #include "ui/ui_kbd.h"
 #include "ui/ui_m6502.h"
 #include "ui/ui_m6526.h"
@@ -100,6 +106,7 @@ typedef struct {
     ui_cgia_t cgia;
     ui_console_t ria_uart;
     ui_audio_t audio;
+    ui_display_t display;
     ui_kbd_t kbd;
     ui_memmap_t memmap;
     ui_memedit_t memedit[4];
@@ -109,10 +116,16 @@ typedef struct {
     bool show_about;
 } ui_x65_t;
 
+typedef struct {
+    ui_display_frame_t display;
+} ui_x65_frame_t;
+
 void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* desc);
 void ui_x65_discard(ui_x65_t* ui);
-void ui_x65_draw(ui_x65_t* ui);
+void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame);
 chips_debug_t ui_x65_get_debug(ui_x65_t* ui);
+void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings);
+void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */

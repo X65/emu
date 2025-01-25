@@ -42,7 +42,7 @@ add_executable(emu
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
-    PRIVATE common imgui
+    PRIVATE common ui imgui-docking
     ${READLINE_LIBRARIES})
 target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
 

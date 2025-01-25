@@ -20,6 +20,7 @@
 
     Include the following headers before including the *implementation*:
         - imgui.h
+        - ui_settings.h
 
     All string data provided to the ui_audio_init() must remain alive until
     until ui_audio_discard() is called!
@@ -69,12 +70,15 @@ typedef struct {
     float init_w, init_h;
     uint32_t cursor_color;
     bool open;
+    bool last_open;
     bool valid;
 } ui_audio_t;
 
 void ui_audio_init(ui_audio_t* win, const ui_audio_desc_t* desc);
 void ui_audio_discard(ui_audio_t* win);
 void ui_audio_draw(ui_audio_t* win, int sample_pos);
+void ui_audio_save_settings(ui_audio_t* win, ui_settings_t* settings);
+void ui_audio_load_settings(ui_audio_t* ui, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -100,12 +104,12 @@ void ui_audio_init(ui_audio_t* win, const ui_audio_desc_t* desc) {
     win->title = desc->title;
     win->sample_buffer = desc->sample_buffer;
     win->num_samples = desc->num_samples;
-    win->init_x = (float)  desc->x;
+    win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
     win->init_w = (float) ((desc->w == 0) ? 480 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 120 : desc->h);
     win->cursor_color = 0xFF0000FF;
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->valid = true;
 }
 
@@ -116,6 +120,7 @@ void ui_audio_discard(ui_audio_t* win) {
 
 void ui_audio_draw(ui_audio_t* win, int sample_pos) {
     CHIPS_ASSERT(win && win->valid && win->title && win->sample_buffer);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     if (!win->open) {
         return;
     }
@@ -135,5 +140,15 @@ void ui_audio_draw(ui_audio_t* win, int sample_pos) {
         ImGui::GetWindowDrawList()->AddLine(ImVec2(x, y0), ImVec2(x, y1), win->cursor_color, 3);
     }
     ImGui::End();
+}
+
+void ui_audio_save_settings(ui_audio_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_audio_load_settings(ui_audio_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }
 #endif /* CHIPS_UI_IMPL */

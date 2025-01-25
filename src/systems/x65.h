@@ -1,8 +1,8 @@
 #pragma once
-/*  #
+/*#
     # x65.h
 
-    An X65 emulator in a C header
+    An X65 emulator in C
 
     Optionally provide the following macros with your own implementation
 
@@ -27,8 +27,6 @@
     TODO!
 
     ## TODO:
-
-    - floppy disc support
 
     ## Tests Status
 
@@ -232,6 +230,7 @@
         3. This notice may not be removed or altered from any source
         distribution.
 #*/
+
 #include "chips/chips_common.h"
 #include "chips/kbd.h"
 #include "chips/cgia.h"
@@ -326,7 +325,6 @@ typedef struct {
     bool running;  // whether CPU is running or held in RESET state
 
     x65_joystick_type_t joystick_type;
-    bool io_mapped;         // true when D000..DFFF has IO area mapped in
     uint8_t kbd_joy1_mask;  // current joystick-1 state from keyboard-joystick emulation
     uint8_t kbd_joy2_mask;  // current joystick-2 state from keyboard-joystick emulation
     uint8_t joy_joy1_mask;  // current joystick-1 state from x65_joystick()
@@ -354,7 +352,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc);
 void x65_discard(x65_t* sys);
 // reset a X65 instance
 void x65_reset(x65_t* sys);
-// start/stop X65 instance
+// start/stop X65 CPU
 void x65_set_running(x65_t* sys, bool running);
 // get framebuffer and display attributes
 chips_display_info_t x65_display_info(x65_t* sys);

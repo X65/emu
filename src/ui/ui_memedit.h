@@ -97,6 +97,7 @@ typedef struct {
     size_t max_addr;
     MemoryEditor* ed;
     bool open;
+    bool last_open;
     bool valid;
 } ui_memedit_t;
 
@@ -106,6 +107,8 @@ void ui_memedit_init(ui_memedit_t* win, const ui_memedit_desc_t* desc);
 void ui_memedit_discard(ui_memedit_t* win);
 void ui_memedit_draw_content(ui_memedit_t* win);
 void ui_memedit_draw(ui_memedit_t* win);
+void ui_memedit_save_settings(ui_memedit_t* win, ui_settings_t* settings);
+void ui_memedit_load_settings(ui_memedit_t* ui, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -911,7 +914,7 @@ void ui_memedit_init(ui_memedit_t* win, const ui_memedit_desc_t* desc) {
     win->init_w = (float) ((desc->w == 0) ? 512 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 120 : desc->h);
     win->max_addr = (desc->max_addr == 0) ? (1<<16) : desc->max_addr;
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->ed = new MemoryEditor;
     win->ed->Cols = (desc->num_cols == 0) ? win->ed->Cols : desc->num_cols;
     win->ed->OptShowOptions = !desc->hide_options;
@@ -941,6 +944,7 @@ void ui_memedit_discard(ui_memedit_t* win) {
 
 void ui_memedit_draw(ui_memedit_t* win) {
     CHIPS_ASSERT(win && win->ed && win->title && win->valid);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     win->ed->Open = win->open;
     if (!win->ed->Open) {
         return;
@@ -954,6 +958,16 @@ void ui_memedit_draw(ui_memedit_t* win) {
 void ui_memedit_draw_content(ui_memedit_t* win) {
     CHIPS_ASSERT(win && win->valid);
     win->ed->DrawContents((uint8_t*)win, win->max_addr);
+}
+
+void ui_memedit_save_settings(ui_memedit_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_memedit_load_settings(ui_memedit_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }
 #ifdef _MSC_VER
 #pragma warning(pop)

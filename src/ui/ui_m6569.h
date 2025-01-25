@@ -21,6 +21,7 @@
     Include the following headers before the including the *declaration*:
         - m6569.h
         - ui_chip.h
+        - ui_settings.h
 
     Include the following headers before including the *implementation*:
         - imgui.h
@@ -74,6 +75,7 @@ typedef struct ui_m6569_t {
     float init_x, init_y;
     float init_w, init_h;
     bool open;
+    bool last_open;
     bool valid;
     ui_chip_t chip;
 } ui_m6569_t;
@@ -81,6 +83,8 @@ typedef struct ui_m6569_t {
 void ui_m6569_init(ui_m6569_t* win, const ui_m6569_desc_t* desc);
 void ui_m6569_discard(ui_m6569_t* win);
 void ui_m6569_draw(ui_m6569_t* win);
+void ui_m6569_save_settings(ui_m6569_t* win, ui_settings_t* settings);
+void ui_m6569_load_settings(ui_m6569_t* win, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -108,7 +112,7 @@ void ui_m6569_init(ui_m6569_t* win, const ui_m6569_desc_t* desc) {
     win->init_y = (float) desc->y;
     win->init_w = (float) ((desc->w == 0) ? 496 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 416 : desc->h);
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->valid = true;
     ui_chip_init(&win->chip, &desc->chip_desc);
 }
@@ -136,12 +140,16 @@ static void _ui_m6569_draw_hwcolors(void) {
 
 static void _ui_m6569_draw_color(const char* label, uint8_t val) {
     ImGui::Text("%s%X", label, val); ImGui::SameLine();
+    ImGui::PushID(label);
     ImGui::ColorButton("##regclr", ImColor(m6569_color(val&0xF)), ImGuiColorEditFlags_NoAlpha, ImVec2(12,12));
+    ImGui::PopID();
 }
 
 static void _ui_m6569_draw_rgb(const char* label, uint32_t val) {
     ImGui::Text("%s", label); ImGui::SameLine();
+    ImGui::PushID(label);
     ImGui::ColorButton("##rgbclr", ImColor(val | 0xFF000000), ImGuiColorEditFlags_NoAlpha, ImVec2(12,12));
+    ImGui::PopID();
 }
 
 static void _ui_m6569_draw_registers(const ui_m6569_t* win) {
@@ -271,10 +279,12 @@ static void _ui_m6569_draw_sprite_units(const ui_m6569_t* win) {
     };
     const m6569_sprite_unit_t* su = &win->vic->sunit;
     for (int i = 0; i < 8; i++) {
+        ImGui::PushID(i);
+        const uint8_t mask = 1 << i;
         if (ImGui::CollapsingHeader(su_names[i])) {
-            ImGui::Text("dma:%s", su->dma_enabled[i]?"ON ":"OFF"); ImGui::SameLine();
-            ImGui::Text("display:%s", su->disp_enabled[i]?"ON ":"OFF"); ImGui::SameLine();
-            ImGui::Text("expand:%s", su->expand[i]?"ON ":"OFF");
+            ImGui::Text("dma:%s", su->dma_enabled & mask ? "ON ":"OFF"); ImGui::SameLine();
+            ImGui::Text("display:%s", su->disp_enabled & mask ? "ON ":"OFF"); ImGui::SameLine();
+            ImGui::Text("expand:%s", su->expand & mask ?"ON ":"OFF");
             ImGui::Text("h_first:%02X h_last:%02X h_offset:%02X", su->h_first[i], su->h_last[i], su->h_offset[i]);
             ImGui::Text("p_data:%02X mc:%02X mc_base:%02X", su->p_data[i], su->mc[i], su->mc_base[i]);
             ImGui::Text("delay_cnt:%02X outp2_cnt:%02X xexp_cnt:%02X", su->delay_count[i], su->outp2_count[i], su->xexp_count[i]);
@@ -285,11 +295,13 @@ static void _ui_m6569_draw_sprite_units(const ui_m6569_t* win) {
             _ui_m6569_draw_rgb("main color: ", su->colors[i][2]);
             _ui_m6569_draw_rgb("multicolor1:", su->colors[i][3]);
         }
+        ImGui::PopID();
     }
 }
 
 void ui_m6569_draw(ui_m6569_t* win) {
     CHIPS_ASSERT(win && win->valid);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     if (!win->open) {
         return;
     }
@@ -315,4 +327,13 @@ void ui_m6569_draw(ui_m6569_t* win) {
     ImGui::End();
 }
 
+void ui_m6569_save_settings(ui_m6569_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_m6569_load_settings(ui_m6569_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
+}
 #endif /* CHIPS_UI_IMPL */

@@ -225,6 +225,7 @@ typedef struct {
     uint l_count;
 
     uint active_line;
+    bool badline;  // active when rasterizer code is running and stealing memory reads from CPU
 
     // copy of CGIA internal registers
     struct cgia_internal {

@@ -32,19 +32,17 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     CHIPS_ASSERT(sys->audio.num_samples <= X65_MAX_AUDIO_SAMPLES);
 
     // initialize the hardware
-    sys->io_mapped = true;
-
     sys->pins = m6502_init(&sys->cpu, &(m6502_desc_t){});
     m6526_init(&sys->cia_1);
     m6526_init(&sys->cia_2);
     ria816_init(&sys->ria);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
+        .fetch_cb = _x65_vpu_fetch,
         .framebuffer = {
-            .ptr = &sys->fb,
+            .ptr = sys->fb,
             .size = sizeof(sys->fb),
         },
-        .fetch_cb = _x65_vpu_fetch,
         .user_data = sys,
     });
     m6581_init(
@@ -67,7 +65,6 @@ void x65_reset(x65_t* sys) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->kbd_joy1_mask = sys->kbd_joy2_mask = 0;
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
-    sys->io_mapped = true;
     _x65_update_memory_map(sys);
     sys->pins |= M6502_RES;
     m6526_reset(&sys->cia_1);
@@ -126,25 +123,13 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         communication takes place starting with the first read access.
     */
     bool mem_access = false;
+    bool ext_access = false;
     uint64_t cgia_pins = pins & M6502_PIN_MASK;
-    uint64_t cia1_pins = pins & M6502_PIN_MASK;
-    uint64_t cia2_pins = pins & M6502_PIN_MASK;
     uint64_t ria_pins = pins & M6502_PIN_MASK;
-    uint64_t sid_pins = pins & M6502_PIN_MASK;
+    uint64_t sd1_pins = pins & M6502_PIN_MASK;
     if ((pins & (M6502_RDY | M6502_RW)) != (M6502_RDY | M6502_RW)) {
-        if (sys->io_mapped && ((addr & 0xF000) == 0xD000)) {
-            if (addr < 0xD800) {
-                // SID (D400..D7FF)
-                sid_pins |= M6581_CS;
-            }
-            else if (addr < 0xDD00) {
-                // CIA-1 (DC00..DCFF)
-                cia1_pins |= M6526_CS;
-            }
-            else if (addr < 0xDE00) {
-                // CIA-2 (DD00..DDFF)
-                cia2_pins |= M6526_CS;
-            }
+        if (sys->ria.reg[RIA816_HW_IO] && ((addr & 0xF000) == 0xE000)) {
+            ext_access = true;  // FIXME: this is a bitmap of 8x 32 bytes
         }
         else if ((addr & X65_IO_BASE) == X65_IO_BASE) {
             if (addr >= X65_IO_RIA_BASE) {
@@ -153,7 +138,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             }
             else if (addr >= X65_IO_YMF825_BASE) {
                 // SD-1 (FF80..FF9F)
-                // sd1_pins |= YMF825_CS;
+                sd1_pins |= 0;  // FIXME: YMF825_CS;
             }
             else if (addr >= X65_IO_CGIA_BASE) {
                 // CGIA (FF00..FF7F)
@@ -165,92 +150,55 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    // tick the SID
-    {
-        sid_pins = m6581_tick(&sys->sid, sid_pins);
-        if (sid_pins & M6581_SAMPLE) {
-            // new audio sample ready
-            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sid.sample;
-            if (sys->audio.sample_pos == sys->audio.num_samples) {
-                if (sys->audio.callback.func) {
-                    sys->audio.callback.func(
-                        sys->audio.sample_buffer,
-                        sys->audio.num_samples,
-                        sys->audio.callback.user_data);
-                }
-                sys->audio.sample_pos = 0;
-            }
-        }
-        if ((sid_pins & (M6581_CS | M6581_RW)) == (M6581_CS | M6581_RW)) {
-            pins = M6502_COPY_DATA(pins, sid_pins);
-        }
-    }
+    // // tick the SID
+    // {
+    //     sid_pins = m6581_tick(&sys->sid, sid_pins);
+    //     if (sid_pins & M6581_SAMPLE) {
+    //         // new audio sample ready
+    //         sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sid.sample;
+    //         if (sys->audio.sample_pos == sys->audio.num_samples) {
+    //             if (sys->audio.callback.func) {
+    //                 sys->audio.callback.func(
+    //                     sys->audio.sample_buffer,
+    //                     sys->audio.num_samples,
+    //                     sys->audio.callback.user_data);
+    //             }
+    //             sys->audio.sample_pos = 0;
+    //         }
+    //     }
+    //     if ((sid_pins & (M6581_CS | M6581_RW)) == (M6581_CS | M6581_RW)) {
+    //         pins = M6502_COPY_DATA(pins, sid_pins);
+    //     }
+    // }
 
-    /* tick CIA-1:
+    // /* tick CIA-1:
 
-        In Port A:
-            joystick 2 input
-        In Port B:
-            combined keyboard matrix columns and joystick 1
-        Cas Port Read => Flag pin
+    //     In Port A:
+    //         joystick 2 input
+    //     In Port B:
+    //         combined keyboard matrix columns and joystick 1
+    //     Cas Port Read => Flag pin
 
-        Out Port A:
-            write keyboard matrix lines
+    //     Out Port A:
+    //         write keyboard matrix lines
 
-        IRQ pin is connected to the CPU IRQ pin
-    */
-    {
-        // cassette port READ pin is connected to CIA-1 FLAG pin
-        const uint8_t pa = ~(sys->kbd_joy2_mask | sys->joy_joy2_mask);
-        const uint8_t pb = ~(kbd_scan_columns(&sys->kbd) | sys->kbd_joy1_mask | sys->joy_joy1_mask);
-        M6526_SET_PAB(cia1_pins, pa, pb);
-        cia1_pins = m6526_tick(&sys->cia_1, cia1_pins);
-        const uint8_t kbd_lines = ~M6526_GET_PA(cia1_pins);
-        kbd_set_active_lines(&sys->kbd, kbd_lines);
-        if (cia1_pins & M6502_IRQ) {
-            pins |= M6502_IRQ;
-        }
-        if ((cia1_pins & (M6526_CS | M6526_RW)) == (M6526_CS | M6526_RW)) {
-            pins = M6502_COPY_DATA(pins, cia1_pins);
-        }
-    }
-
-    /* tick CIA-2
-        In Port A:
-            bits 0..5: output (see cia2_out)
-            bits 6..7: serial bus input, not implemented
-        In Port B:
-            RS232 / user functionality (not implemented)
-
-        Out Port A:
-            bits 0..1: VIC-II bank select:
-                00: bank 3 C000..FFFF
-                01: bank 2 8000..BFFF
-                10: bank 1 4000..7FFF
-                11: bank 0 0000..3FFF
-            bit 2: RS-232 TXD Outout (not implemented)
-            bit 3..5: serial bus output (not implemented)
-            bit 6..7: input (see cia2_in)
-        Out Port B:
-            RS232 / user functionality (not implemented)
-
-        CIA-2 IRQ pin connected to CPU NMI pin
-    */
-    {
-        M6526_SET_PAB(cia2_pins, 0xFF, 0xFF);
-        cia2_pins = m6526_tick(&sys->cia_2, cia2_pins);
-        if (cia2_pins & M6502_IRQ) {
-            pins |= M6502_NMI;
-        }
-        if ((cia2_pins & (M6526_CS | M6526_RW)) == (M6526_CS | M6526_RW)) {
-            pins = M6502_COPY_DATA(pins, cia2_pins);
-        }
-    }
-
-    // the RESTORE key, along with CIA-2 IRQ, is connected to the NMI line,
-    if (sys->kbd.scanout_column_masks[8] & 1) {
-        pins |= M6502_NMI;
-    }
+    //     IRQ pin is connected to the CPU IRQ pin
+    // */
+    // {
+    //     // cassette port READ pin is connected to CIA-1 FLAG pin
+    //     const uint8_t pa = ~(sys->kbd_joy2_mask | sys->joy_joy2_mask);
+    //     const uint8_t pb = ~(kbd_scan_columns(&sys->kbd) | sys->kbd_joy1_mask | sys->joy_joy1_mask);
+    //     M6526_SET_PAB(cia1_pins, pa, pb);
+    //     cia1_pins = m6526_tick(&sys->cia_1, cia1_pins);
+    //     const uint8_t kbd_lines = ~M6526_GET_PA(cia1_pins);
+    //     kbd_set_active_lines(&sys->kbd, kbd_lines);
+    //     if (cia1_pins & M6502_IRQ) {
+    //         pins |= M6502_IRQ;
+    //     }
+    //     if ((cia1_pins & (M6526_CS | M6526_RW)) == (M6526_CS | M6526_RW)) {
+    //         pins = M6502_COPY_DATA(pins, cia1_pins);
+    //     }
+    // }
 
     /* tick RIA816:
      */
@@ -284,6 +232,12 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             mem_wr(&sys->mem, addr, M6502_GET_DATA(pins));
         }
     }
+    if (ext_access) {
+        if (pins & M6502_RW) {
+            // memory read
+            M6502_SET_DATA(pins, 0xFF);
+        }
+    }
     return pins;
 }
 
@@ -296,21 +250,38 @@ uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
 }
 
 static void _x65_update_memory_map(x65_t* sys) {
-    sys->io_mapped = false;
-    // shortcut if HIRAM and LORAM is 0, everything is RAM
-    if (true) {
-        mem_map_ram(&sys->mem, 0, 0xA000, 0x6000, sys->ram + 0xA000);
-    }
-    else {
-        // A000..BFFF is RAM
-        mem_map_rw(&sys->mem, 0, 0xA000, 0x2000, sys->ram + 0xA000, sys->ram + 0xA000);
+    // uint8_t* read_ptr;
+    // // shortcut if HIRAM and LORAM is 0, everything is RAM
+    // if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == 0) {
+    //     mem_map_ram(&sys->mem_cpu, 0, 0xA000, 0x6000, sys->ram + 0xA000);
+    // }
+    // else {
+    //     // A000..BFFF is either RAM-behind-BASIC-ROM or RAM
+    //     if ((sys->cpu_port & (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) == (X65_CPUPORT_HIRAM | X65_CPUPORT_LORAM)) {
+    //         read_ptr = sys->rom_basic;
+    //     }
+    //     else {
+    //         read_ptr = sys->ram + 0xA000;
+    //     }
+    //     mem_map_rw(&sys->mem_cpu, 0, 0xA000, 0x2000, read_ptr, sys->ram + 0xA000);
 
-        // E000..FFFF is RAM
-        mem_map_rw(&sys->mem, 0, 0xE000, 0x2000, sys->ram + 0xE000, sys->ram + 0xE000);
+    //     // E000..FFFF is either RAM-behind-KERNAL-ROM or RAM
+    //     if (sys->cpu_port & X65_CPUPORT_HIRAM) {
+    //         read_ptr = sys->rom_kernal;
+    //     }
+    //     else {
+    //         read_ptr = sys->ram + 0xE000;
+    //     }
+    //     mem_map_rw(&sys->mem_cpu, 0, 0xE000, 0x2000, read_ptr, sys->ram + 0xE000);
 
-        // D000..DFFF can be Char-ROM or I/O
-        sys->io_mapped = true;
-    }
+    //     // D000..DFFF can be Char-ROM or I/O
+    //     if (sys->cpu_port & X65_CPUPORT_CHAREN) {
+    //         sys->io_mapped = true;
+    //     }
+    //     else {
+    //         mem_map_rw(&sys->mem_cpu, 0, 0xD000, 0x1000, sys->rom_char, sys->ram + 0xD000);
+    //     }
+    // }
 }
 
 static void _x65_init_memory_map(x65_t* sys) {

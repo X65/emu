@@ -24,6 +24,7 @@
     Include the following headers before including the *implementation*:
         - imgui.h
         - kbd.h
+        - ui_settings.h
 
     All string data provided to the ui_kbd_init() must remain alive until
     until ui_kbd_discard() is called!
@@ -79,6 +80,7 @@ typedef struct {
     uint32_t last_key_mask;
     int last_key_frame_count;
     bool open;
+    bool last_open;
     bool valid;
     int keymap[UI_KBD_MAX_LAYERS][KBD_MAX_COLUMNS][KBD_MAX_LINES];
 } ui_kbd_t;
@@ -86,6 +88,8 @@ typedef struct {
 void ui_kbd_init(ui_kbd_t* win, const ui_kbd_desc_t* desc);
 void ui_kbd_discard(ui_kbd_t* win);
 void ui_kbd_draw(ui_kbd_t* win);
+void ui_kbd_save_settings(ui_kbd_t* win, ui_settings_t* settings);
+void ui_kbd_load_settings(ui_kbd_t* ui, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -157,7 +161,7 @@ void ui_kbd_init(ui_kbd_t* win, const ui_kbd_desc_t* desc) {
     win->top_padding = 20.0f;
     win->cell_width = 32.0f;
     win->cell_height = 32.0f;
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
 
     /* get matrix size */
     uint32_t key_bits = 0;
@@ -268,6 +272,7 @@ static void _ui_kbd_draw_matrix(ui_kbd_t* win, const ImVec2& canvas_pos, uint32_
 
 void ui_kbd_draw(ui_kbd_t* win) {
     CHIPS_ASSERT(win && win->valid && win->title && win->kbd);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     if (!win->open) {
         return;
     }
@@ -293,5 +298,15 @@ void ui_kbd_draw(ui_kbd_t* win) {
         _ui_kbd_draw_matrix(win, canvas_pos, win->last_key_mask);
     }
     ImGui::End();
+}
+
+void ui_kbd_save_settings(ui_kbd_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_kbd_load_settings(ui_kbd_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }
 #endif /* CHIPS_UI_IMPL */

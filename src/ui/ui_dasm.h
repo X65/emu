@@ -29,6 +29,7 @@
 
         - imgui.h
         - ui_util.h
+        - ui_settings.h
         - z80dasm.h     (only if UI_DASM_USE_Z80 is defined)
         - m6502dasm.h   (only if UI_DASM_USE_M6502 is defined)
 
@@ -102,6 +103,7 @@ typedef struct {
     float init_x, init_y;
     float init_w, init_h;
     bool open;
+    bool last_open;
     bool valid;
     uint16_t start_addr;
     uint16_t cur_addr;
@@ -119,6 +121,8 @@ typedef struct {
 void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc);
 void ui_dasm_discard(ui_dasm_t* win);
 void ui_dasm_draw(ui_dasm_t* win);
+void ui_dasm_save_settings(ui_dasm_t* win, ui_settings_t* settings);
+void ui_dasm_load_settings(ui_dasm_t* ui, const ui_settings_t* settings);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -152,7 +156,7 @@ void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
     win->init_y = (float) desc->y;
     win->init_w = (float) ((desc->w == 0) ? 400 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 256 : desc->h);
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->highlight_color = 0xFF30FF30;
     for (int i = 0; i < UI_DASM_MAX_LAYERS; i++) {
         if (desc->layers[i]) {
@@ -439,6 +443,7 @@ static void _ui_dasm_draw_stack(ui_dasm_t* win) {
 
 void ui_dasm_draw(ui_dasm_t* win) {
     CHIPS_ASSERT(win && win->valid && win->title);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     if (!win->open) {
         return;
     }
@@ -450,5 +455,15 @@ void ui_dasm_draw(ui_dasm_t* win) {
         _ui_dasm_draw_disasm(win);
     }
     ImGui::End();
+}
+
+void ui_dasm_save_settings(ui_dasm_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_dasm_load_settings(ui_dasm_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }
 #endif /* CHIPS_UI_IMPL */

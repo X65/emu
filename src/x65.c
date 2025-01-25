@@ -11,10 +11,10 @@
 #include "chips/clk.h"
 #include "chips/mem.h"
 #include "systems/x65.h"
-#include "c64-roms.h"
 #if defined(CHIPS_USE_UI)
     #define UI_DBG_USE_M6502
     #include "ui.h"
+    #include "ui/ui_settings.h"
     #include "ui/ui_chip.h"
     #include "ui/ui_memedit.h"
     #include "ui/ui_memmap.h"
@@ -24,6 +24,7 @@
     #include "ui/ui_m6526.h"
     #include "ui/ui_m6581.h"
     #include "ui/ui_audio.h"
+    #include "ui/ui_display.h"
     #include "ui/ui_kbd.h"
     #include "ui/ui_snapshot.h"
     #include "ui/ui_x65.h"
@@ -67,7 +68,8 @@ static struct {
 } state;
 
 #ifdef CHIPS_USE_UI
-static void ui_draw_cb(void);
+static void ui_draw_cb(const ui_draw_info_t* draw_info);
+static void ui_save_settings_cb(ui_settings_t* settings);
 static void ui_boot_cb(x65_t* sys);
 static void ui_save_snapshot(size_t slot_index);
 static bool ui_load_snapshot(size_t slot_index);
@@ -76,6 +78,7 @@ static void web_boot(void);
 static void web_reset(void);
 static bool web_ready(void);
 static bool web_load(chips_range_t data);
+static void web_input(const char* text);
 static void web_dbg_connect(void);
 static void web_dbg_disconnect(void);
 static void web_dbg_add_breakpoint(uint16_t addr);
@@ -156,8 +159,11 @@ void app_init(void) {
     prof_init();
     fs_init();
 #ifdef CHIPS_USE_UI
-    ui_init(ui_draw_cb);
-    settings_register();
+    ui_init(&(ui_desc_t){
+        .draw_cb = ui_draw_cb,
+        .save_settings_cb = ui_save_settings_cb,
+        .imgui_ini_key = "floooh.chips.x65",
+    });
     ui_x65_init(&state.ui, &(ui_x65_desc_t){
         .x65 = &state.x65,
         .boot_cb = ui_boot_cb,
@@ -188,6 +194,7 @@ void app_init(void) {
             .toggle_breakpoint = { .keycode = simgui_map_keycode(SAPP_KEYCODE_F9), .name = "F9" }
         }
     });
+    ui_x65_load_settings(&state.ui, ui_settings());
     ui_load_snapshots_from_storage();
     // important: initialize webapi after ui
     webapi_init(&(webapi_desc_t){
@@ -196,6 +203,7 @@ void app_init(void) {
             .reset = web_reset,
             .ready = web_ready,
             .load = web_load,
+            .input = web_input,
             .dbg_connect = web_dbg_connect,
             .dbg_disconnect = web_dbg_disconnect,
             .dbg_add_breakpoint = web_dbg_add_breakpoint,
@@ -213,10 +221,10 @@ void app_init(void) {
     bool delay_input = false;
     if (arguments.rom) {
         delay_input = true;
-        fs_start_load_file(FS_SLOT_IMAGE, arguments.rom);
+        fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
     }
     if (sargs_exists("prg")) {
-        fs_load_base64(FS_SLOT_IMAGE, "url.prg", sargs_value("prg"));
+        fs_load_base64(FS_CHANNEL_IMAGES, "url.prg", sargs_value("prg"));
     }
     if (!delay_input) {
         if (sargs_exists("input")) {
@@ -246,7 +254,7 @@ void app_input(const sapp_event* event) {
 
     // accept dropped files also when ImGui grabs input
     if (event->type == SAPP_EVENTTYPE_FILES_DROPPED) {
-        fs_start_load_dropped_file(FS_SLOT_IMAGE);
+        fs_load_dropped_file_async(FS_CHANNEL_IMAGES);
     }
 #ifdef CHIPS_USE_UI
     if (ui_input(event)) {
@@ -336,17 +344,18 @@ static void send_keybuf_input(void) {
 static void handle_file_loading(void) {
     fs_dowork();
     const uint32_t load_delay_frames = LOAD_DELAY_FRAMES;
-    if (fs_success(FS_SLOT_IMAGE) && clock_frame_count_60hz() > load_delay_frames) {
+    if (fs_success(FS_CHANNEL_IMAGES) && clock_frame_count_60hz() > load_delay_frames) {
         bool load_success = false;
-        if (fs_ext(FS_SLOT_IMAGE, "txt") || fs_ext(FS_SLOT_IMAGE, "bas")) {
+        if (fs_ext(FS_CHANNEL_IMAGES, "txt") || fs_ext(FS_CHANNEL_IMAGES, "bas")) {
             load_success = true;
-            keybuf_put((const char*)fs_data(FS_SLOT_IMAGE).ptr);
+            keybuf_put((const char*)fs_data(FS_CHANNEL_IMAGES).ptr);
         }
-        else if (fs_ext(FS_SLOT_IMAGE, "bin") || fs_ext(FS_SLOT_IMAGE, "prg") || fs_ext(FS_SLOT_IMAGE, "")) {
-            load_success = x65_quickload(&state.x65, fs_data(FS_SLOT_IMAGE));
+        else if (
+            fs_ext(FS_CHANNEL_IMAGES, "bin") || fs_ext(FS_CHANNEL_IMAGES, "prg") || fs_ext(FS_CHANNEL_IMAGES, "")) {
+            load_success = x65_quickload(&state.x65, fs_data(FS_CHANNEL_IMAGES));
         }
-        else if (fs_ext(FS_SLOT_IMAGE, "xex")) {
-            load_success = x65_quickload_xex(&state.x65, fs_data(FS_SLOT_IMAGE));
+        else if (fs_ext(FS_CHANNEL_IMAGES, "xex")) {
+            load_success = x65_quickload_xex(&state.x65, fs_data(FS_CHANNEL_IMAGES));
         }
         if (load_success) {
             if (clock_frame_count_60hz() > (load_delay_frames + 10)) {
@@ -356,10 +365,10 @@ static void handle_file_loading(void) {
                 if (sargs_exists("input")) {
                     keybuf_put(sargs_value("input"));
                 }
-                else if (fs_ext(FS_SLOT_IMAGE, "tap")) {
+                else if (fs_ext(FS_CHANNEL_IMAGES, "tap")) {
                     x65_basic_load(&state.x65);
                 }
-                else if (fs_ext(FS_SLOT_IMAGE, "prg")) {
+                else if (fs_ext(FS_CHANNEL_IMAGES, "prg")) {
                     x65_basic_run(&state.x65);
                 }
             }
@@ -367,7 +376,7 @@ static void handle_file_loading(void) {
         else {
             gfx_flash_error();
         }
-        fs_reset(FS_SLOT_IMAGE);
+        fs_reset(FS_CHANNEL_IMAGES);
     }
 }
 
@@ -389,8 +398,16 @@ static void draw_status_bar(void) {
 }
 
 #if defined(CHIPS_USE_UI)
-static void ui_draw_cb(void) {
-    ui_x65_draw(&state.ui);
+static void ui_draw_cb(const ui_draw_info_t* draw_info) {
+    ui_x65_draw(
+        &state.ui,
+        &(ui_x65_frame_t){
+            .display = draw_info->display,
+        });
+}
+
+static void ui_save_settings_cb(ui_settings_t* settings) {
+    ui_x65_save_settings(&state.ui, settings);
 }
 
 static void ui_boot_cb(x65_t* sys) {
@@ -398,7 +415,7 @@ static void ui_boot_cb(x65_t* sys) {
     x65_desc_t desc = x65_desc(sys->joystick_type);
     x65_init(sys, &desc);
     if (arguments.rom) {
-        fs_start_load_file(FS_SLOT_IMAGE, arguments.rom);
+        fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
     }
 }
 
@@ -446,7 +463,7 @@ static void ui_fetch_snapshot_callback(const fs_snapshot_response_t* response) {
 
 static void ui_load_snapshots_from_storage(void) {
     for (size_t snapshot_slot = 0; snapshot_slot < UI_SNAPSHOT_MAX_SLOTS; snapshot_slot++) {
-        fs_start_load_snapshot(FS_SLOT_SNAPSHOTS, "x65", snapshot_slot, ui_fetch_snapshot_callback);
+        fs_load_snapshot_async("x65", snapshot_slot, ui_fetch_snapshot_callback);
     }
 }
 
@@ -507,6 +524,10 @@ static bool web_load(chips_range_t data) {
         x65_basic_syscall(&state.x65, start_addr);
     }
     return loaded;
+}
+
+static void web_input(const char* text) {
+    keybuf_put(text);
 }
 
 static void web_dbg_add_breakpoint(uint16_t addr) {
@@ -630,8 +651,6 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     });
     args_parse(argc, argv);
 
-    if (arguments.ini_file) settings_load(arguments.ini_file);
-
     const chips_display_info_t info = x65_display_info(0);
     const int default_width = info.screen.width + BORDER_LEFT + BORDER_RIGHT;
     const int default_height = info.screen.height + BORDER_TOP + BORDER_BOTTOM;
@@ -650,9 +669,9 @@ sapp_desc sokol_main(int argc, char* argv[]) {
                 .pixels = (sapp_range){ &app_icon.pixel_data, app_icon.width * app_icon.height * 4 },
             },
         },
-        .enable_clipboard = true,
         .enable_dragndrop = true,
         .html5_bubble_mouse_events = true,
+        .html5_update_document_title = true,
         .logger.func = slog_func,
     };
 }

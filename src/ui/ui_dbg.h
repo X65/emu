@@ -29,6 +29,7 @@
 
         - imgui.h
         - ui_util.h
+        - ui_settings.h
         - z80.h         (only if UI_DBG_USE_Z80 is defined)
         - z80dasm.h     (only if UI_DBG_USE_Z80 is defined)
         - m6502.h       (only if UI_DBG_USE_M6502 is defined)
@@ -134,8 +135,6 @@ typedef struct ui_dbg_user_breaktype_t {
     bool show_val16;            /* show the value field as word? */
 } ui_dbg_breaktype_t;
 
-/* texture handle compatible with Dear ImGui */
-typedef uint64_t ui_dbg_texture_t;
 /* forward decl */
 struct ui_dbg_t;
 /* callback for reading a byte from memory */
@@ -143,11 +142,11 @@ typedef uint8_t (*ui_dbg_read_t)(int layer, uint16_t addr, void* user_data);
 /* callback for evaluating uer breakpoints, return breakpoint index, or -1 */
 typedef int (*ui_dbg_user_break_t)(struct ui_dbg_t* win, int trap_id, uint64_t pins, void* user_data);
 /* a callback to create a dynamic-update RGBA8 UI texture, needs to return an ImTextureID handle */
-typedef ui_dbg_texture_t (*ui_dbg_create_texture_t)(int w, int h);
+typedef ui_texture_t (*ui_dbg_create_texture_t)(int w, int h);
 /* callback to update a UI texture with new data */
-typedef void (*ui_dbg_update_texture_t)(ui_dbg_texture_t tex_handle, void* data, int data_byte_size);
+typedef void (*ui_dbg_update_texture_t)(ui_texture_t tex_handle, void* data, int data_byte_size);
 /* callback to destroy a UI texture */
-typedef void (*ui_dbg_destroy_texture_t)(ui_dbg_texture_t tex_handle);
+typedef void (*ui_dbg_destroy_texture_t)(ui_texture_t tex_handle);
 /* callback when emulator is being rebootet */
 typedef void (*ui_dbg_reboot_t)(void);
 /* callback when emulator is being reset */
@@ -239,17 +238,34 @@ typedef struct ui_dbg_line_t {
 typedef struct ui_dbg_uistate_t {
     const char* title;
     bool open;
+    bool last_open;
     float init_x, init_y;
     float init_w, init_h;
-    bool show_heatmap;
     bool show_regs;
     bool show_buttons;
-    bool show_breakpoints;
     bool show_bytes;
     bool show_ticks;
-    bool show_history;
-    bool show_stopwatch;
     bool request_scroll;
+    struct {
+        const char* title;
+        bool open;
+        bool last_open;
+    } heatmap;
+    struct {
+        const char* title;
+        bool open;
+        bool last_open;
+    } history;
+    struct {
+        const char* title;
+        bool open;
+        bool last_open;
+    } breakpoints;
+    struct {
+        const char* title;
+        bool open;
+        bool last_open;
+    } stopwatch;
     ui_dbg_keys_desc_t keys;
     ui_dbg_line_t line_array[UI_DBG_NUM_LINES];
     int num_breaktypes;
@@ -272,7 +288,7 @@ typedef struct ui_dbg_heatmap_t {
     int tex_width, tex_height;
     int tex_width_uicombo_state;
     int next_tex_width;
-    ui_dbg_texture_t texture;
+    ui_texture_t texture;
     bool show_ops, show_reads, show_writes;
     int autoclear_interval; /* 0: no autoclear */
     int scale;
@@ -339,6 +355,10 @@ typedef struct ui_dbg_t {
 void ui_dbg_init(ui_dbg_t* win, ui_dbg_desc_t* desc);
 // discard ui_dbg_t instance
 void ui_dbg_discard(ui_dbg_t* win);
+// save persistent state
+void ui_dbg_save_settings(ui_dbg_t* win, ui_settings_t* settings);
+// load persistent state
+void ui_dbg_load_settings(ui_dbg_t* win, const ui_settings_t* settings);
 // notify ui_dbg that an external debugger has connected (may change some behaviour)
 void ui_dbg_external_debugger_connected(ui_dbg_t* win);
 // notify ui_dbg that an external debugger has disconnected (clears breakpoints and continues)
@@ -592,12 +612,13 @@ static uint16_t _ui_dbg_history_get(ui_dbg_t* win, uint16_t rel_pos) {
 }
 
 static void _ui_dbg_history_draw(ui_dbg_t* win) {
-    if (!win->ui.show_history) {
+    ui_util_handle_window_open_dirty(&win->ui.history.open, &win->ui.history.last_open);
+    if (!win->ui.history.open) {
         return;
     }
     ImGui::SetNextWindowPos(ImVec2(win->ui.init_x + win->ui.init_w, win->ui.init_y + 64), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(win->ui.init_w, 376), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Execution History", &win->ui.show_history)) {
+    if (ImGui::Begin(win->ui.history.title, &win->ui.history.open)) {
         const float line_height = ImGui::GetTextLineHeight();
         ImGui::SetNextWindowContentSize(ImVec2(0, UI_DBG_NUM_HISTORY_ITEMS * line_height));
         ImGui::BeginChild("##main", ImGui::GetContentRegionAvail(), false);
@@ -948,12 +969,13 @@ static void _ui_dbg_bp_draw_delete_all_modal(ui_dbg_t* win, const char* title) {
 
 /* draw the breakpoint list window */
 static void _ui_dbg_bp_draw(ui_dbg_t* win) {
-    if (!win->ui.show_breakpoints) {
+    ui_util_handle_window_open_dirty(&win->ui.breakpoints.open, &win->ui.breakpoints.last_open);
+    if (!win->ui.breakpoints.open) {
         return;
     }
     ImGui::SetNextWindowPos(ImVec2(win->ui.init_x + win->ui.init_w, win->ui.init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(-1, 256), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Breakpoints", &win->ui.show_breakpoints)) {
+    if (ImGui::Begin(win->ui.breakpoints.title, &win->ui.breakpoints.open)) {
         bool scroll_down = false;
         if (ImGui::Button("Add..")) {
             _ui_dbg_bp_add_exec(win, false, _ui_dbg_get_pc(win));
@@ -1197,7 +1219,8 @@ static void _ui_dbg_heatmap_update(ui_dbg_t* win) {
 }
 
 static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
-    if (!win->ui.show_heatmap) {
+    ui_util_handle_window_open_dirty(&win->ui.heatmap.open, &win->ui.heatmap.last_open);
+    if (!win->ui.heatmap.open) {
         return;
     }
     ui_dbg_heatmap_t* hm = &win->heatmap;
@@ -1213,7 +1236,7 @@ static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
     _ui_dbg_heatmap_update(win);
     ImGui::SetNextWindowPos(ImVec2(win->ui.init_x + win->ui.init_w, win->ui.init_y + 128), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(292, 400), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Memory Heatmap", &win->ui.show_heatmap)) {
+    if (ImGui::Begin(win->ui.heatmap.title, &win->ui.heatmap.open)) {
         if (ImGui::Button("Clear All")) {
             _ui_dbg_heatmap_clear_all(win);
         }
@@ -1281,14 +1304,14 @@ static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
             if (ImGui::Selectable("Add Byte Breakpoint")) {
                 if (-1 == _ui_dbg_bp_find(win, UI_DBG_BREAKTYPE_BYTE, hm->popup_addr)) {
                     _ui_dbg_bp_add_byte(win, false, hm->popup_addr);
-                    win->ui.show_breakpoints = true;
+                    win->ui.breakpoints.open = true;
                     ImGui::SetWindowFocus("Breakpoints");
                 }
             }
             if (ImGui::Selectable("Add Word Breakpoint")) {
                 if (-1 == _ui_dbg_bp_find(win, UI_DBG_BREAKTYPE_WORD, hm->popup_addr)) {
                     _ui_dbg_bp_add_word(win, false, hm->popup_addr);
-                    win->ui.show_breakpoints = true;
+                    win->ui.breakpoints.open = true;
                     ImGui::SetWindowFocus("Breakpoints");
                 }
             }
@@ -1317,12 +1340,13 @@ static void _ui_dbg_stopwatch_reset(ui_dbg_t* win) {
 }
 
 static void _ui_dbg_stopwatch_draw(ui_dbg_t* win) {
-    if (!win->ui.show_stopwatch) {
+    ui_util_handle_window_open_dirty(&win->ui.stopwatch.open, &win->ui.stopwatch.last_open);
+    if (!win->ui.stopwatch.open) {
         return;
     }
     ImGui::SetNextWindowPos(ImVec2(win->ui.init_x + win->ui.init_w, win->ui.init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(-1, -1), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Stopwatch", &win->ui.show_stopwatch)) {
+    if (ImGui::Begin(win->ui.stopwatch.title, &win->ui.stopwatch.open)) {
         for (int i = 0; i < UI_DBG_STOPWATCH_NUM; i++) {
             ImGui::PushID(i);
             if (ImGui::Button("Reset")) {
@@ -1356,7 +1380,15 @@ static void _ui_dbg_stopwatch_draw(ui_dbg_t* win) {
 static void _ui_dbg_uistate_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     ui_dbg_uistate_t* ui = &win->ui;
     ui->title = desc->title;
-    ui->open = desc->open;
+    ui->open = ui->last_open = desc->open;
+    ui->heatmap.title = "Memory Heatmap";
+    ui->heatmap.open = ui->heatmap.last_open = false;
+    ui->history.title = "Execution History";
+    ui->history.open = ui->history.last_open = false;
+    ui->breakpoints.title = "Breakpoints";
+    ui->breakpoints.open = ui->breakpoints.last_open = false;
+    ui->stopwatch.title = "Stopwatch";
+    ui->stopwatch.open = ui->stopwatch.last_open = false;
     ui->init_x = (float) desc->x;
     ui->init_y = (float) desc->y;
     ui->init_w = (float) ((desc->w == 0) ? 380 : desc->w);
@@ -1365,8 +1397,6 @@ static void _ui_dbg_uistate_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     ui->show_buttons = true;
     ui->show_bytes = true;
     ui->show_ticks = true;
-    ui->show_history = false;
-    ui->show_breakpoints = false;
     ui->keys = desc->keys;
     int i = 0;
     for (; i < UI_DBG_BREAKTYPE_USER; i++) {
@@ -1447,13 +1477,13 @@ static void _ui_dbg_draw_menu(ui_dbg_t* win) {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Breakpoints")) {
-            ImGui::MenuItem("Breakpoint Window", 0, &win->ui.show_breakpoints);
+            ImGui::MenuItem("Breakpoint Window", 0, &win->ui.breakpoints.open);
             if (ImGui::MenuItem("Toggle Breakpoint", "F9")) {
                 _ui_dbg_bp_toggle_exec(win, _ui_dbg_get_pc(win));
             }
             if (ImGui::MenuItem("Add Breakpoint..")) {
                 _ui_dbg_bp_add_exec(win, false, _ui_dbg_get_pc(win));
-                win->ui.show_breakpoints = true;
+                win->ui.breakpoints.open = true;
                 ImGui::SetWindowFocus("Breakpoints");
             }
             if (ImGui::MenuItem("Enable All")) {
@@ -1468,10 +1498,10 @@ static void _ui_dbg_draw_menu(ui_dbg_t* win) {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Show")) {
-            ImGui::MenuItem("Memory Heatmap", 0, &win->ui.show_heatmap);
-            ImGui::MenuItem("Execution History", 0, &win->ui.show_history);
-            ImGui::MenuItem("Breakpoints", 0, &win->ui.show_breakpoints);
-            ImGui::MenuItem("Stopwatch", 0, &win->ui.show_stopwatch);
+            ImGui::MenuItem("Memory Heatmap", 0, &win->ui.heatmap.open);
+            ImGui::MenuItem("Execution History", 0, &win->ui.history.open);
+            ImGui::MenuItem("Breakpoints", 0, &win->ui.breakpoints.open);
+            ImGui::MenuItem("Stopwatch", 0, &win->ui.stopwatch.open);
             ImGui::MenuItem("Registers", 0, &win->ui.show_regs);
             ImGui::MenuItem("Button Bar", 0, &win->ui.show_buttons);
             ImGui::MenuItem("Opcode Bytes", 0, &win->ui.show_bytes);
@@ -1491,82 +1521,84 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
         return;
     }
     #if defined(UI_DBG_USE_Z80)
-        const float h = 4*ImGui::GetFrameHeightWithSpacing();
-        ImGui::BeginChild("##regs", ImVec2(0, h), false);
         z80_t* c = win->dbg.z80;
-        ImGui::Columns(5, "##reg_columns", false);
-        for (int i = 0; i < 5; i++) {
-            ImGui::SetColumnWidth(i, 72);
+        if (ImGui::BeginTable("##reg_columns", 5)) {
+            for (int i = 0; i < 5; i++) {
+                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
+            }
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            c->af  = ui_util_input_u16("AF", c->af); ImGui::TableNextColumn();
+            c->bc  = ui_util_input_u16("BC", c->bc); ImGui::TableNextColumn();
+            c->de  = ui_util_input_u16("DE", c->de); ImGui::TableNextColumn();
+            c->hl  = ui_util_input_u16("HL", c->hl); ImGui::TableNextColumn();
+            c->wz  = ui_util_input_u16("WZ", c->wz); ImGui::TableNextColumn();
+            c->af2 = ui_util_input_u16("AF'", c->af2); ImGui::TableNextColumn();
+            c->bc2 = ui_util_input_u16("BC'", c->bc2); ImGui::TableNextColumn();
+            c->de2 = ui_util_input_u16("DE'", c->de2); ImGui::TableNextColumn();
+            c->hl2 = ui_util_input_u16("HL'", c->hl2); ImGui::TableNextColumn();
+            c->i   = ui_util_input_u8("I", c->i); ImGui::TableNextColumn();
+            c->ix  = ui_util_input_u16("IX", c->ix); ImGui::TableNextColumn();
+            c->iy  = ui_util_input_u16("IY", c->iy); ImGui::TableNextColumn();
+            c->sp  = ui_util_input_u16("SP", c->sp); ImGui::TableNextColumn();
+            c->pc  = ui_util_input_u16("PC", c->pc); ImGui::TableNextColumn();
+            c->r   = ui_util_input_u8("R", c->r); ImGui::TableNextColumn();
+            c->im  = ui_util_input_u8("IM", c->im); ImGui::SameLine(); ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            if (c->iff1) { ImGui::Text("IFF1"); }
+            else         { ImGui::TextDisabled("IFF1"); }
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            if (c->iff2) { ImGui::Text("IFF2"); }
+            else         { ImGui::TextDisabled("IFF2"); }
+            ImGui::TableNextColumn();
+            char f_str[9] = {
+                (c->f & Z80_SF) ? 'S':'-',
+                (c->f & Z80_ZF) ? 'Z':'-',
+                (c->f & Z80_YF) ? 'Y':'-',
+                (c->f & Z80_HF) ? 'H':'-',
+                (c->f & Z80_XF) ? 'X':'-',
+                (c->f & Z80_VF) ? 'V':'-',
+                (c->f & Z80_NF) ? 'N':'-',
+                (c->f & Z80_CF) ? 'C':'-',
+                0,
+            };
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%s", f_str);
+            ImGui::EndTable();
         }
-        c->af  = ui_util_input_u16("AF", c->af); ImGui::NextColumn();
-        c->bc  = ui_util_input_u16("BC", c->bc); ImGui::NextColumn();
-        c->de  = ui_util_input_u16("DE", c->de); ImGui::NextColumn();
-        c->hl  = ui_util_input_u16("HL", c->hl); ImGui::NextColumn();
-        c->wz  = ui_util_input_u16("WZ", c->wz); ImGui::NextColumn();
-        c->af2 = ui_util_input_u16("AF'", c->af2); ImGui::NextColumn();
-        c->bc2 = ui_util_input_u16("BC'", c->bc2); ImGui::NextColumn();
-        c->de2 = ui_util_input_u16("DE'", c->de2); ImGui::NextColumn();
-        c->hl2 = ui_util_input_u16("HL'", c->hl2); ImGui::NextColumn();
-        c->i   = ui_util_input_u8("I", c->i); ImGui::NextColumn();
-        c->ix  = ui_util_input_u16("IX", c->ix); ImGui::NextColumn();
-        c->iy  = ui_util_input_u16("IY", c->iy); ImGui::NextColumn();
-        c->sp  = ui_util_input_u16("SP", c->sp); ImGui::NextColumn();
-        c->pc  = ui_util_input_u16("PC", c->pc); ImGui::NextColumn();
-        c->r   = ui_util_input_u8("R", c->r); ImGui::NextColumn();
-        c->im  = ui_util_input_u8("IM", c->im); ImGui::SameLine(); ImGui::NextColumn();
-        ImGui::AlignTextToFramePadding();
-        if (c->iff1) { ImGui::Text("IFF1"); }
-        else         { ImGui::TextDisabled("IFF1"); }
-        ImGui::NextColumn();
-        ImGui::AlignTextToFramePadding();
-        if (c->iff2) { ImGui::Text("IFF2"); }
-        else         { ImGui::TextDisabled("IFF2"); }
-        ImGui::NextColumn();
-        char f_str[9] = {
-            (c->f & Z80_SF) ? 'S':'-',
-            (c->f & Z80_ZF) ? 'Z':'-',
-            (c->f & Z80_YF) ? 'Y':'-',
-            (c->f & Z80_HF) ? 'H':'-',
-            (c->f & Z80_XF) ? 'X':'-',
-            (c->f & Z80_VF) ? 'V':'-',
-            (c->f & Z80_NF) ? 'N':'-',
-            (c->f & Z80_CF) ? 'C':'-',
-            0,
-        };
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("%s", f_str);
-        ImGui::EndChild();
     #elif defined(UI_DBG_USE_M6502)
-        const float h = 1*ImGui::GetFrameHeightWithSpacing();
-        ImGui::BeginChild("##regs", ImVec2(0, h), false);
         m6502_t* c = win->dbg.m6502;
-        ImGui::Columns(7, "##reg_columns", false);
-        for (int i = 0; i < 5; i++) {
-            ImGui::SetColumnWidth(i, 44);
+        if (ImGui::BeginTable("##reg_columns", 7)) {
+            for (int i = 0; i < 5; i++) {
+                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
+            }
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 72);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            m6502_set_a(c, ui_util_input_u8("A", m6502_a(c))); ImGui::TableNextColumn();
+            m6502_set_x(c, ui_util_input_u8("X", m6502_x(c))); ImGui::TableNextColumn();
+            m6502_set_y(c, ui_util_input_u8("Y", m6502_y(c))); ImGui::TableNextColumn();
+            m6502_set_s(c, ui_util_input_u8("S", m6502_s(c))); ImGui::TableNextColumn();
+            m6502_set_p(c, ui_util_input_u8("P", m6502_p(c))); ImGui::TableNextColumn();
+            m6502_set_pc(c, ui_util_input_u16("PC", m6502_pc(c))); ImGui::TableNextColumn();
+            const uint8_t p = m6502_p(c);
+            char p_str[9] = {
+                (p & M6502_NF) ? 'N':'-',
+                (p & M6502_VF) ? 'V':'-',
+                (p & M6502_XF) ? 'X':'-',
+                (p & M6502_BF) ? 'B':'-',
+                (p & M6502_DF) ? 'D':'-',
+                (p & M6502_IF) ? 'I':'-',
+                (p & M6502_ZF) ? 'Z':'-',
+                (p & M6502_CF) ? 'C':'-',
+                0,
+            };
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%s", p_str);
+            ImGui::EndTable();
         }
-        ImGui::SetColumnWidth(5, 64);
-        ImGui::SetColumnWidth(6, 72);
-        m6502_set_a(c, ui_util_input_u8("A", m6502_a(c))); ImGui::NextColumn();
-        m6502_set_x(c, ui_util_input_u8("X", m6502_x(c))); ImGui::NextColumn();
-        m6502_set_y(c, ui_util_input_u8("Y", m6502_y(c))); ImGui::NextColumn();
-        m6502_set_s(c, ui_util_input_u8("S", m6502_s(c))); ImGui::NextColumn();
-        m6502_set_p(c, ui_util_input_u8("P", m6502_p(c))); ImGui::NextColumn();
-        m6502_set_pc(c, ui_util_input_u16("PC", m6502_pc(c))); ImGui::NextColumn();
-        const uint8_t p = m6502_p(c);
-        char p_str[9] = {
-            (p & M6502_NF) ? 'N':'-',
-            (p & M6502_VF) ? 'V':'-',
-            (p & M6502_XF) ? 'X':'-',
-            (p & M6502_BF) ? 'B':'-',
-            (p & M6502_DF) ? 'D':'-',
-            (p & M6502_IF) ? 'I':'-',
-            (p & M6502_ZF) ? 'Z':'-',
-            (p & M6502_CF) ? 'C':'-',
-            0,
-        };
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("%s", p_str);
-        ImGui::EndChild();
     #endif
     ImGui::Separator();
 }
@@ -1916,6 +1948,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
 }
 
 static void _ui_dbg_dbgwin_draw(ui_dbg_t* win) {
+    ui_util_handle_window_open_dirty(&win->ui.open, &win->ui.last_open);
     if (!win->ui.open) {
         return;
     }
@@ -1958,6 +1991,22 @@ void ui_dbg_discard(ui_dbg_t* win) {
     CHIPS_ASSERT(win && win->valid);
     _ui_dbg_heatmap_discard(win);
     win->valid = false;
+}
+
+void ui_dbg_save_settings(ui_dbg_t* win, ui_settings_t* settings) {
+    ui_settings_add(settings, win->ui.title, win->ui.open);
+    ui_settings_add(settings, win->ui.heatmap.title, win->ui.heatmap.open);
+    ui_settings_add(settings, win->ui.history.title, win->ui.history.open);
+    ui_settings_add(settings, win->ui.breakpoints.title, win->ui.breakpoints.open);
+    ui_settings_add(settings, win->ui.stopwatch.title, win->ui.stopwatch.open);
+}
+
+void ui_dbg_load_settings(ui_dbg_t* win, const ui_settings_t* settings) {
+    win->ui.open = ui_settings_isopen(settings, win->ui.title);
+    win->ui.heatmap.open = ui_settings_isopen(settings, win->ui.heatmap.title);
+    win->ui.history.open = ui_settings_isopen(settings, win->ui.history.title);
+    win->ui.breakpoints.open = ui_settings_isopen(settings, win->ui.breakpoints.title);
+    win->ui.stopwatch.open = ui_settings_isopen(settings, win->ui.stopwatch.title);
 }
 
 void ui_dbg_reset(ui_dbg_t* win) {
@@ -2028,7 +2077,7 @@ void ui_dbg_tick(ui_dbg_t* win, uint64_t pins) {
 void ui_dbg_draw(ui_dbg_t* win) {
     CHIPS_ASSERT(win && win->valid && win->ui.title);
     win->dbg.frame_id++;
-    if (!(win->ui.open || win->ui.show_heatmap || win->ui.show_breakpoints || win->ui.show_history || win->ui.show_stopwatch)) {
+    if (!(win->ui.open || win->ui.heatmap.open || win->ui.breakpoints.open || win->ui.history.open || win->ui.stopwatch.open)) {
         return;
     }
     _ui_dbg_dbgwin_draw(win);

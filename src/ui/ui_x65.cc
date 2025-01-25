@@ -1,18 +1,12 @@
-#define UI_DBG_USE_M6502
 #include "./ui_x65.h"
 
 #include "imgui.h"
 #include "args.h"
 
-#include "ui/ui_chip.h"
-#include "ui/ui_util.h"
-
 #ifndef __cplusplus
     #error "implementation must be compiled as C++"
 #endif
-
 #include <string.h> /* memset */
-
 #ifndef CHIPS_ASSERT
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)
@@ -56,6 +50,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem("Memory Map", 0, &ui->memmap.open);
             ImGui::MenuItem("Keyboard Matrix", 0, &ui->kbd.open);
             ImGui::MenuItem("Audio Output", 0, &ui->audio.open);
+            ImGui::MenuItem("Display", 0, &ui->display.open);
             ImGui::MenuItem("MOS 6510 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem("MOS 6526 #1 (CIA)", 0, &ui->cia[0].open);
             ImGui::MenuItem("MOS 6526 #2 (CIA)", 0, &ui->cia[1].open);
@@ -66,10 +61,10 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
         }
         if (ImGui::BeginMenu("Debug")) {
             ImGui::MenuItem("CPU Debugger", 0, &ui->dbg.ui.open);
-            ImGui::MenuItem("Breakpoints", 0, &ui->dbg.ui.show_breakpoints);
-            ImGui::MenuItem("Stopwatch", 0, &ui->dbg.ui.show_stopwatch);
-            ImGui::MenuItem("Execution History", 0, &ui->dbg.ui.show_history);
-            ImGui::MenuItem("Memory Heatmap", 0, &ui->dbg.ui.show_heatmap);
+            ImGui::MenuItem("Breakpoints", 0, &ui->dbg.ui.breakpoints.open);
+            ImGui::MenuItem("Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
+            ImGui::MenuItem("Execution History", 0, &ui->dbg.ui.history.open);
+            ImGui::MenuItem("Memory Heatmap", 0, &ui->dbg.ui.heatmap.open);
             if (ImGui::BeginMenu("Memory Editor")) {
                 ImGui::MenuItem("Window #1", 0, &ui->memedit[0].open);
                 ImGui::MenuItem("Window #2", 0, &ui->memedit[1].open);
@@ -191,17 +186,19 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 }
 
 /* keep disassembler layer at the start */
-#define _UI_X65_MEMLAYER_CPU (0) /* CPU visible mapping */
-#define _UI_X65_MEMLAYER_RAM (1) /* RAM blocks */
-#define _UI_X65_MEMLAYER_ROM (2) /* ROM blocks */
-// #define _UI_X65_MEMLAYER_1541   (3)     /* optional 1541 floppy drive */
-#define _UI_X65_MEMLAYER_VRAM0 (4) /* CGIA VRAM bank 0 */
-#define _UI_X65_MEMLAYER_VRAM1 (5) /* CGIA VRAM bank 1 */
+#define _UI_X65_MEMLAYER_CPU   (0) /* CPU visible mapping */
+#define _UI_X65_MEMLAYER_RAM   (1) /* RAM blocks */
+#define _UI_X65_MEMLAYER_VRAM0 (2) /* CGIA VRAM bank 0 */
+#define _UI_X65_MEMLAYER_VRAM1 (3) /* CGIA VRAM bank 1 */
 #define _UI_X65_CODELAYER_NUM  (4) /* number of valid layers for disassembler */
-#define _UI_X65_MEMLAYER_NUM   (6)
+#define _UI_X65_MEMLAYER_NUM   (4)
 
-static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = { "CPU Mapped",  "RAM Banks",       "ROM Banks",
-                                                                    "1541 Floppy", "Background Bank", "Sprite Bank" };
+static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
+    "CPU Mapped",
+    "RAM Banks",
+    "Background Bank",
+    "Sprite Bank",
+};
 
 static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     CHIPS_ASSERT(user_data);
@@ -210,7 +207,6 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     switch (layer) {
         case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
-        case _UI_X65_MEMLAYER_ROM: return 0xFF;
         case _UI_X65_MEMLAYER_VRAM0: return x65->cgia.vram[0][addr];
         case _UI_X65_MEMLAYER_VRAM1: return x65->cgia.vram[1][addr];
         default: return 0xFF;
@@ -224,7 +220,6 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
     switch (layer) {
         case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
-        case _UI_X65_MEMLAYER_ROM: break;
         case _UI_X65_MEMLAYER_VRAM0: x65->cgia.vram[0][addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM1: x65->cgia.vram[1][addr] = data; break;
     }
@@ -233,13 +228,14 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
 static void _ui_x65_update_memmap(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     const x65_t* x65 = ui->x65;
-    bool io_enabled = true;
-    bool char_rom = true;
+    const uint8_t ext_en = x65->ria.reg[RIA816_HW_IO];
     ui_memmap_reset(&ui->memmap);
     ui_memmap_layer(&ui->memmap, "IO");
-    ui_memmap_region(&ui->memmap, "IO REGION", 0xD000, 0x1000, io_enabled);
+    ui_memmap_region(&ui->memmap, "IO REGION", 0xD000, 0x1000, ext_en & 0b00000001);
     ui_memmap_layer(&ui->memmap, "ROM");
-    ui_memmap_region(&ui->memmap, "CHAR ROM", 0xD000, 0x1000, char_rom);
+    ui_memmap_region(&ui->memmap, "BASIC ROM", 0xA000, 0x2000, ext_en & 0b00000010);
+    ui_memmap_region(&ui->memmap, "CHAR ROM", 0xD000, 0x1000, ext_en & 0b00000100);
+    ui_memmap_region(&ui->memmap, "KERNAL ROM", 0xE000, 0x2000, ext_en & 0b00001000);
     ui_memmap_layer(&ui->memmap, "RAM");
     ui_memmap_region(&ui->memmap, "RAM", 0x0000, 0x10000, true);
 }
@@ -249,7 +245,7 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
-    int scanline = 0;  // x65->vic.rs.v_count;
+    int scanline = x65->cgia.active_line;
     for (int i = 0; (i < dbg_win->dbg.num_breakpoints) && (trap_id == 0); i++) {
         const ui_dbg_breakpoint_t* bp = &dbg_win->dbg.breakpoints[i];
         if (bp->enabled) {
@@ -268,7 +264,7 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
                     break;
                 /* next badline */
                 case UI_DBG_BREAKTYPE_USER + 2:
-                    if ((ui->dbg_scanline != scanline) /*&& x65->vic.rs.badline*/) {
+                    if ((ui->dbg_scanline != scanline) && x65->cgia.badline) {
                         trap_id = UI_DBG_BP_BASE_TRAPID + i;
                     }
                     break;
@@ -450,8 +446,8 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.y = y;
         desc.m6502 = &ui->x65->cpu;
         desc.freq_hz = X65_FREQUENCY;
-        desc.scanline_ticks = 128;  // M6569_HTOTAL;
-        desc.frame_ticks = 256;     // M6569_HTOTAL * M6569_VTOTAL;
+        desc.scanline_ticks = ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
+        desc.frame_ticks = MODE_V_TOTAL_LINES * ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
         desc.read_cb = _ui_x65_mem_read;
         desc.break_cb = _ui_x65_eval_bp;
         desc.texture_cbs = ui_desc->dbg_texture;
@@ -543,6 +539,15 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
+        ui_display_desc_t desc = { 0 };
+        desc.title = "Display";
+        desc.x = x;
+        desc.y = y;
+        ui_display_init(&ui->display, &desc);
+    }
+    x += dx;
+    y += dy;
+    {
         ui_kbd_desc_t desc = { 0 };
         desc.title = "Keyboard Matrix";
         desc.kbd = &ui->x65->kbd;
@@ -618,6 +623,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_console_discard(&ui->ria_uart);
     ui_kbd_discard(&ui->kbd);
     ui_audio_discard(&ui->audio);
+    ui_display_discard(&ui->display);
     ui_memmap_discard(&ui->memmap);
     for (int i = 0; i < 4; i++) {
         ui_memedit_discard(&ui->memedit[i]);
@@ -627,18 +633,15 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui->x65 = 0;
 }
 
-void ui_x65_draw(ui_x65_t* ui) {
-    CHIPS_ASSERT(ui && ui->x65);
+void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
+    CHIPS_ASSERT(ui && ui->x65 && frame);
     _ui_x65_draw_menu(ui);
-    ImGui::DockSpaceOverViewport(
-        0,
-        ImGui::GetMainViewport(),
-        ImGuiDockNodeFlags_NoDockingOverCentralNode | ImGuiDockNodeFlags_PassthruCentralNode);
     _ui_x65_draw_about(ui);
     if (ui->memmap.open) {
         _ui_x65_update_memmap(ui);
     }
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);
+    ui_display_draw(&ui->display, &frame->display);
     ui_kbd_draw(&ui->kbd);
     ui_m6502_draw(&ui->cpu);
     ui_m6526_draw(&ui->cia[0]);
@@ -663,6 +666,49 @@ chips_debug_t ui_x65_get_debug(ui_x65_t* ui) {
     return res;
 }
 
+void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
+    CHIPS_ASSERT(ui && settings);
+    ui_m6502_save_settings(&ui->cpu, settings);
+    for (int i = 0; i < 2; i++) {
+        ui_m6526_save_settings(&ui->cia[i], settings);
+    }
+    ui_m6581_save_settings(&ui->sid, settings);
+    ui_cgia_save_settings(&ui->cgia, settings);
+    ui_console_save_settings(&ui->ria_uart, settings);
+    ui_audio_save_settings(&ui->audio, settings);
+    ui_display_save_settings(&ui->display, settings);
+    ui_kbd_save_settings(&ui->kbd, settings);
+    ui_memmap_save_settings(&ui->memmap, settings);
+    for (int i = 0; i < 4; i++) {
+        ui_memedit_save_settings(&ui->memedit[i], settings);
+    }
+    for (int i = 0; i < 4; i++) {
+        ui_dasm_save_settings(&ui->dasm[i], settings);
+    }
+    ui_dbg_save_settings(&ui->dbg, settings);
+}
+
+void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
+    CHIPS_ASSERT(ui && settings);
+    ui_m6502_load_settings(&ui->cpu, settings);
+    for (int i = 0; i < 2; i++) {
+        ui_m6526_load_settings(&ui->cia[i], settings);
+    }
+    ui_m6581_load_settings(&ui->sid, settings);
+    ui_cgia_load_settings(&ui->cgia, settings);
+    ui_console_load_settings(&ui->ria_uart, settings);
+    ui_audio_load_settings(&ui->audio, settings);
+    ui_display_load_settings(&ui->display, settings);
+    ui_kbd_load_settings(&ui->kbd, settings);
+    ui_memmap_load_settings(&ui->memmap, settings);
+    for (int i = 0; i < 4; i++) {
+        ui_memedit_load_settings(&ui->memedit[i], settings);
+    }
+    for (int i = 0; i < 4; i++) {
+        ui_dasm_load_settings(&ui->dasm[i], settings);
+    }
+    ui_dbg_load_settings(&ui->dbg, settings);
+}
 #ifdef __clang__
     #pragma clang diagnostic pop
 #endif

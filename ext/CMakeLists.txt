@@ -1,4 +1,4 @@
-add_library(imgui STATIC
+add_library(imgui-docking STATIC
 	imgui/imgui.cpp
 	imgui/imgui.h
 	imgui/imstb_rectpack.h

@@ -77,6 +77,8 @@ typedef struct {
     void (*reset)(void);
     bool (*ready)(void);
     bool (*load)(chips_range_t data);       // data starts with a webapi_fileheader_t
+    bool (*load_file)(const char *file);
+    bool (*unload_file)();
     bool (*load_snapshot)(size_t index);
     void (*save_snapshot)(size_t index);
     void (*dbg_connect)(void);
@@ -90,7 +92,7 @@ typedef struct {
     webapi_cpu_state_t (*dbg_cpu_state)(void);
     void (*dbg_request_disassembly)(uint16_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* dst_lines);
     void (*dbg_read_memory)(uint16_t addr, int num_bytes, uint8_t* dst_ptr);
-    void (*input)(char* text);
+    void (*input)(const char* text);
 } webapi_interface_t;
 
 typedef struct {

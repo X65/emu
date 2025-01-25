@@ -29,7 +29,7 @@ void ui_cgia_init(ui_cgia_t* win, const ui_cgia_desc_t* desc) {
     win->init_y = (float)desc->y;
     win->init_w = (float)((desc->w == 0) ? 348 : desc->w);
     win->init_h = (float)((desc->h == 0) ? 360 : desc->h);
-    win->open = desc->open;
+    win->open = win->last_open = desc->open;
     win->valid = true;
     ui_chip_init(&win->chip, &desc->chip_desc);
 }
@@ -263,6 +263,7 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
 
 void ui_cgia_draw(ui_cgia_t* win) {
     CHIPS_ASSERT(win && win->valid);
+    ui_util_handle_window_open_dirty(&win->open, &win->last_open);
     if (!win->open) {
         return;
     }
@@ -281,4 +282,14 @@ void ui_cgia_draw(ui_cgia_t* win) {
         ImGui::EndChild();
     }
     ImGui::End();
+}
+
+void ui_cgia_save_settings(ui_cgia_t* win, ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    ui_settings_add(settings, win->title, win->open);
+}
+
+void ui_cgia_load_settings(ui_cgia_t* win, const ui_settings_t* settings) {
+    CHIPS_ASSERT(win && settings);
+    win->open = ui_settings_isopen(settings, win->title);
 }

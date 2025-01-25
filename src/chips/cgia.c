@@ -77,7 +77,11 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
 
             if (vpu->active_line % FB_V_REPEAT == 0) {
                 // rasterize new line
+                vpu->badline = true;
                 cgia_render(vpu->active_line / FB_V_REPEAT, src);
+            }
+            else {
+                vpu->badline = false;
             }
         }
 
