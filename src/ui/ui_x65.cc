@@ -543,6 +543,8 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.title = "Display";
         desc.x = x;
         desc.y = y;
+        desc.w = 320;
+        desc.h = 200 + 20;
         ui_display_init(&ui->display, &desc);
     }
     x += dx;

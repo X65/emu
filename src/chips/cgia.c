@@ -88,7 +88,7 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
         uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
         for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
             for (uint r = 0; r < FB_H_REPEAT; ++r) {
-                *dst++ = *src & 0xFFFFFF;
+                *dst++ = *src | 0xFF000000;  // set ALPHA channel to 100% opacity
             }
         }
     }
