@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["roms/MODE2_hello-glyphs.xex"],
+      "args": ["roms/SMON.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

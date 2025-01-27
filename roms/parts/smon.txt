@@ -1,0 +1,7 @@
+vasm6502_oldstyle -dotdir -Fbin -L smon.lst -o smon.bin smon.asm
+
+ext/os-816/tools/xex-filter.pl -o roms/smon-full.xex -b -a \$8000 ../smon/smon.bin
+ext/os-816/tools/xex-filter.pl -o roms/smon-split.xex -s \$E000-\$FFFF roms/smon-full.xex
+ext/os-816/tools/xex-filter.pl -o roms/smon-split-2.xex -i 2 -s \$E000-\$F8FF roms/smon-split.xex
+ext/os-816/tools/xex-filter.pl -o roms/smon-split-3.xex -s \$FFFA-\$FFFF roms/smon-split-2.xex
+ext/os-816/tools/xex-filter.pl -o roms/smon.xex -i 1,3 roms/smon-split-3.xex
