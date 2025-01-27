@@ -47,12 +47,17 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CGIA_vpu = vpu;
 
     fwcgia_init();
+
+    pwm_init(&vpu->pwm[0], desc->tick_hz);
+    pwm_init(&vpu->pwm[1], desc->tick_hz);
 }
 
 void cgia_reset(cgia_t* vpu) {
     CHIPS_ASSERT(vpu);
     vpu->h_count = 0;
     vpu->l_count = 0;
+    pwm_reset(&vpu->pwm[0]);
+    pwm_reset(&vpu->pwm[1]);
 }
 
 static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
@@ -96,7 +101,7 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
     return pins;
 }
 
-#define CGIA_REG16(ADDR) (uint16_t)((uint16_t)(vpu->reg[ADDR]) | ((uint16_t)(vpu->reg[ADDR + 1]) << 8))
+#define CGIA_REG16(ADDR) (uint16_t)((uint16_t)(vpu->reg[ADDR]) | ((uint16_t)(vpu->reg[(ADDR) + 1]) << 8))
 
 static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
     return vpu->reg[addr];
@@ -104,6 +109,15 @@ static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
 
 static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
     vpu->reg[addr] = data;
+
+    switch (addr) {
+        case CGIA_REG_PWM_0_FREQ:
+        case CGIA_REG_PWM_0_FREQ + 1: pwm_set_freq(&vpu->pwm[0], CGIA_REG16(CGIA_REG_PWM_0_FREQ)); break;
+        case CGIA_REG_PWM_0_DUTY: pwm_set_duty(&vpu->pwm[0], data); break;
+        case CGIA_REG_PWM_1_FREQ:
+        case CGIA_REG_PWM_1_FREQ + 1: pwm_set_freq(&vpu->pwm[1], CGIA_REG16(CGIA_REG_PWM_1_FREQ)); break;
+        case CGIA_REG_PWM_1_DUTY: pwm_set_duty(&vpu->pwm[1], data); break;
+    }
 }
 
 static void _copy_internal_regs(cgia_t* vpu);
@@ -132,6 +146,9 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
 
     cgia_task();
     _copy_internal_regs(vpu);
+
+    pwm_tick(&vpu->pwm[0]);
+    pwm_tick(&vpu->pwm[1]);
 
     vpu->pins = pins;
     return pins;

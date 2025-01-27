@@ -233,6 +233,7 @@
 
 #include "chips/chips_common.h"
 #include "chips/kbd.h"
+#include "chips/beeper.h"
 #include "chips/cgia.h"
 #include "chips/m6502.h"
 #include "chips/m6526.h"
@@ -340,6 +341,7 @@ typedef struct {
     bool valid;
     chips_debug_t debug;
 
+    beeper_t beeper[2];
     struct {
         chips_audio_callback_t callback;
         int num_samples;

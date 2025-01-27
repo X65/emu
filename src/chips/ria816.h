@@ -123,7 +123,7 @@ extern "C" {
 #define RIA816_FS_FDBRW       (0x1D)  // Read bytes from the FDB. Write bytes to the FDB.
 #define RIA816_UART_READY     (0x20)  // Flow control for UART FIFO.
 #define RIA816_UART_TX_RX     (0x21)  // Write bytes to the UART. Read bytes from the UART.
-#define RIA816_HW_RNG         (0x22)  // Random Number Generator
+#define RIA816_HW_RNG         (0x22)  // Random Number Generator.
 #define RIA816_CPU_N_COP      (0x24)  // 65816 vector.
 #define RIA816_CPU_N_BRK      (0x26)  // 65816 vector.
 #define RIA816_CPU_N_ABORTB   (0x28)  // 65816 vector.

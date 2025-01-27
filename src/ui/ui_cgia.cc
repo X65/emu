@@ -76,9 +76,9 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
         const fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
         ui_util_b8("planes: ", chip->planes);
 
-        ImGui::Text("bckgnd_bank: %02X", chip->bckgnd_bank);
+        ui_util_u8("bckgnd_bank:", chip->bckgnd_bank);
         ImGui::SameLine();
-        ImGui::Text("sprite_bank: %02X", chip->sprite_bank);
+        ui_util_u8("sprite_bank:", chip->sprite_bank);
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
     }
@@ -186,10 +186,7 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                     ImGui::SameLine();
                     ImGui::Text(" Need update");
                 }
-                ImGui::Text(
-                    "offset:%04X (mem:%06X)",
-                    chip->plane[i].offset,
-                    (chip->sprite_bank << 16) | chip->plane[i].offset);
+                ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->sprite_bank << 16) | chip->offset[i]);
 
                 ui_util_b8("sprites active: ", chip->plane[i].regs.sprite.active);
                 ImGui::Text("border: %d columns", chip->plane[i].regs.sprite.border_columns);
@@ -204,13 +201,10 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                     win->cgia->internal[i].colour_scan,
                     win->cgia->internal[i].backgr_scan,
                     win->cgia->internal[i].chargen_offset);
-                ImGui::Text(
-                    "offset:%04X (mem:%06X)",
-                    chip->plane[i].offset,
-                    (chip->bckgnd_bank << 16) | chip->plane[i].offset);
+                ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->bckgnd_bank << 16) | chip->offset[i]);
 
                 ImGui::SameLine();
-                _ui_cgia_decode_DL(win->cgia, chip->plane[i].offset);
+                _ui_cgia_decode_DL(win->cgia, chip->offset[i]);
                 ui_util_b8("flags: ", chip->plane[i].regs.bckgnd.flags);
                 _ui_cgia_decode_BG_flags(chip->plane[i].regs.bckgnd.flags);
                 ImGui::Text("border: %d columns", chip->plane[i].regs.bckgnd.border_columns);
@@ -261,6 +255,23 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     }
 }
 
+static void _ui_cgia_draw_beepers(const ui_cgia_t* win) {
+    if (ImGui::CollapsingHeader("PWM audio")) {
+        const cgia_t* cgia = win->cgia;
+
+        for (int i = 0; i < 2; ++i) {
+            ImGui::Text("PWM%d:", i);
+            ImGui::Text("  Period:  %4d", cgia->pwm[i].period);
+            ImGui::Text("  Counter: %4d", cgia->pwm[i].counter);
+            ImGui::Text("  Duty:    %.1f%% (%02x)", (float)cgia->pwm[i].duty * 100.0 / 255.0, cgia->pwm[i].duty);
+            ImGui::Text(
+                "  Freq:    %4dHz",
+                (uint16_t)((uint16_t)(cgia->reg[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
+                           | ((uint16_t)(cgia->reg[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
+        }
+    }
+}
+
 void ui_cgia_draw(ui_cgia_t* win) {
     CHIPS_ASSERT(win && win->valid);
     ui_util_handle_window_open_dirty(&win->open, &win->last_open);
@@ -279,6 +290,7 @@ void ui_cgia_draw(ui_cgia_t* win) {
         _ui_cgia_draw_registers(win);
         _ui_cgia_draw_raster_unit(win);
         _ui_cgia_draw_planes(win);
+        _ui_cgia_draw_beepers(win);
         ImGui::EndChild();
     }
     ImGui::End();

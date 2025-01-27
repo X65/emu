@@ -27,6 +27,7 @@ add_subdirectory(src/common)
 
 include_directories(src/common)
 add_executable(emu
+    src/chips/pwm.c
     src/chips/cgia.c
     src/chips/ria816.c
     src/systems/x65.c

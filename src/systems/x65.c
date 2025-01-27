@@ -44,6 +44,13 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         },
         .user_data = sys,
     });
+    const beeper_desc_t beeper_desc = {
+        .tick_hz = X65_FREQUENCY,
+        .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
+        .base_volume = _X65_DEFAULT(desc->audio.volume, 1.0f),
+    };
+    beeper_init(&sys->beeper[0], &beeper_desc);
+    beeper_init(&sys->beeper[1], &beeper_desc);
     m6581_init(
         &sys->sid,
         &(m6581_desc_t){
@@ -69,6 +76,8 @@ void x65_reset(x65_t* sys) {
     m6526_reset(&sys->cia_2);
     ria816_reset(&sys->ria);
     cgia_reset(&sys->cgia);
+    beeper_reset(&sys->beeper[0]);
+    beeper_reset(&sys->beeper[1]);
     m6581_reset(&sys->sid);
 }
 
@@ -214,6 +223,24 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         pins |= (cgia_pins & (M6502_IRQ | M6502_RDY | M6510_AEC));
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
             pins = M6502_COPY_DATA(pins, cgia_pins);
+        }
+    }
+
+    // tick the audio beepers
+    beeper_set(&sys->beeper[0], pwm_get_state(&sys->cgia.pwm[0]));
+    beeper_tick(&sys->beeper[0]);
+    beeper_set(&sys->beeper[1], pwm_get_state(&sys->cgia.pwm[1]));
+    if (beeper_tick(&sys->beeper[1])) {
+        // new audio sample ready
+        sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->beeper[0].sample + sys->beeper[1].sample;
+        if (sys->audio.sample_pos == sys->audio.num_samples) {
+            if (sys->audio.callback.func) {
+                sys->audio.callback.func(
+                    sys->audio.sample_buffer,
+                    sys->audio.num_samples,
+                    sys->audio.callback.user_data);
+            }
+            sys->audio.sample_pos = 0;
         }
     }
 
