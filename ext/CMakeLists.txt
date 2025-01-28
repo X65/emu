@@ -11,6 +11,11 @@ add_library(imgui-docking STATIC
     imgui/imgui_widgets.cpp
 )
 
+add_library(nuked-opl3 STATIC
+    Nuked-OPL3/opl3.h
+    Nuked-OPL3/opl3.c
+)
+
 include(ExternalProject)
 ExternalProject_Add(os-816
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/ext/os-816

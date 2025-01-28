@@ -229,8 +229,8 @@ static void _ui_x65_update_memmap(ui_x65_t* ui) {
     const x65_t* x65 = ui->x65;
     ui_memmap_reset(&ui->memmap);
     ui_memmap_layer(&ui->memmap, "IO");
-    ui_memmap_region(&ui->memmap, "DEVICES", X65_IO_BASE, 0x200, true);
-    ui_memmap_region(&ui->memmap, "EXTENSION", X65_EXT_BASE, 0x200, x65->ria.reg[RIA816_HW_IO]);
+    ui_memmap_region(&ui->memmap, "DEVICES", X65_IO_BASE, 0x10000 - X65_IO_BASE, true);
+    ui_memmap_region(&ui->memmap, "EXTENSION", X65_EXT_BASE, X65_EXT_LEN, x65->ria.reg[RIA816_EXT_IO]);
     ui_memmap_layer(&ui->memmap, "RAM");
     ui_memmap_region(&ui->memmap, "RAM", 0x0000, 0x10000, true);
 }

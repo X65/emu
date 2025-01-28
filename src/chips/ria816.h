@@ -134,8 +134,8 @@ extern "C" {
 #define RIA816_API_ERRNO      (0x32)  // API error number.
 #define RIA816_API_BUSY       (0x33)  // Bit 7 high while operation is running.
 #define RIA816_CPU_E_COP      (0x34)  // 65816 vector.
-#define RIA816_HW_IO          (0x36)  // Bitmap of 8x 32byte chunks for mapping RAM into I/O area.
-#define RIA816_HW_IRQ         (0x37)  // Set bit 0 high to enable VSYNC interrupts.
+#define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 32byte chunks for mapping RAM into I/O area.
+#define RIA816_EXT_MEM        (0x37)  // reserved for future use (MMU)
 #define RIA816_CPU_E_ABORTB   (0x38)  // 65816 vector.
 #define RIA816_CPU_E_NMIB     (0x3A)  // 6502 vector.
 #define RIA816_CPU_E_RESETB   (0x3C)  // 6502 vector.

@@ -58,6 +58,12 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
             .magnitude = _X65_DEFAULT(desc->audio.volume, 1.0f),
         });
+    ymf262_init(
+        &sys->opl3,
+        &(ymf262_desc_t){
+            .tick_hz = X65_FREQUENCY,
+            .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
+        });
     _x65_init_key_map(sys);
     _x65_init_memory_map(sys);
 }
@@ -79,6 +85,7 @@ void x65_reset(x65_t* sys) {
     beeper_reset(&sys->beeper[0]);
     beeper_reset(&sys->beeper[1]);
     m6581_reset(&sys->sid);
+    ymf262_reset(&sys->opl3);
 }
 
 void x65_set_running(x65_t* sys, bool running) {
@@ -130,13 +137,24 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         communication takes place starting with the first read access.
     */
     bool mem_access = false;
-    bool ext_access = false;
     uint64_t cgia_pins = pins & M6502_PIN_MASK;
     uint64_t ria_pins = pins & M6502_PIN_MASK;
     uint64_t sd1_pins = pins & M6502_PIN_MASK;
+    uint64_t opl3_pins = pins & M6502_PIN_MASK;
     if ((pins & (M6502_RDY | M6502_RW)) != (M6502_RDY | M6502_RW)) {
-        if (sys->ria.reg[RIA816_HW_IO] && ((addr & 0xF000) == 0xE000)) {
-            ext_access = true;  // FIXME: this is a bitmap of 8x 32 bytes
+        if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
+            const uint8_t slot = (addr & 0xFF) >> 5;
+            if ((sys->ria.reg[RIA816_EXT_IO] & (1U << slot))) switch (slot) {
+                    case 0x00: {
+                        // OPL-3 (FC00..FC1F)
+                        opl3_pins |= YMF262_CS;
+                    } break;
+                    default:
+                        if (pins & M6502_RW) {
+                            // memory read nothin'
+                            M6502_SET_DATA(pins, 0xFF);
+                        }
+                }
         }
         else if ((addr & X65_IO_BASE) == X65_IO_BASE) {
             if (addr >= X65_IO_RIA_BASE) {
@@ -156,27 +174,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             mem_access = true;
         }
     }
-
-    // // tick the SID
-    // {
-    //     sid_pins = m6581_tick(&sys->sid, sid_pins);
-    //     if (sid_pins & M6581_SAMPLE) {
-    //         // new audio sample ready
-    //         sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sid.sample;
-    //         if (sys->audio.sample_pos == sys->audio.num_samples) {
-    //             if (sys->audio.callback.func) {
-    //                 sys->audio.callback.func(
-    //                     sys->audio.sample_buffer,
-    //                     sys->audio.num_samples,
-    //                     sys->audio.callback.user_data);
-    //             }
-    //             sys->audio.sample_pos = 0;
-    //         }
-    //     }
-    //     if ((sid_pins & (M6581_CS | M6581_RW)) == (M6581_CS | M6581_RW)) {
-    //         pins = M6502_COPY_DATA(pins, sid_pins);
-    //     }
-    // }
 
     // /* tick CIA-1:
 
@@ -230,17 +227,28 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     beeper_set(&sys->beeper[0], pwm_get_state(&sys->cgia.pwm[0]));
     beeper_tick(&sys->beeper[0]);
     beeper_set(&sys->beeper[1], pwm_get_state(&sys->cgia.pwm[1]));
-    if (beeper_tick(&sys->beeper[1])) {
-        // new audio sample ready
-        sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->beeper[0].sample + sys->beeper[1].sample;
-        if (sys->audio.sample_pos == sys->audio.num_samples) {
-            if (sys->audio.callback.func) {
-                sys->audio.callback.func(
-                    sys->audio.sample_buffer,
-                    sys->audio.num_samples,
-                    sys->audio.callback.user_data);
+    beeper_tick(&sys->beeper[1]);
+
+    // tick the FM chip
+    {
+        opl3_pins = ymf262_tick(&sys->opl3, opl3_pins);
+        if (opl3_pins & YMF262_SAMPLE) {
+            // new audio sample ready
+            sys->audio.sample_buffer[sys->audio.sample_pos++] =
+                ((float)sys->opl3.samples[0] + (float)sys->opl3.samples[1]) / 2.0f  // average left and right channels
+                + sys->beeper[0].sample + sys->beeper[1].sample;
+            if (sys->audio.sample_pos == sys->audio.num_samples) {
+                if (sys->audio.callback.func) {
+                    sys->audio.callback.func(
+                        sys->audio.sample_buffer,
+                        sys->audio.num_samples,
+                        sys->audio.callback.user_data);
+                }
+                sys->audio.sample_pos = 0;
             }
-            sys->audio.sample_pos = 0;
+        }
+        if ((opl3_pins & (YMF262_CS | YMF262_RW)) == (YMF262_CS | YMF262_RW)) {
+            pins = M6502_COPY_DATA(pins, opl3_pins);
         }
     }
 
@@ -255,12 +263,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         else {
             // memory write
             mem_wr(&sys->mem, addr, M6502_GET_DATA(pins));
-        }
-    }
-    if (ext_access) {
-        if (pins & M6502_RW) {
-            // memory read
-            M6502_SET_DATA(pins, 0xFF);
         }
     }
     return pins;
@@ -555,6 +557,7 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     chips_audio_callback_snapshot_onsave(&dst->audio.callback);
     m6502_snapshot_onsave(&dst->cpu);
     cgia_snapshot_onsave(&dst->cgia);
+    ymf262_snapshot_onsave(&dst->opl3);
     mem_snapshot_onsave(&dst->mem, sys);
     return X65_SNAPSHOT_VERSION;
 }
@@ -570,6 +573,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     chips_audio_callback_snapshot_onload(&im.audio.callback, &sys->audio.callback);
     m6502_snapshot_onload(&im.cpu, &sys->cpu);
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
+    ymf262_snapshot_onload(&im.opl3, &sys->opl3);
     mem_snapshot_onload(&im.mem, sys);
     *sys = im;
     return true;

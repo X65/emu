@@ -11,17 +11,6 @@
     ~~~
         your own assert macro (default: assert(c))
 
-    You need to include the following headers before including x65.h:
-
-    - chips/chips_common.h
-    - chips/m6502.h
-    - chips/m6526.h
-    - chips/m6569.h
-    - chips/m6581.h
-    - chips/kbd.h
-    - chips/mem.h
-    - chips/clk.h
-
     ## The X65
 
     TODO!
@@ -31,204 +20,11 @@
     ## Tests Status
 
     In chips-test/tests/testsuite-2.15/bin
+    ???
 
-        branchwrap:     ok
-        cia1pb6:        ok
-        cia1pb7:        ok
-        cia1ta:         FAIL (OK, CIA sysclock not implemented)
-        cia1tab:        ok
-        cia1tb:         FAIL (OK, CIA sysclock not implemented)
-        cia1tb123:      ok
-        cia2pb6:        ok
-        cia2pb7:        ok
-        cia2ta:         FAIL (OK, CIA sysclock not implemented)
-        cia2tb:         FAIL (OK, CIA sysclock not implemented)
-        cntdef:         ok
-        cnto2:          ok
-        cpuport:        ok
-        cputiming:      ok
-        flipos:         ok
-        icr01:          ok
-        imr:            ok
-        irq:            ok
-        loadth:         ok
-        mmu:            ok
-        mmufetch:       ok
-        nmi:            FAIL (1 error at 00/5)
-        oneshot:        ok
-        trap1..17:      ok
+    ## 0BSD license
 
-    In chips-test/tests/vice-tests/CIA:
-
-    ciavarious:
-        - all green, expect cia15.prg, which tests the CIA TOD clock,
-          which isn't implemented
-
-    cia-timer/cia-timer-oldcias.prg:
-        - left side (CIA-1, IRQ) all green, right side (CIA-2, NMI) some red
-
-    ciatimer/dd0dtest/dd0dtest.prg (NMI related):
-        - some errors
-
-    irqdelay:   all green
-
-    mirrors/ciamirrors.prg: green
-
-    reload0:
-        reload0a.prg:   red
-        reload0b.prg:   red
-
-    shiftregister:
-        cia-icr-test-continues-old.prg: green
-        cia-icr-test-oneshot-old.prg: green
-        cia-icr-test2-continues.prg: some red
-        cia-icr-test2-oneshot.prg: some red
-        cia-sp-test-continues-old.prg: much red (ok, CIA SP not implemented)
-        cia-sp-test-oneshot-old.prg: much red (ok, CIA SP not implemented)
-
-    timerbasics:    all green
-
-    in chips-test/tests/vice-tests/interrupts:
-
-    branchquirk:
-        branchquirk-old.prg:    green
-        branchquirk-nmiold.prg: red
-
-    cia-int:
-        cia-int-irq.prg:    green??
-        cia-int-nmi.prg:    green??
-
-    irq-ackn-bug:
-        cia1.prg:       green
-        cia2.prg:       green
-        irq-ack-vicii.prg:  red
-        irq-ackn_after_cli.prg: ???
-        irq-ackn_after_cli2.prg: ???
-
-    irqdma: (takes a long time)
-        all fail?
-
-    irqdummy/irqdummy.prg:  green
-
-    irqnmi/irqnmi-old.prg: left (irq) green,right (nmi) red
-
-    VICII:
-
-    D011Test:                   TODO
-    banking/banking.prg:        ok
-    border:                     fail (border not opened)
-    colorram/test.prg:          ok
-    colorsplit/colorsplit.prg:  fail (horizontal offsets)
-    dentest:    (these were mostly fixed by moving the raster interrupt check
-                 in m6569.h to tick 63, which made the otherwise some tests
-                 were flickering because a second raster interrupt wasn't stable)
-        den01-48-0.prg:         ok
-        den01-48-1.prg:         ok
-        den01-48-2.prg:         ok
-        den01-49-0.prg:         ok
-        den01-49-1.prg:         ok
-        den01-49-2.prg:         ok
-        den10-48-0.prg:         ok
-        den10-48-1.prg:         ok
-        den10-48-2.prg:         FAIL
-        den10-51-0.prg:         ok
-        den10-51-1.prg:         ok
-        den10-51-2.prg:         ok
-        den10-51-3.prg:         ok
-        denrsel-0.prg:          ok
-        denrsel-1.prg:          ok
-        denrsel-2.prg:          ok
-        denrsel-63.prg:         ok
-        denrsel-s0.prg:         ok
-        denrsel-s1.prg:         ok
-        denrsel-s2.prg:         ok
-        denrsel55.prg:          ok
-    dmadelay:
-        test1-2a-03.prg:        ok
-        test1-2a-04.prg:        FAIL (flickering)
-        test1-2a-10.prg:        ok
-        test1-2a-11.prg:        FAIL (1 char line off)
-        test1-2a-16.prg:        ok
-        test1-2a-17.prg:        FAIL (1 char line off)
-        test1-2a-18.prg:        FAIL (1 char line/col off)
-        test1.prg:              ??? (no reference image)
-        test2-28-05.prg:        ok
-        test2-28-06.prg:        FAIL (flickering)
-        test2-28-11.prg:        ok
-        test2-28-12.prg:        FAIL (one char line off)
-        test2-28-16.prg:        ok
-        test2-28-17.prg:        FAIL (one char line off)
-        test2-28-18.prg:        FAIL (one char line/col off)
-        test3-28-07.prg:        ok
-        test3-28-08.prg:        FAIL (one char line off)
-        test3-28-13.prg:        ok
-        test3-28-14.prg:        FAIL (one char line off)
-        test3-28-18.prg:        ok
-        test3-28-19.prg:        FAIL (one char line off)
-        test3-28-1a.prg:        FAIL (one char col off)
-
-    fldscroll:  broken
-    flibug/blackmail.prg:       reference image doesn't match
-
-    frodotests:
-        3fff.prg                ok
-        d011h3.prg              FAIL (???)
-        fld.prg                 ok
-        lrborder:               FAIL (???)
-        sprsync:                ok (???)
-        stretch:                ok (???)
-        tech-tech:              ok
-        text26:                 ok
-
-    gfxfetch/gfxfetch.prg:      FAIL (reference image doesn't match in boder)
-
-    greydot/greydot.prg:        FAIL (ref image doesn't match, color bars start one tick late)
-
-    lp-trigger:
-        test1.prg:              FAIL (flickering)
-        test2.prg:              FAIL
-
-    lplatency/lplatency.prg:    FAIL
-
-    movesplit:                  ????
-
-    phi1timing:                 FAIL
-
-    rasterirq:                  FAIL (reference image doesn't match)
-
-    screenpos:                  FAIL (reference image doesn't match)
-
-    split-tests:
-        bascan          FAIL
-        fetchsplit      FAIL (flickering characters)
-        lightpen        FAIL
-        modesplit       FAIL (ref image doesn't match)
-        spritescan      FAIL
-
-    sprite0move         ???
-
-    spritebug           TODO
-    all other sprite tests: TODO
-
-    vicii-timing:       FAIL (ref image doesn't match)
-
-    ## zlib/libpng license
-
-    Copyright (c) 2018 Andre Weissflog
-    This software is provided 'as-is', without any express or implied warranty.
-    In no event will the authors be held liable for any damages arising from the
-    use of this software.
-    Permission is granted to anyone to use this software for any purpose,
-    including commercial applications, and to alter it and redistribute it
-    freely, subject to the following restrictions:
-        1. The origin of this software must not be misrepresented; you must not
-        claim that you wrote the original software. If you use this software in a
-        product, an acknowledgment in the product documentation would be
-        appreciated but is not required.
-        2. Altered source versions must be plainly marked as such, and must not
-        be misrepresented as being the original software.
-        3. This notice may not be removed or altered from any source
-        distribution.
+    Copyright (c) 2018 Tomasz Sterna
 #*/
 
 #include "chips/chips_common.h"
@@ -240,6 +36,7 @@
 #include "chips/m6581.h"
 #include "chips/ria816.h"
 #include "chips/mem.h"
+#include "chips/ymf262.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -301,10 +98,14 @@ typedef enum {
 #define X65_KEY_F8       (0xF8)  // F8
 
 // Extension bus devices
-// split in 8 slots of 64 bytes
+// split in 8 slots of 32 bytes
 #define X65_EXT_BASE     (0xFC00)
+#define X65_EXT_LEN      (0x100)
 #define X65_EXT_SLOTS    (8)
-#define X65_EXT_SLOT_LEN (0x200 / X65_EXT_SLOTS)
+#define X65_EXT_SLOT_LEN (X65_EXT_LEN / X65_EXT_SLOTS)
+// reserved for future use (MMU)
+// default state is visible RAM
+#define X65_EXT_MEM (0xFD00)
 // IO base addresses
 #define X65_IO_BASE        (0xFE00)
 #define X65_IO_CGIA_BASE   (0xFF00)
@@ -326,6 +127,7 @@ typedef struct {
     ria816_t ria;
     cgia_t cgia;
     m6581_t sid;
+    ymf262_t opl3;
     uint64_t pins;
 
     bool running;  // whether CPU is running or held in RESET state
