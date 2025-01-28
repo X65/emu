@@ -16,3 +16,6 @@
 [submodule "ext/Nuked-OPL3"]
 	path = ext/Nuked-OPL3
 	url = https://github.com/nukeykt/Nuked-OPL3.git
+[submodule "ext/ESFMu"]
+	path = ext/ESFMu
+	url = https://github.com/Kagamiin/ESFMu.git

@@ -16,6 +16,12 @@ add_library(nuked-opl3 STATIC
     Nuked-OPL3/opl3.c
 )
 
+add_library(esfmu STATIC
+    ESFMu/esfm.h
+    ESFMu/esfm.c
+    ESFMu/esfm_registers.c
+)
+
 include(ExternalProject)
 ExternalProject_Add(os-816
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/ext/os-816
