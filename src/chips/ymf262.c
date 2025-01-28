@@ -14,14 +14,14 @@ void ymf262_init(ymf262_t* ymf, const ymf262_desc_t* desc) {
     ymf->sound_hz = desc->sound_hz;
     ymf->sample_period = (desc->tick_hz * YMF262_FIXEDPOINT_SCALE) / desc->sound_hz;
     ymf->sample_counter = ymf->sample_period;
-    OPL3_Reset(&ymf->opl3, desc->sound_hz);
+    ESFM_init(&ymf->opl3);
 }
 
 void ymf262_reset(ymf262_t* ymf) {
     CHIPS_ASSERT(ymf);
     ymf->addr[0] = 0;
     ymf->addr[1] = 0;
-    OPL3_Reset(&ymf->opl3, ymf->sound_hz);
+    ESFM_init(&ymf->opl3);
 }
 
 /* tick the sound generation, return true when new sample ready */
@@ -30,7 +30,7 @@ static bool _ymf262_tick(ymf262_t* ymf) {
     ymf->sample_counter -= YMF262_FIXEDPOINT_SCALE;
     if (ymf->sample_counter <= 0) {
         ymf->sample_counter += ymf->sample_period;
-        OPL3_Generate4ChResampled(&ymf->opl3, ymf->samples);
+        ESFM_generate(&ymf->opl3, ymf->samples);
         return true;  // new sample is ready
     }
     // fallthrough: no new sample ready yet
@@ -60,13 +60,13 @@ static void _ymf262_write(ymf262_t* ymf, uint64_t pins) {
             ymf->addr[0] = data;
             break;
         case 0x01:  // bank 0 register write
-            OPL3_WriteReg(&ymf->opl3, ymf->addr[0], data);
+            ESFM_write_reg(&ymf->opl3, ymf->addr[0], data);
             break;
         case 0x02:  // bank 1 address latch
             ymf->addr[1] = data;
             break;
         case 0x03:  // bank 1 register write
-            OPL3_WriteReg(&ymf->opl3, (0x100 | ymf->addr[1]), data);
+            ESFM_write_reg(&ymf->opl3, (0x100 | ymf->addr[1]), data);
             break;
     }
 }
@@ -100,5 +100,5 @@ void ymf262_snapshot_onsave(ymf262_t* snapshot) {
 
 void ymf262_snapshot_onload(ymf262_t* snapshot, ymf262_t* ymf) {
     CHIPS_ASSERT(snapshot && ymf);
-    OPL3_Reset(&ymf->opl3, ymf->sound_hz);
+    ESFM_init(&ymf->opl3);
 }

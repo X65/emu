@@ -33,7 +33,7 @@
     Copyright (c) 2018 Tomasz Sterna
 */
 
-#include <Nuked-OPL3/opl3.h>
+#include <ESFMu/esfm.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -104,7 +104,7 @@ typedef struct {
     uint64_t pins;  // last pin state for debug inspection
 
     int sound_hz;    // keep samplerate for chip resets
-    opl3_chip opl3;  // wrapped opl3 chip emulator
+    esfm_chip opl3;  // wrapped opl3 chip emulator
 
     // sample generation state
     int sample_period;

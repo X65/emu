@@ -43,7 +43,7 @@ add_executable(emu
 )
 target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking nuked-opl3
+    PRIVATE common ui imgui-docking esfmu
     ${READLINE_LIBRARIES})
 target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
 
