@@ -13,3 +13,6 @@
 [submodule "ext/os-816"]
 	path = ext/os-816
 	url = https://github.com/X65/os-816.git
+[submodule "ext/Nuked-OPL3"]
+	path = ext/Nuked-OPL3
+	url = https://github.com/nukeykt/Nuked-OPL3.git
