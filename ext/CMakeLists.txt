@@ -11,11 +11,6 @@ add_library(imgui-docking STATIC
     imgui/imgui_widgets.cpp
 )
 
-add_library(nuked-opl3 STATIC
-    Nuked-OPL3/opl3.h
-    Nuked-OPL3/opl3.c
-)
-
 add_library(esfmu STATIC
     ESFMu/esfm.h
     ESFMu/esfm.c
