@@ -1,9 +1,9 @@
 See: https://www.youtube.com/watch?v=XKy1cE4EYMk
 
-20 1    ch1 op1 CFG
-23 1    ch1 op2 CFG
+20 01   ch1 op1 CFG
+23 01   ch1 op2 CFG
 40 1f   ch1 op1 VOL
-43 0    ch1 op2 VOL
+43 00   ch1 op2 VOL
 60 e4   ch1 op1 AD
 63 e4   ch1 op2 AD
 80 9d   ch1 op1 SR

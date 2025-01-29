@@ -14,14 +14,16 @@ void ymf262_init(ymf262_t* ymf, const ymf262_desc_t* desc) {
     ymf->sound_hz = desc->sound_hz;
     ymf->sample_period = (desc->tick_hz * YMF262_FIXEDPOINT_SCALE) / desc->sound_hz;
     ymf->sample_counter = ymf->sample_period;
-    ESFM_init(&ymf->opl3);
+    ymf->resampler.rateratio = (desc->sound_hz << YMF262_RESAMPLER_FRAC) / YMF262_SAMPLE_RATE;
+    ESFM_init(&ymf->chip);
 }
 
 void ymf262_reset(ymf262_t* ymf) {
     CHIPS_ASSERT(ymf);
     ymf->addr[0] = 0;
     ymf->addr[1] = 0;
-    ESFM_init(&ymf->opl3);
+    ESFM_init(&ymf->chip);
+    ymf->resampler.samplecnt = 0;
 }
 
 /* tick the sound generation, return true when new sample ready */
@@ -30,7 +32,31 @@ static bool _ymf262_tick(ymf262_t* ymf) {
     ymf->sample_counter -= YMF262_FIXEDPOINT_SCALE;
     if (ymf->sample_counter <= 0) {
         ymf->sample_counter += ymf->sample_period;
-        ESFM_generate(&ymf->opl3, ymf->samples);
+
+        // spin OPL3 chip in its own rate
+        // until we have two samples we can linearly (I know… bad for audio)
+        // interpolate the sample in our requested audio rate
+        while (ymf->resampler.samplecnt >= ymf->resampler.rateratio) {
+            ymf->resampler.oldsamples[0] = ymf->resampler.samples[0];
+            ymf->resampler.oldsamples[1] = ymf->resampler.samples[1];
+            ESFM_generate(&ymf->chip, ymf->resampler.samples);
+            ymf->resampler.samplecnt -= ymf->resampler.rateratio;
+        }
+        ymf->resampler.samplecnt += 1 << YMF262_RESAMPLER_FRAC;
+
+        float sample_0 =
+            ((float)(ymf->resampler.oldsamples[0] * (ymf->resampler.rateratio - ymf->resampler.samplecnt)
+                     + ymf->resampler.samples[0] * ymf->resampler.samplecnt)
+             / (float)ymf->resampler.rateratio);
+        float sample_1 =
+            ((float)(ymf->resampler.oldsamples[1] * (ymf->resampler.rateratio - ymf->resampler.samplecnt)
+                     + ymf->resampler.samples[1] * ymf->resampler.samplecnt)
+             / (float)ymf->resampler.rateratio);
+
+        // convert uint16_t range to float in range -1.0f to 1.0f
+        ymf->samples[0] = sample_0 < 0 ? sample_0 / 32768.0f : sample_0 / 32767.0f;
+        ymf->samples[1] = sample_1 < 0 ? sample_1 / 32768.0f : sample_1 / 32767.0f;
+
         return true;  // new sample is ready
     }
     // fallthrough: no new sample ready yet
@@ -60,13 +86,13 @@ static void _ymf262_write(ymf262_t* ymf, uint64_t pins) {
             ymf->addr[0] = data;
             break;
         case 0x01:  // bank 0 register write
-            ESFM_write_reg(&ymf->opl3, ymf->addr[0], data);
+            ESFM_write_reg(&ymf->chip, ymf->addr[0], data);
             break;
         case 0x02:  // bank 1 address latch
             ymf->addr[1] = data;
             break;
         case 0x03:  // bank 1 register write
-            ESFM_write_reg(&ymf->opl3, (0x100 | ymf->addr[1]), data);
+            ESFM_write_reg(&ymf->chip, (0x100 | ymf->addr[1]), data);
             break;
     }
 }
@@ -100,5 +126,5 @@ void ymf262_snapshot_onsave(ymf262_t* snapshot) {
 
 void ymf262_snapshot_onload(ymf262_t* snapshot, ymf262_t* ymf) {
     CHIPS_ASSERT(snapshot && ymf);
-    ESFM_init(&ymf->opl3);
+    ESFM_init(&ymf->chip);
 }

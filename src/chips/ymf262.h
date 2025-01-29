@@ -88,7 +88,11 @@ extern "C" {
 #define YMF262_NUM_REGISTERS (0x100)
 // number of register banks
 #define YMF262_NUM_BANKS (0x2)
+
+// samplerate of the chip
+#define YMF262_SAMPLE_RATE (49716)
 // error-accumulation precision boost
+#define YMF262_RESAMPLER_FRAC   (10)
 #define YMF262_FIXEDPOINT_SCALE (16)
 
 // setup parameters for ymf262_init() call
@@ -104,12 +108,19 @@ typedef struct {
     uint64_t pins;  // last pin state for debug inspection
 
     int sound_hz;    // keep samplerate for chip resets
-    esfm_chip opl3;  // wrapped opl3 chip emulator
+    esfm_chip chip;  // wrapped opl3 chip emulator
 
     // sample generation state
     int sample_period;
     int sample_counter;
-    int16_t samples[4];
+    float samples[2];
+
+    struct {
+        int32_t rateratio;
+        int32_t samplecnt;
+        int16_t oldsamples[2];
+        int16_t samples[2];
+    } resampler;
 } ymf262_t;
 
 #define YMF262_ADDR_MASK (0x3ULL)

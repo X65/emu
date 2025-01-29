@@ -235,7 +235,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         if (opl3_pins & YMF262_SAMPLE) {
             // new audio sample ready
             sys->audio.sample_buffer[sys->audio.sample_pos++] =
-                ((float)sys->opl3.samples[0] + (float)sys->opl3.samples[1]) / 2.0f  // average left and right channels
+                (sys->opl3.samples[0] + sys->opl3.samples[1]) / 2.0f  // average left and right channels
                 + sys->beeper[0].sample + sys->beeper[1].sample;
             if (sys->audio.sample_pos == sys->audio.num_samples) {
                 if (sys->audio.callback.func) {
