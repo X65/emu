@@ -101,7 +101,7 @@ static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr);
 #define BORDER_LEFT       (8)
 #define BORDER_RIGHT      (8)
 #define BORDER_BOTTOM     (16)
-#define LOAD_DELAY_FRAMES (180)
+#define LOAD_DELAY_FRAMES (6)
 
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
@@ -376,6 +376,10 @@ static void handle_file_loading(void) {
         else {
             gfx_flash_error();
         }
+        fs_reset(FS_CHANNEL_IMAGES);
+    }
+    else if (fs_failed(FS_CHANNEL_IMAGES)) {
+        gfx_flash_error();
         fs_reset(FS_CHANNEL_IMAGES);
     }
 }
