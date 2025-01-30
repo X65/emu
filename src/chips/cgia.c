@@ -83,11 +83,19 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             if (vpu->active_line % FB_V_REPEAT == 0) {
                 // rasterize new line
                 vpu->badline = true;
-                cgia_render(vpu->active_line / FB_V_REPEAT, src);
+                vpu->raster_line = (uint8_t)(vpu->active_line / FB_V_REPEAT);
+                cgia_render(vpu->raster_line, src);
+
+                // bump right after processing, so CPU is free to modify regs
+                // before next line rasterization starts
+                ++vpu->raster_line;
             }
             else {
                 vpu->badline = false;
             }
+        }
+        else {
+            vpu->raster_line = 0;
         }
 
         uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
@@ -104,6 +112,10 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
 #define CGIA_REG16(ADDR) (uint16_t)((uint16_t)(vpu->reg[ADDR]) | ((uint16_t)(vpu->reg[(ADDR) + 1]) << 8))
 
 static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
+    switch (addr) {
+        case CGIA_REG_RASTER: return vpu->raster_line;
+    }
+
     return vpu->reg[addr];
 }
 

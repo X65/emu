@@ -199,11 +199,6 @@ typedef uint64_t (*cgia_fetch_t)(uint64_t pins, void* user_data);
 
 // CGIA has 7 address lines
 #define CGIA_NUM_REGS (1U << 7)
-// register indices
-#define CGIA_REG_PWM_0_FREQ (0x20)  // PWM channel 0 frequency.
-#define CGIA_REG_PWM_0_DUTY (0x22)  // PWM channel 0 duty-cycle.
-#define CGIA_REG_PWM_1_FREQ (0x24)  // PWM channel 1 frequency.
-#define CGIA_REG_PWM_1_DUTY (0x26)  // PWM channel 1 duty-cycle.
 
 // the cgia setup parameters
 typedef struct {
@@ -230,8 +225,9 @@ typedef struct {
     uint h_period;
     uint l_count;
 
-    uint active_line;
-    bool badline;  // active when rasterizer code is running and stealing memory reads from CPU
+    uint active_line;     // currently rendered physical line
+    uint8_t raster_line;  // current virtual raster line
+    bool badline;         // active when rasterizer code is running and stealing memory reads from CPU
 
     // copy of CGIA internal registers
     struct cgia_internal {
