@@ -71,8 +71,7 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
         if (vpu->l_count >= MODE_V_TOTAL_LINES) {
             // rewind line counter, field sync off
             vpu->l_count = 0;
-
-            // trigger_vbl = true;
+            cgia_vbi();
         }
 
         uint32_t* src = vpu->linebuffer + CGIA_LINEBUFFER_PADDING;
@@ -83,12 +82,13 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             if (vpu->active_line % FB_V_REPEAT == 0) {
                 // rasterize new line
                 vpu->badline = true;
-                vpu->raster_line = (uint8_t)(vpu->active_line / FB_V_REPEAT);
+                vpu->raster_line = (uint16_t)(vpu->active_line / FB_V_REPEAT);
                 cgia_render(vpu->raster_line, src);
 
                 // bump right after processing, so CPU is free to modify regs
                 // before next line rasterization starts
                 ++vpu->raster_line;
+                if (vpu->raster_line >= CGIA_ACTIVE_HEIGHT) vpu->raster_line = 0;
             }
             else {
                 vpu->badline = false;
@@ -113,7 +113,10 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
 
 static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
     switch (addr) {
-        case CGIA_REG_RASTER: return vpu->raster_line;
+        case CGIA_REG_INT_STATUS: return vpu->reg[CGIA_REG_INT_STATUS] & vpu->reg[CGIA_REG_INT_ENABLE];
+
+        case CGIA_REG_RASTER: return vpu->raster_line & 0xFF;
+        case CGIA_REG_RASTER + 1: return vpu->raster_line >> 8;
     }
 
     return vpu->reg[addr];
@@ -123,6 +126,9 @@ static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
     vpu->reg[addr] = data;
 
     switch (addr) {
+        case CGIA_REG_INT_ENABLE: vpu->reg[addr] = data & 0b11100000; break;
+        case CGIA_REG_INT_STATUS: cgia_clear_int(); break;
+
         case CGIA_REG_PWM_0_FREQ:
         case CGIA_REG_PWM_0_FREQ + 1: pwm_set_freq(&vpu->pwm[0], CGIA_REG16(CGIA_REG_PWM_0_FREQ)); break;
         case CGIA_REG_PWM_0_DUTY: pwm_set_duty(&vpu->pwm[0], data); break;
@@ -161,6 +167,10 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
 
     pwm_tick(&vpu->pwm[0]);
     pwm_tick(&vpu->pwm[1]);
+
+    if (vpu->reg[CGIA_REG_INT_STATUS]) {
+        pins |= CGIA_INT;
+    }
 
     vpu->pins = pins;
     return pins;

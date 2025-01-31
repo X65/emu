@@ -217,7 +217,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
      */
     {
         cgia_pins = cgia_tick(&sys->cgia, cgia_pins);
-        pins |= (cgia_pins & (M6502_IRQ | M6502_RDY | M6510_AEC));
+        if (cgia_pins & CGIA_INT) {
+            pins |= M6502_NMI;
+        }
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
             pins = M6502_COPY_DATA(pins, cgia_pins);
         }

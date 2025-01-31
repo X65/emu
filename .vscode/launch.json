@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["../examples/build/src/raster_bars.xex"],
+      "args": ["../examples/build/src/vbl.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

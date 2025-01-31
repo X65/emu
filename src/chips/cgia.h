@@ -11,7 +11,7 @@
                   |           |...
             CS -->|           |--> A23
                   |           |
-                  |           |
+           INT <--|           |
                   |   CGIA    |
                   |           |<-- D0
                   |           |...
@@ -105,7 +105,8 @@ extern "C" {
 #define CGIA_PIN_RW (24) /* same as M6502_RW */
 
 // chip-specific pins
-#define CGIA_PIN_CS (40) /* chip-select */
+#define CGIA_PIN_CS  (40) /* chip-select */
+#define CGIA_PIN_INT (41) /* INTerrupt */
 
 // pin bit masks
 #define CGIA_A0      (1ULL << CGIA_PIN_A0)
@@ -135,6 +136,7 @@ extern "C" {
 #define CGIA_DB_PINS (0xFF0000ULL)
 #define CGIA_RW      (1ULL << CGIA_PIN_RW)
 #define CGIA_CS      (1ULL << CGIA_PIN_CS)
+#define CGIA_INT     (1ULL << CGIA_PIN_INT)
 
 // helper macros to set and extract address and data to/from pin mask
 
@@ -225,9 +227,9 @@ typedef struct {
     uint h_period;
     uint l_count;
 
-    uint active_line;     // currently rendered physical line
-    uint8_t raster_line;  // current virtual raster line
-    bool badline;         // active when rasterizer code is running and stealing memory reads from CPU
+    uint active_line;      // currently rendered physical line
+    uint16_t raster_line;  // current virtual raster line
+    bool badline;          // active when rasterizer code is running and stealing memory reads from CPU
 
     // copy of CGIA internal registers
     struct cgia_internal {

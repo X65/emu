@@ -51,7 +51,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem("Keyboard Matrix", 0, &ui->kbd.open);
             ImGui::MenuItem("Audio Output", 0, &ui->audio.open);
             ImGui::MenuItem("Display", 0, &ui->display.open);
-            ImGui::MenuItem("MOS 6510 (CPU)", 0, &ui->cpu.open);
+            ImGui::MenuItem("MOS 6502 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem("MOS 6526 #1 (CIA)", 0, &ui->cia[0].open);
             ImGui::MenuItem("MOS 6526 #2 (CIA)", 0, &ui->cia[1].open);
             ImGui::MenuItem("MOS 6581 (SID)", 0, &ui->sid.open);
@@ -276,46 +276,6 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
     return trap_id;
 }
 
-static const ui_chip_pin_t _ui_x65_cpu6510_pins[] = {
-    { "D0",   0,  M6502_D0   },
-    { "D1",   1,  M6502_D1   },
-    { "D2",   2,  M6502_D2   },
-    { "D3",   3,  M6502_D3   },
-    { "D4",   4,  M6502_D4   },
-    { "D5",   5,  M6502_D5   },
-    { "D6",   6,  M6502_D6   },
-    { "D7",   7,  M6502_D7   },
-    { "RW",   9,  M6502_RW   },
-    { "SYNC", 10, M6502_SYNC },
-    { "RDY",  11, M6502_RDY  },
-    { "AEC",  12, M6510_AEC  },
-    { "IRQ",  13, M6502_IRQ  },
-    { "NMI",  14, M6502_NMI  },
-    { "RES",  15, M6502_RES  },
-    { "P0",   17, M6510_P0   },
-    { "P1",   18, M6510_P1   },
-    { "P2",   19, M6510_P2   },
-    { "A0",   20, M6502_A0   },
-    { "A1",   21, M6502_A1   },
-    { "A2",   22, M6502_A2   },
-    { "A3",   23, M6502_A3   },
-    { "A4",   24, M6502_A4   },
-    { "A5",   25, M6502_A5   },
-    { "A6",   26, M6502_A6   },
-    { "A7",   27, M6502_A7   },
-    { "A8",   28, M6502_A8   },
-    { "A9",   29, M6502_A9   },
-    { "A10",  30, M6502_A10  },
-    { "A11",  31, M6502_A11  },
-    { "A12",  32, M6502_A12  },
-    { "A13",  33, M6502_A13  },
-    { "A14",  34, M6502_A14  },
-    { "A15",  35, M6502_A15  },
-    { "P3",   37, M6510_P3   },
-    { "P4",   38, M6510_P4   },
-    { "P5",   39, M6510_P5   },
-};
-
 static const ui_chip_pin_t _ui_x65_cpu6502_pins[] = {
     { "D0",   0,  M6502_D0   },
     { "D1",   1,  M6502_D1   },
@@ -406,23 +366,24 @@ static const ui_chip_pin_t _ui_x65_sid_pins[] = {
 };
 
 static const ui_chip_pin_t _ui_x65_cgia_pins[] = {
-    { "D0", 0,  CGIA_D0 },
-    { "D1", 1,  CGIA_D1 },
-    { "D2", 2,  CGIA_D2 },
-    { "D3", 3,  CGIA_D3 },
-    { "D4", 4,  CGIA_D4 },
-    { "D5", 5,  CGIA_D5 },
-    { "D6", 6,  CGIA_D6 },
-    { "D7", 7,  CGIA_D7 },
-    { "A0", 10, CGIA_A0 },
-    { "A1", 11, CGIA_A1 },
-    { "A2", 12, CGIA_A2 },
-    { "A3", 13, CGIA_A3 },
-    { "A4", 14, CGIA_A4 },
-    { "A5", 15, CGIA_A5 },
-    { "A6", 16, CGIA_A6 },
-    { "CS", 18, CGIA_CS },
-    { "RW", 19, CGIA_RW },
+    { "D0",  0,  CGIA_D0  },
+    { "D1",  1,  CGIA_D1  },
+    { "D2",  2,  CGIA_D2  },
+    { "D3",  3,  CGIA_D3  },
+    { "D4",  4,  CGIA_D4  },
+    { "D5",  5,  CGIA_D5  },
+    { "D6",  6,  CGIA_D6  },
+    { "D7",  7,  CGIA_D7  },
+    { "INT", 9,  CGIA_INT },
+    { "A0",  10, CGIA_A0  },
+    { "A1",  11, CGIA_A1  },
+    { "A2",  12, CGIA_A2  },
+    { "A3",  13, CGIA_A3  },
+    { "A4",  14, CGIA_A4  },
+    { "A5",  15, CGIA_A5  },
+    { "A6",  16, CGIA_A6  },
+    { "CS",  18, CGIA_CS  },
+    { "RW",  19, CGIA_RW  },
 };
 
 void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
@@ -461,12 +422,12 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     y += dy;
     {
         ui_m6502_desc_t desc = { 0 };
-        desc.title = "MOS 6510";
+        desc.title = "MOS 6502";
         desc.cpu = &ui->x65->cpu;
         desc.x = x;
         desc.y = y;
         desc.h = 390;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "6510", 40, _ui_x65_cpu6510_pins);
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "6502", 32, _ui_x65_cpu6502_pins);
         ui_m6502_init(&ui->cpu, &desc);
     }
     x += dx;

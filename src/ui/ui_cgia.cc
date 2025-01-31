@@ -81,6 +81,22 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
         ui_util_u8("sprite_bank:", chip->sprite_bank);
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
+
+        ui_util_u16("INT Raster:", chip->raster);
+        ui_util_b8("INT Enable: ", chip->int_enable);
+        ImGui::SameLine();
+        ImGui::Text(
+            "%s%s%s",
+            chip->int_enable & CGIA_REG_INT_FLAG_VBI ? "VBI " : "",
+            chip->int_enable & CGIA_REG_INT_FLAG_DLI ? "DLI " : "",
+            chip->int_enable & CGIA_REG_INT_FLAG_RSI ? "RSI " : "");
+        ui_util_b8("INT Status: ", chip->int_status);
+        ImGui::SameLine();
+        ImGui::Text(
+            "%s%s%s",
+            chip->int_status & CGIA_REG_INT_FLAG_VBI ? "VBI " : "",
+            chip->int_status & CGIA_REG_INT_FLAG_DLI ? "DLI " : "",
+            chip->int_status & CGIA_REG_INT_FLAG_RSI ? "RSI " : "");
     }
 }
 
@@ -90,6 +106,7 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
         ImGui::Text("H Counter:    %4d", win->cgia->h_count);
         ImGui::Text("Line Counter: %4d", win->cgia->l_count);
         ImGui::Text("Active Line:  %4d", win->cgia->active_line);
+        ImGui::Text("Raster Line:  %4d", win->cgia->raster_line);
     }
 }
 
