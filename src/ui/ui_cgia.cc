@@ -188,11 +188,11 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 }
                 ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->sprite_bank << 16) | chip->offset[i]);
 
-                ui_util_b8("sprites active: ", chip->plane[i].regs.sprite.active);
-                ImGui::Text("border: %d columns", chip->plane[i].regs.sprite.border_columns);
-                ImGui::Text("start_y: %d", chip->plane[i].regs.sprite.start_y);
+                ui_util_b8("sprites active: ", chip->plane[i].sprite.active);
+                ImGui::Text("border: %d columns", chip->plane[i].sprite.border_columns);
+                ImGui::Text("start_y: %d", chip->plane[i].sprite.start_y);
                 ImGui::SameLine();
-                ImGui::Text("stop_y: %d", chip->plane[i].regs.sprite.stop_y);
+                ImGui::Text("stop_y: %d", chip->plane[i].sprite.stop_y);
             }
             else {
                 ImGui::Text(
@@ -205,18 +205,18 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
 
                 ImGui::SameLine();
                 _ui_cgia_decode_DL(win->cgia, chip->offset[i]);
-                ui_util_b8("flags: ", chip->plane[i].regs.bckgnd.flags);
-                _ui_cgia_decode_BG_flags(chip->plane[i].regs.bckgnd.flags);
-                ImGui::Text("border: %d columns", chip->plane[i].regs.bckgnd.border_columns);
-                ImGui::Text("row_height: %d", chip->plane[i].regs.bckgnd.row_height + 1);
+                ui_util_b8("flags: ", chip->plane[i].bckgnd.flags);
+                _ui_cgia_decode_BG_flags(chip->plane[i].bckgnd.flags);
+                ImGui::Text("border: %d columns", chip->plane[i].bckgnd.border_columns);
+                ImGui::Text("row_height: %d", chip->plane[i].bckgnd.row_height + 1);
                 ImGui::Text("row_line  : %d", win->cgia->internal[i].row_line_count);
                 ImGui::Separator();
-                ImGui::Text("stride: %d", chip->plane[i].regs.bckgnd.stride);
+                ImGui::Text("stride: %d", chip->plane[i].bckgnd.stride);
                 ImGui::Text("colors:");
                 for (int c = 0; c < 2; ++c) {
                     ImGui::SameLine();
                     ImGui::PushID(c);
-                    _ui_cgia_draw_color(win, "", chip->plane[i].regs.bckgnd.shared_color[c]);
+                    _ui_cgia_draw_color(win, "", chip->plane[i].bckgnd.shared_color[c]);
                     ImGui::PopID();
                 }
                 ImGui::SameLine();
@@ -224,31 +224,31 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 for (int c = 2; c < 8; ++c) {
                     ImGui::SameLine();
                     ImGui::PushID(c);
-                    _ui_cgia_draw_color(win, "", chip->plane[i].regs.ham.base_color[c]);
+                    _ui_cgia_draw_color(win, "", chip->plane[i].ham.base_color[c]);
                     ImGui::PopID();
                 }
-                ImGui::Text("scroll_x: %d", chip->plane[i].regs.bckgnd.scroll_x);
-                ImGui::Text("offset_x: %d", chip->plane[i].regs.bckgnd.offset_x);
-                ImGui::Text("scroll_y: %d", chip->plane[i].regs.bckgnd.scroll_y);
-                ImGui::Text("offset_y: %d", chip->plane[i].regs.bckgnd.offset_y);
+                ImGui::Text("scroll_x: %d", chip->plane[i].bckgnd.scroll_x);
+                ImGui::Text("offset_x: %d", chip->plane[i].bckgnd.offset_x);
+                ImGui::Text("scroll_y: %d", chip->plane[i].bckgnd.scroll_y);
+                ImGui::Text("offset_y: %d", chip->plane[i].bckgnd.offset_y);
                 ImGui::Separator();
-                // ui_util_b8("flags: ", chip->plane[i].regs.affine.flags);
-                // ImGui::Text("border: %d columns", chip->plane[i].regs.affine.border_columns);
-                // ImGui::Text("row_height: %d", chip->plane[i].regs.affine.row_height);
-                ui_util_b8("texture_bits: ", chip->plane[i].regs.affine.texture_bits);
+                // ui_util_b8("flags: ", chip->plane[i].affine.flags);
+                // ImGui::Text("border: %d columns", chip->plane[i].affine.border_columns);
+                // ImGui::Text("row_height: %d", chip->plane[i].affine.row_height);
+                ui_util_b8("texture_bits: ", chip->plane[i].affine.texture_bits);
                 ImGui::SameLine();
-                ImGui::Text("w: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits & 0x0F)));
+                ImGui::Text("w: %d", (int)pow(2, (chip->plane[i].affine.texture_bits & 0x0F)));
                 ImGui::SameLine();
-                ImGui::Text("h: %d", (int)pow(2, (chip->plane[i].regs.affine.texture_bits >> 4)));
-                ImGui::Text(" u: %d", chip->plane[i].regs.affine.u);
+                ImGui::Text("h: %d", (int)pow(2, (chip->plane[i].affine.texture_bits >> 4)));
+                ImGui::Text(" u: %d", chip->plane[i].affine.u);
                 ImGui::SameLine();
-                ImGui::Text(" v: %d", chip->plane[i].regs.affine.v);
-                ImGui::Text("du: %d", chip->plane[i].regs.affine.du);
+                ImGui::Text(" v: %d", chip->plane[i].affine.v);
+                ImGui::Text("du: %d", chip->plane[i].affine.du);
                 ImGui::SameLine();
-                ImGui::Text("dv: %d", chip->plane[i].regs.affine.dv);
-                ImGui::Text("dx: %d", chip->plane[i].regs.affine.dx);
+                ImGui::Text("dv: %d", chip->plane[i].affine.dv);
+                ImGui::Text("dx: %d", chip->plane[i].affine.dx);
                 ImGui::SameLine();
-                ImGui::Text("dy: %d", chip->plane[i].regs.affine.dy);
+                ImGui::Text("dy: %d", chip->plane[i].affine.dy);
             }
         }
         ImGui::PopID();

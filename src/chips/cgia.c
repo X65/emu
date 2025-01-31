@@ -276,12 +276,12 @@ static inline void set_linear_scans(
     interp1->base[1] = 1;
     interp1->accum[1] = (uintptr_t)backgr_scan;
 }
-static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {
+static inline void set_mode7_interp_config(union cgia_plane_regs_t* plane) {
     // interp0 will scan texture row
-    const uint texture_width_bits = plane->regs.affine.texture_bits & 0b0111;
+    const uint texture_width_bits = plane->affine.texture_bits & 0b0111;
     interp0->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
     interp0->mask[0] = (1U << (texture_width_bits)) - 1;
-    const uint texture_height_bits = (plane->regs.affine.texture_bits >> 4) & 0b0111;
+    const uint texture_height_bits = (plane->affine.texture_bits >> 4) & 0b0111;
     interp0->shift[1] = CGIA_AFFINE_FRACTIONAL_BITS - texture_width_bits;
     interp0->mask[1] = ((1U << (texture_height_bits)) - 1) << texture_width_bits;
 
@@ -292,13 +292,13 @@ static inline void set_mode7_interp_config(struct cgia_plane_t* plane) {
     interp1->mask[1] = ((1U << (texture_height_bits)) - 1) << CGIA_AFFINE_FRACTIONAL_BITS;
 
     // start texture rows scan
-    interp1->accum[0] = plane->regs.affine.u;
-    interp1->base[0] = plane->regs.affine.dx;
-    interp1->accum[1] = plane->regs.affine.v;
-    interp1->base[1] = plane->regs.affine.dy;
+    interp1->accum[0] = plane->affine.u;
+    interp1->base[0] = plane->affine.dx;
+    interp1->accum[1] = plane->affine.v;
+    interp1->base[1] = plane->affine.dy;
     interp1->base[2] = 0;
 }
-static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_scan) {
+static inline void set_mode7_scans(union cgia_plane_regs_t* plane, uint8_t* memory_scan) {
     assert(memory_scan >= vram_cache[0]);
     assert((uintptr_t)memory_scan < (uintptr_t)(vram_cache[2]));
 
@@ -306,9 +306,9 @@ static inline void set_mode7_scans(struct cgia_plane_t* plane, uint8_t* memory_s
     const uint32_t xy = (uint32_t)interp_pop_lane_result(interp1, 2);
     // start texture columns scan
     interp0->accum[0] = (xy & 0x00FF) << CGIA_AFFINE_FRACTIONAL_BITS;
-    interp0->base[0] = plane->regs.affine.du;
+    interp0->base[0] = plane->affine.du;
     interp0->accum[1] = (xy & 0xFF00);
-    interp0->base[1] = plane->regs.affine.dv;
+    interp0->base[1] = plane->affine.dv;
 }
 
 #define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
