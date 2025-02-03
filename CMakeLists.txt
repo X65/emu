@@ -38,6 +38,7 @@ add_executable(emu
     src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
+    src/ui/ui_ymf262.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
