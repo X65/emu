@@ -16,8 +16,8 @@ typedef struct {
 } ring_buffer_t;
 
 void rb_init(ring_buffer_t* rb);
-bool rb_is_empty(ring_buffer_t* rb);
-bool rb_is_full(ring_buffer_t* rb);
+bool rb_is_empty(const ring_buffer_t* rb);
+bool rb_is_full(const ring_buffer_t* rb);
 bool rb_put(ring_buffer_t* rb, uint8_t data);
 bool rb_get(ring_buffer_t* rb, uint8_t* data);
 

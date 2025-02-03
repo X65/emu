@@ -5,11 +5,11 @@ void rb_init(ring_buffer_t* rb) {
     rb->tail = 0;
 }
 
-bool rb_is_empty(ring_buffer_t* rb) {
+bool rb_is_empty(const ring_buffer_t* rb) {
     return rb->head == rb->tail;
 }
 
-bool rb_is_full(ring_buffer_t* rb) {
+bool rb_is_full(const ring_buffer_t* rb) {
     return ((rb->head + 1) % RB_BUFFER_SIZE) == rb->tail;
 }
 

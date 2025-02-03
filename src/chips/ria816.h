@@ -84,7 +84,8 @@ extern "C" {
 #define RIA816_PIN_RW (24)  // same as M6502_RW
 
 // chip-specific control pins
-#define RIA816_PIN_CS (40)
+#define RIA816_PIN_CS  (40)
+#define RIA816_PIN_IRQ (41)
 
 // pin bit masks
 #define RIA816_RS0     (1ULL << RIA816_PIN_RS0)
@@ -105,6 +106,7 @@ extern "C" {
 #define RIA816_DB_PINS (0xFF0000ULL)
 #define RIA816_RW      (1ULL << RIA816_PIN_RW)
 #define RIA816_CS      (1ULL << RIA816_PIN_CS)
+#define RIA816_IRQ     (1ULL << RIA816_PIN_IRQ)
 
 // register indices
 #define RIA816_MATH_OPERA     (0x00)  // Operand A for multiplication and division.
@@ -162,6 +164,8 @@ void ria816_init(ria816_t* ria816);
 void ria816_reset(ria816_t* ria816);
 // tick the RIA816
 uint64_t ria816_tick(ria816_t* ria816, uint64_t pins);
+
+uint8_t ria816_uart_status(const ria816_t* c);
 
 #ifdef __cplusplus
 }  // extern "C"

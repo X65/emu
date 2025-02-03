@@ -27,7 +27,7 @@ void ui_cgia_init(ui_cgia_t* win, const ui_cgia_desc_t* desc) {
     win->cgia = desc->cgia;
     win->init_x = (float)desc->x;
     win->init_y = (float)desc->y;
-    win->init_w = (float)((desc->w == 0) ? 348 : desc->w);
+    win->init_w = (float)((desc->w == 0) ? 630 : desc->w);
     win->init_h = (float)((desc->h == 0) ? 360 : desc->h);
     win->open = win->last_open = desc->open;
     win->valid = true;

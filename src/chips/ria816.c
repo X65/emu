@@ -29,6 +29,19 @@ static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
     return pins;
 }
 
+uint8_t ria816_uart_status(const ria816_t* c) {
+    uint8_t data = 0;
+    if (rb_is_empty(&c->uart_rx))
+        data &= ~0b01000000;
+    else
+        data |= 0b01000000;
+    if (rb_is_full(&c->uart_tx))
+        data &= ~0b10000000;
+    else
+        data |= 0b10000000;
+    return data;
+}
+
 #define RIA816_REG16(ADDR) (uint16_t)((uint16_t)(c->reg[ADDR]) | ((uint16_t)(c->reg[ADDR + 1]) << 8))
 
 static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
@@ -51,14 +64,7 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         } break;
 
         case RIA816_UART_READY: {
-            if (rb_is_empty(&c->uart_rx))
-                data &= ~0b01000000;
-            else
-                data |= 0b01000000;
-            if (rb_is_full(&c->uart_tx))
-                data &= ~0b10000000;
-            else
-                data |= 0b10000000;
+            data = ria816_uart_status(c);
         } break;
         case RIA816_UART_TX_RX: rb_get(&c->uart_rx, &data); break;
 

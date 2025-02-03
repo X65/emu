@@ -71,6 +71,7 @@
 #include "ui/ui_m6502.h"
 #include "ui/ui_m6526.h"
 #include "ui/ui_cgia.h"
+#include "ui/ui_ria816.h"
 #include "ui/ui_m6581.h"
 #include "ui/ui_memedit.h"
 #include "ui/ui_memmap.h"
@@ -102,6 +103,7 @@ typedef struct {
     ui_x65_boot_cb boot_cb;
     ui_m6502_t cpu;
     ui_m6526_t cia[2];
+    ui_ria816_t ria;
     ui_m6581_t sid;
     ui_cgia_t cgia;
     ui_console_t ria_uart;
