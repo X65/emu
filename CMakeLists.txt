@@ -13,9 +13,6 @@ set(SOKOL_SHDC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/ext/sokol-tools-bin/bin/li
 
 find_package(OpenGL REQUIRED)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(READLINE REQUIRED readline)
-
 add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
@@ -43,13 +40,42 @@ add_executable(emu
     src/util/ringbuffer.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
-target_include_directories(emu PRIVATE ${READLINE_INCLUDE_DIRS})
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking esfmu
-    ${READLINE_LIBRARIES})
-target_compile_options(emu PRIVATE ${READLINE_CFLAGS_OTHER})
+    PRIVATE common ui imgui-docking esfmu)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(STATUS "Building for Linux")
+    target_compile_definitions(emu PRIVATE USE_ARGP)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    message(STATUS "Building for Emscripten (WASM)")
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    target_compile_definitions(emu PRIVATE USE_WEB)
+    target_link_libraries(emu PRIVATE
+        "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/src/shell.html"
+        "-s DISABLE_EXCEPTION_CATCHING=1"
+        "-s ASSERTIONS=0"
+        "-s STACK_SIZE=512KB"
+        "-s ERROR_ON_UNDEFINED_SYMBOLS=1"
+        "-s ALLOW_MEMORY_GROWTH=1"
+        "-s MALLOC='emmalloc'"
+        "-s NO_FILESYSTEM=1"
+        "-s WASM=1"
+        -O3
+        -flto
+        "--closure 1"
+    )
+    target_compile_options(emu PRIVATE
+        -sDISABLE_EXCEPTION_CATCHING=1
+        -fno-exceptions
+        -fno-rtti
+        -flto
+        -O3
+        -DNDEBUG
+    )
+endif()
 
 # Add a custom command that produces version.c, plus
 # a dummy output that's not actually produced, in order

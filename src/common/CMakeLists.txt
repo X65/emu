@@ -1,5 +1,5 @@
 # select the sokol-gfx backend depending on platform
-if(FIPS_EMSCRIPTEN)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     add_definitions(-DSOKOL_GLES3)
     set(slang "glsl300es")
 elseif(FIPS_ANDROID)
@@ -55,8 +55,19 @@ add_dependencies(common compile_shaders)
 target_include_directories(common PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_sources(common PRIVATE sokol.c)
-target_link_libraries(common PRIVATE X11 Xcursor Xi EGL GL m dl asound)
+
 target_compile_options(common BEFORE PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(common PRIVATE X11 Xcursor Xi EGL GL m dl asound)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries(common PRIVATE
+        "-s USE_WEBGL2=1"  # Enable WebGL 2
+        "-s FULL_ES3=1"    # Use OpenGL ES 3, which supports more features like glClearBufferfv
+    )
+endif()
 
 # optional UI library (using Dear ImGui)
 add_library(ui STATIC

@@ -1,6 +1,8 @@
 #include "./args.h"
 
-#include <argp.h>
+#ifdef USE_ARGP
+    #include <argp.h>
+#endif
 #include <sokol_args.h>
 
 #define BUGS_ADDRESS "https://github.com/X65/emu/issues"
@@ -9,7 +11,10 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 #define FULL_NAME "X65 microcomputer emulator"
 const char full_name[] = FULL_NAME;
 
+struct arguments arguments = { NULL, 0, 0, "-" };
 static char args_doc[] = "[ROM.xex]";
+
+#ifdef USE_ARGP
 static struct argp_option options[] = {
     { "verbose", 'v', 0, 0, "Produce verbose output" },
     { "quiet", 'q', 0, 0, "Don't produce any output" },
@@ -17,18 +22,6 @@ static struct argp_option options[] = {
     { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
     { 0 }
 };
-
-struct arguments arguments = { NULL, 0, 0, "-" };
-
-void args_dump(void) {
-    printf(
-        "ROM = %s\nOUTPUT_FILE = %s\n"
-        "VERBOSE = %s\nSILENT = %s\nINI_FILE = %s\n",
-        arguments.rom,
-        arguments.output_file,
-        arguments.verbose ? "yes" : "no",
-        arguments.silent ? "yes" : "no");
-}
 
 static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
     struct arguments* args = argp_state->input;
@@ -57,10 +50,13 @@ static struct argp argp = { options,
                             FULL_NAME
                             "\v"
                             "Report bugs to: " BUGS_ADDRESS };
+#endif
 
 void args_parse(int argc, char* argv[]) {
+#ifdef USE_ARGP
     argp_program_version = program_version;
     argp_parse(&argp, argc, argv, 0, NULL, &arguments);
+#endif
 
     if (sargs_exists("file")) {
         arguments.rom = sargs_value("file");

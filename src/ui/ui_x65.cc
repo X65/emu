@@ -3,6 +3,10 @@
 #include "imgui.h"
 #include "args.h"
 
+#ifdef __EMSCRIPTEN__
+    #include <emscripten/version.h>
+#endif
+
 #ifndef __cplusplus
     #error "implementation must be compiled as C++"
 #endif
