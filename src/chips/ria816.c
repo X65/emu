@@ -63,7 +63,7 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         case RIA816_UART_TX_RX: rb_get(&c->uart_rx, &data); break;
 
         case RIA816_HW_RNG:
-        case RIA816_HW_RNG + 1: data = rand() & 0xFF; break;
+        case RIA816_HW_RNG + 1: data = (uint8_t)rand(); break;
 
         default: data = c->reg[addr];
     }
