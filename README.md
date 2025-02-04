@@ -12,4 +12,6 @@ Ubuntu:
 
 ## Build
 
+[![CMake on multiple platforms](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml)
+
 Build using CMake and modern C/C++ compiler.
