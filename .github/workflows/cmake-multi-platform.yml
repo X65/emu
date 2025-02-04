@@ -84,3 +84,13 @@ jobs:
         # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest --build-config ${{ matrix.build_type }}
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        if: github.ref == 'refs/heads/main'
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: latest_${{ runner.os }}_${{ runner.arch }}_${{ matrix.c_compiler }}
+          prerelease: true
+          title: Development Build - ${{ runner.os }} ${{ runner.arch }} ${{ matrix.c_compiler }}
+          files: |
+            ${{ steps.strings.outputs.build-output-dir }}/emu
