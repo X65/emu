@@ -9,7 +9,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
-set(SOKOL_SHDC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/ext/sokol-tools-bin/bin/linux/sokol-shdc)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(SOKOL_SHDC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/ext/sokol-tools-bin/bin/win32/sokol-shdc)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    set(SOKOL_SHDC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/ext/sokol-tools-bin/bin/linux_arm64/sokol-shdc)
+else()
+    set(SOKOL_SHDC_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/ext/sokol-tools-bin/bin/linux/sokol-shdc)
+endif()
 
 find_package(OpenGL REQUIRED)
 
