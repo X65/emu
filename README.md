@@ -4,7 +4,11 @@
 
 Fedora:
 
-    dnf install libX11-devel libXi-devel libXcursor-devel mesa-libEGL-devel alsa-lib-devel readline-devel
+    dnf install libX11-devel libXi-devel libXcursor-devel mesa-libEGL-devel alsa-lib-devel
+
+Ubuntu:
+
+    apt install libx11-dev libxi-dev libxcursor-dev libegl1-mesa-dev libasound2-dev
 
 ## Build
 
