@@ -17,9 +17,3 @@ add_library(esfmu STATIC
     ESFMu/esfm_registers.c
 )
 
-include(ExternalProject)
-ExternalProject_Add(os-816
-    SOURCE_DIR ${CMAKE_SOURCE_DIR}/ext/os-816
-    INSTALL_DIR ${CMAKE_BINARY_DIR}
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-)
