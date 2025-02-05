@@ -31,7 +31,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     CHIPS_ASSERT(sys->audio.num_samples <= X65_MAX_AUDIO_SAMPLES);
 
     // initialize the hardware
-    sys->pins = m6502_init(&sys->cpu, &(m6502_desc_t){});
+    sys->pins = w65816_init(&sys->cpu, &(w65816_desc_t){});
     m6526_init(&sys->cia_1);
     m6526_init(&sys->cia_2);
     ria816_init(&sys->ria);
@@ -77,7 +77,7 @@ void x65_reset(x65_t* sys) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->kbd_joy1_mask = sys->kbd_joy2_mask = 0;
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
-    sys->pins |= M6502_RES;
+    sys->pins |= W65816_RES;
     m6526_reset(&sys->cia_1);
     m6526_reset(&sys->cia_2);
     ria816_reset(&sys->ria);
@@ -121,15 +121,15 @@ void x65_set_running(x65_t* sys, bool running) {
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     if (!sys->running) {
         // keep CPU in RESET state
-        pins |= M6502_RES;
+        pins |= W65816_RES;
     }
 
     // tick the CPU
-    pins = m6502_tick(&sys->cpu, pins);
-    const uint16_t addr = M6502_GET_ADDR(pins);
+    pins = w65816_tick(&sys->cpu, pins);
+    const uint16_t addr = W65816_GET_ADDR(pins);
 
     // those pins are set each tick by the CIAs and VIC
-    pins &= ~(M6502_IRQ | M6502_NMI | M6502_RDY | M6510_AEC);
+    pins &= ~(W65816_IRQ | W65816_NMI | W65816_RDY);
 
     /*  address decoding
 
@@ -137,11 +137,11 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         communication takes place starting with the first read access.
     */
     bool mem_access = false;
-    uint64_t cgia_pins = pins & M6502_PIN_MASK;
-    uint64_t ria_pins = pins & M6502_PIN_MASK;
-    uint64_t sd1_pins = pins & M6502_PIN_MASK;
-    uint64_t opl3_pins = pins & M6502_PIN_MASK;
-    if ((pins & (M6502_RDY | M6502_RW)) != (M6502_RDY | M6502_RW)) {
+    uint64_t cgia_pins = pins & W65816_PIN_MASK;
+    uint64_t ria_pins = pins & W65816_PIN_MASK;
+    uint64_t sd1_pins = pins & W65816_PIN_MASK;
+    uint64_t opl3_pins = pins & W65816_PIN_MASK;
+    if ((pins & (W65816_RDY | W65816_RW)) != (W65816_RDY | W65816_RW)) {
         if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
             const uint8_t slot = (addr & 0xFF) >> 5;
             if ((sys->ria.reg[RIA816_EXT_IO] & (1U << slot))) switch (slot) {
@@ -150,9 +150,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                         opl3_pins |= YMF262_CS;
                     } break;
                     default:
-                        if (pins & M6502_RW) {
+                        if (pins & W65816_RW) {
                             // memory read nothin'
-                            M6502_SET_DATA(pins, 0xFF);
+                            W65816_SET_DATA(pins, 0xFF);
                         }
                 }
         }
@@ -196,11 +196,11 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     //     cia1_pins = m6526_tick(&sys->cia_1, cia1_pins);
     //     const uint8_t kbd_lines = ~M6526_GET_PA(cia1_pins);
     //     kbd_set_active_lines(&sys->kbd, kbd_lines);
-    //     if (cia1_pins & M6502_IRQ) {
-    //         pins |= M6502_IRQ;
+    //     if (cia1_pins & W65816_IRQ) {
+    //         pins |= W65816_IRQ;
     //     }
     //     if ((cia1_pins & (M6526_CS | M6526_RW)) == (M6526_CS | M6526_RW)) {
-    //         pins = M6502_COPY_DATA(pins, cia1_pins);
+    //         pins = W65816_COPY_DATA(pins, cia1_pins);
     //     }
     // }
 
@@ -209,7 +209,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     {
         ria_pins = ria816_tick(&sys->ria, ria_pins);
         if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
-            pins = M6502_COPY_DATA(pins, ria_pins);
+            pins = W65816_COPY_DATA(pins, ria_pins);
         }
     }
 
@@ -218,10 +218,10 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     {
         cgia_pins = cgia_tick(&sys->cgia, cgia_pins);
         if (cgia_pins & CGIA_INT) {
-            pins |= M6502_NMI;
+            pins |= W65816_NMI;
         }
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
-            pins = M6502_COPY_DATA(pins, cgia_pins);
+            pins = W65816_COPY_DATA(pins, cgia_pins);
         }
     }
 
@@ -250,7 +250,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             }
         }
         if ((opl3_pins & (YMF262_CS | YMF262_RW)) == (YMF262_CS | YMF262_RW)) {
-            pins = M6502_COPY_DATA(pins, opl3_pins);
+            pins = W65816_COPY_DATA(pins, opl3_pins);
         }
     }
 
@@ -258,13 +258,13 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
        "universal tick model" (yet?)
     */
     if (mem_access) {
-        if (pins & M6502_RW) {
+        if (pins & W65816_RW) {
             // memory read
-            M6502_SET_DATA(pins, mem_rd(&sys->mem, addr));
+            W65816_SET_DATA(pins, mem_rd(&sys->mem, addr));
         }
         else {
             // memory write
-            mem_wr(&sys->mem, addr, M6502_GET_DATA(pins));
+            mem_wr(&sys->mem, addr, W65816_GET_DATA(pins));
         }
     }
     return pins;
@@ -557,7 +557,7 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     *dst = *sys;
     chips_debug_snapshot_onsave(&dst->debug);
     chips_audio_callback_snapshot_onsave(&dst->audio.callback);
-    m6502_snapshot_onsave(&dst->cpu);
+    w65816_snapshot_onsave(&dst->cpu);
     cgia_snapshot_onsave(&dst->cgia);
     ymf262_snapshot_onsave(&dst->opl3);
     mem_snapshot_onsave(&dst->mem, sys);
@@ -573,7 +573,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     im = *src;
     chips_debug_snapshot_onload(&im.debug, &sys->debug);
     chips_audio_callback_snapshot_onload(&im.audio.callback, &sys->audio.callback);
-    m6502_snapshot_onload(&im.cpu, &sys->cpu);
+    w65816_snapshot_onload(&im.cpu, &sys->cpu);
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
     ymf262_snapshot_onload(&im.opl3, &sys->opl3);
     mem_snapshot_onload(&im.mem, sys);

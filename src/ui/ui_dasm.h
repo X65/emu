@@ -16,6 +16,7 @@
 
     UI_DASM_USE_Z80
     UI_DASM_USE_M6502
+    UI_DASM_USE_W65C816S
 
     Optionally provide the following macros with your own implementation
 
@@ -32,6 +33,7 @@
         - ui_settings.h
         - z80dasm.h     (only if UI_DASM_USE_Z80 is defined)
         - m6502dasm.h   (only if UI_DASM_USE_M6502 is defined)
+        - w65c816sdasm.h(only if UI_DASM_USE_W65C816S is defined)
 
     All strings provided to ui_dasm_init() must remain alive until
     ui_dasm_discard() is called!
@@ -74,6 +76,7 @@ typedef uint8_t (*ui_dasm_read_t)(int layer, uint16_t addr, void* user_data);
 typedef enum {
     UI_DASM_CPUTYPE_Z80 = 0,
     UI_DASM_CPUTYPE_M6502 = 1,
+    UI_DASM_CPUTYPE_W65C816S = 2,
 } ui_dasm_cputype_t;
 
 /* setup parameters for ui_dasm_init()
@@ -133,8 +136,8 @@ void ui_dasm_load_settings(ui_dasm_t* ui, const ui_settings_t* settings);
 #ifndef __cplusplus
 #error "implementation must be compiled as C++"
 #endif
-#if !defined(UI_DASM_USE_Z80) && !defined(UI_DASM_USE_M6502)
-#error "please define UI_DASM_USE_Z80 and/or UI_DASM_USE_M6502"
+#if !defined(UI_DASM_USE_Z80) && !defined(UI_DASM_USE_M6502) && !defined(UI_DASM_USE_W65C816S)
+#error "please define UI_DASM_USE_Z80 and/or UI_DASM_USE_M6502 and/or UI_DASM_USE_W65C816S"
 #endif
 #include <string.h> /* memset */
 #include <stdio.h>  /* sscanf, sprintf (ImGui memory editor) */
@@ -198,15 +201,20 @@ static void _ui_dasm_out_cb(char c, void* user_data) {
 static void _ui_dasm_disasm(ui_dasm_t* win) {
     win->str_pos = 0;
     win->bin_pos = 0;
-    #if defined(UI_DASM_USE_Z80) && defined(UI_DASM_USE_M6502)
+    #if defined(UI_DASM_USE_Z80) && defined(UI_DASM_USE_M6502) && defined(UI_DASM_USE_W65C816S)
     if (win->cpu_type == UI_DASM_CPUTYPE_Z80) {
         z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+    }
+    else if (win->cpu_type == UI_DASM_CPUTYPE_W65C816S) {
+        w65816dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     else {
         m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     #elif defined(UI_DASM_USE_Z80)
     z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+    #elif defined(UI_DASM_USE_W65C816S)
+    w65816dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #else
     m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #endif

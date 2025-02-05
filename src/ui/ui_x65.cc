@@ -286,37 +286,37 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
     return trap_id;
 }
 
-static const ui_chip_pin_t _ui_x65_cpu6502_pins[] = {
-    { "D0",   0,  M6502_D0   },
-    { "D1",   1,  M6502_D1   },
-    { "D2",   2,  M6502_D2   },
-    { "D3",   3,  M6502_D3   },
-    { "D4",   4,  M6502_D4   },
-    { "D5",   5,  M6502_D5   },
-    { "D6",   6,  M6502_D6   },
-    { "D7",   7,  M6502_D7   },
-    { "RW",   9,  M6502_RW   },
-    { "SYNC", 10, M6502_SYNC },
-    { "RDY",  11, M6502_RDY  },
-    { "IRQ",  12, M6502_IRQ  },
-    { "NMI",  13, M6502_NMI  },
-    { "RES",  14, M6502_RES  },
-    { "A0",   16, M6502_A0   },
-    { "A1",   17, M6502_A1   },
-    { "A2",   18, M6502_A2   },
-    { "A3",   19, M6502_A3   },
-    { "A4",   20, M6502_A4   },
-    { "A5",   21, M6502_A5   },
-    { "A6",   22, M6502_A6   },
-    { "A7",   23, M6502_A7   },
-    { "A8",   24, M6502_A8   },
-    { "A9",   25, M6502_A9   },
-    { "A10",  26, M6502_A10  },
-    { "A11",  27, M6502_A11  },
-    { "A12",  28, M6502_A12  },
-    { "A13",  29, M6502_A13  },
-    { "A14",  30, M6502_A14  },
-    { "A15",  31, M6502_A15  },
+static const ui_chip_pin_t _ui_x65_cpu65816_pins[] = {
+    { "D0",   0,  W65816_D0   },
+    { "D1",   1,  W65816_D1   },
+    { "D2",   2,  W65816_D2   },
+    { "D3",   3,  W65816_D3   },
+    { "D4",   4,  W65816_D4   },
+    { "D5",   5,  W65816_D5   },
+    { "D6",   6,  W65816_D6   },
+    { "D7",   7,  W65816_D7   },
+    { "RW",   9,  W65816_RW   },
+    { "SYNC", 10, W65816_SYNC },
+    { "RDY",  11, W65816_RDY  },
+    { "IRQ",  12, W65816_IRQ  },
+    { "NMI",  13, W65816_NMI  },
+    { "RES",  14, W65816_RES  },
+    { "A0",   16, W65816_A0   },
+    { "A1",   17, W65816_A1   },
+    { "A2",   18, W65816_A2   },
+    { "A3",   19, W65816_A3   },
+    { "A4",   20, W65816_A4   },
+    { "A5",   21, W65816_A5   },
+    { "A6",   22, W65816_A6   },
+    { "A7",   23, W65816_A7   },
+    { "A8",   24, W65816_A8   },
+    { "A9",   25, W65816_A9   },
+    { "A10",  26, W65816_A10  },
+    { "A11",  27, W65816_A11  },
+    { "A12",  28, W65816_A12  },
+    { "A13",  29, W65816_A13  },
+    { "A14",  30, W65816_A14  },
+    { "A15",  31, W65816_A15  },
 };
 
 static const ui_chip_pin_t _ui_x65_cia_pins[] = {
@@ -447,7 +447,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.title = "CPU Debugger";
         desc.x = x;
         desc.y = y;
-        desc.m6502 = &ui->x65->cpu;
+        desc.w65816 = &ui->x65->cpu;
         desc.freq_hz = X65_FREQUENCY;
         desc.scanline_ticks = ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
         desc.frame_ticks = MODE_V_TOTAL_LINES * ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
@@ -468,14 +468,14 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
-        ui_m6502_desc_t desc = { 0 };
-        desc.title = "MOS 6502";
+        ui_w65816_desc_t desc = { 0 };
+        desc.title = "WDC 65C816";
         desc.cpu = &ui->x65->cpu;
         desc.x = x;
         desc.y = y;
         desc.h = 390;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "6502", 32, _ui_x65_cpu6502_pins);
-        ui_m6502_init(&ui->cpu, &desc);
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "65816", 32, _ui_x65_cpu65816_pins);
+        ui_w65816_init(&ui->cpu, &desc);
     }
     x += dx;
     y += dy;
@@ -624,7 +624,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         for (int i = 0; i < _UI_X65_CODELAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
         }
-        desc.cpu_type = UI_DASM_CPUTYPE_M6502;
+        desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
         desc.start_addr = mem_rd16(&ui->x65->mem, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
@@ -642,7 +642,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
 
 void ui_x65_discard(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
-    ui_m6502_discard(&ui->cpu);
+    ui_w65816_discard(&ui->cpu);
     ui_m6526_discard(&ui->cia[0]);
     ui_m6526_discard(&ui->cia[1]);
     ui_ria816_discard(&ui->ria);
@@ -672,7 +672,7 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);
     ui_display_draw(&ui->display, &frame->display);
     ui_kbd_draw(&ui->kbd);
-    ui_m6502_draw(&ui->cpu);
+    ui_w65816_draw(&ui->cpu);
     ui_m6526_draw(&ui->cia[0]);
     ui_m6526_draw(&ui->cia[1]);
     ui_ria816_draw(&ui->ria);
@@ -699,7 +699,7 @@ chips_debug_t ui_x65_get_debug(ui_x65_t* ui) {
 
 void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     CHIPS_ASSERT(ui && settings);
-    ui_m6502_save_settings(&ui->cpu, settings);
+    ui_w65816_save_settings(&ui->cpu, settings);
     for (int i = 0; i < 2; i++) {
         ui_m6526_save_settings(&ui->cia[i], settings);
     }
@@ -723,7 +723,7 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
 
 void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     CHIPS_ASSERT(ui && settings);
-    ui_m6502_load_settings(&ui->cpu, settings);
+    ui_w65816_load_settings(&ui->cpu, settings);
     for (int i = 0; i < 2; i++) {
         ui_m6526_load_settings(&ui->cia[i], settings);
     }

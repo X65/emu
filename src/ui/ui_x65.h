@@ -26,7 +26,7 @@
     - ui_chip.h
     - ui_util.h
     - ui_settings.h
-    - ui_m6502.h
+    - ui_w65c816s.h
     - ui_m6526.h
     - ui_m6569.h
     - ui_m6581.h
@@ -58,7 +58,7 @@
         distribution.
 #*/
 #include "systems/x65.h"
-#define UI_DBG_USE_M6502
+#define UI_DBG_USE_W65C816S
 #include "ui/ui_settings.h"
 #include "ui/ui_util.h"
 #include "ui/ui_audio.h"
@@ -68,7 +68,7 @@
 #include "ui/ui_dbg.h"
 #include "ui/ui_display.h"
 #include "ui/ui_kbd.h"
-#include "ui/ui_m6502.h"
+#include "ui/ui_w65c816s.h"
 #include "ui/ui_m6526.h"
 #include "ui/ui_cgia.h"
 #include "ui/ui_ria816.h"
@@ -102,7 +102,7 @@ typedef struct {
     x65_t* x65;
     int dbg_scanline;
     ui_x65_boot_cb boot_cb;
-    ui_m6502_t cpu;
+    ui_w65816_t cpu;
     ui_m6526_t cia[2];
     ui_ria816_t ria;
     ui_m6581_t sid;

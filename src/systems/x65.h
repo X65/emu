@@ -31,7 +31,7 @@
 #include "chips/kbd.h"
 #include "chips/beeper.h"
 #include "chips/cgia.h"
-#include "chips/m6502.h"
+#include "chips/w65c816s.h"
 #include "chips/m6526.h"
 #include "chips/m6581.h"
 #include "chips/ria816.h"
@@ -121,7 +121,7 @@ typedef struct {
 
 // X65 emulator state
 typedef struct {
-    m6502_t cpu;
+    w65816_t cpu;
     m6526_t cia_1;
     m6526_t cia_2;
     ria816_t ria;

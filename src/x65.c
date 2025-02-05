@@ -4,7 +4,7 @@
 #define CHIPS_IMPL
 #include "chips/chips_common.h"
 #include "common.h"
-#include "chips/m6502.h"
+#include "chips/w65c816s.h"
 #include "chips/m6526.h"
 #include "chips/m6581.h"
 #include "chips/kbd.h"
@@ -12,7 +12,7 @@
 #include "chips/mem.h"
 #include "systems/x65.h"
 #if defined(CHIPS_USE_UI)
-    #define UI_DBG_USE_M6502
+    #define UI_DBG_USE_W65C816S
     #include "ui.h"
     #include "ui/ui_settings.h"
     #include "ui/ui_chip.h"
@@ -20,7 +20,7 @@
     #include "ui/ui_memmap.h"
     #include "ui/ui_dasm.h"
     #include "ui/ui_dbg.h"
-    #include "ui/ui_m6502.h"
+    #include "ui/ui_w65c816s.h"
     #include "ui/ui_m6526.h"
     #include "ui/ui_m6581.h"
     #include "ui/ui_audio.h"
@@ -595,7 +595,7 @@ static void web_dbg_on_reset(void) {
 }
 
 static webapi_cpu_state_t web_dbg_cpu_state(void) {
-    const m6502_t* cpu = &state.x65.cpu;
+    const w65816_t* cpu = &state.x65.cpu;
     return (webapi_cpu_state_t){
         .items = {
             [WEBAPI_CPUSTATE_TYPE] = WEBAPI_CPUTYPE_6502,
