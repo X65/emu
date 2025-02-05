@@ -28,9 +28,11 @@ jobs:
         build_type: [Release]
         c_compiler: [gcc, clang]
         include:
+          - bin: emu
           - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
+            bin: emu.exe
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
@@ -58,6 +60,8 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "os=${RUNNER_OS@L}" >> "$GITHUB_OUTPUT"
+          echo "arch=${RUNNER_ARCH@L}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         uses: ConorMacBride/install-package@v1
@@ -85,12 +89,37 @@ jobs:
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest --build-config ${{ matrix.build_type }}
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        if: github.ref == 'refs/heads/main'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: latest_${{ runner.os }}_${{ runner.arch }}_${{ matrix.c_compiler }}
+          name: emu_${{ steps.strings.outputs.os }}_${{ steps.strings.outputs.arch }}_${{ matrix.c_compiler }}
+          path: ${{ steps.strings.outputs.build-output-dir }}/${{ matrix.bin }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Retrieve Artifacts
+        uses: actions/download-artifact@v4
+      - name: Rename Artifacts
+        run: |
+          mv emu_linux_arm64_clang/emu emu_linux_arm64
+          mv emu_linux_x64_clang/emu emu_linux_x64
+          mv emu_windows_x64_gcc/emu.exe emu_windows_x64.exe
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
           prerelease: true
-          title: Development Build - ${{ runner.os }} ${{ runner.arch }} ${{ matrix.c_compiler }}
+          name: Development Build
+          tag_name: latest
+          generate_release_notes: true
           files: |
-            ${{ steps.strings.outputs.build-output-dir }}/emu
+            emu_*_*
+            LICENSE
+          preserve_order: true
+          fail_on_unmatched_files: true
