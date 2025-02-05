@@ -653,10 +653,10 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     sargs_setup(&(sargs_desc){
         .argc = argc,
         .argv = argv,
-#ifdef sysconf
-        .buf_size = (int)sysconf(_SC_ARG_MAX),
-#else
+#ifdef _WIN32
         .buf_size = (int)_ARGMAX,
+#else
+        .buf_size = (int)sysconf(_SC_ARG_MAX),
 #endif
     });
     args_parse(argc, argv);
