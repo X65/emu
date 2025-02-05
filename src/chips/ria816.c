@@ -16,7 +16,7 @@ void ria816_init(ria816_t* c) {
     rb_init(&c->uart_tx);
 
     // Seed the random number generator
-    srand((uint)time(NULL));
+    srand((unsigned int)time(NULL));
 }
 
 void ria816_reset(ria816_t* c) {
