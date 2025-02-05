@@ -28,9 +28,11 @@ jobs:
         build_type: [Release]
         c_compiler: [gcc, clang]
         include:
+          - bin: emu
           - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
+            bin: emu.exe
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
@@ -91,14 +93,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: emu_${{ steps.strings.outputs.os }}_${{ steps.strings.outputs.arch }}_${{ matrix.c_compiler }}
-          path: ${{ steps.strings.outputs.build-output-dir }}/emu
+          path: ${{ steps.strings.outputs.build-output-dir }}/${{ matrix.bin }}
+          if-no-files-found: error
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: release
+      - name: Release
+        uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: latest_${{ runner.os }}_${{ runner.arch }}_${{ matrix.c_compiler }}
           prerelease: true
-          title: Development Build - ${{ runner.os }} ${{ runner.arch }} ${{ matrix.c_compiler }}
+          name: Development Build
+          tag_name: latest
+          generate_release_notes: true
           files: |
-            ${{ steps.strings.outputs.build-output-dir }}/emu
+            release/*
+            LICENSE
+          preserve_order: true
+          fail_on_unmatched_files: true
