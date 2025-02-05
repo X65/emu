@@ -122,7 +122,7 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
     ImGui::Text("Licensed under the 0BSD License, see LICENSE for more information.");
     ImGui::Text("Based on");
     ImGui::SameLine();
-    ImGui::TextLinkOpenURL("chip-emulators", "https://github.com/floooh/chips");
+    ImGui::TextLinkOpenURL("chips emulators", "https://github.com/floooh/chips");
     ImGui::SameLine();
     ImGui::Text("by Andre Weissflog.");
 
