@@ -1,6 +1,6 @@
 # X65 emulator
 
-This is Emu - The [X65 Computer][1] Emulator.
+This is Emu <img src="emu.gif" alt="Emu"> The [X65 Computer][1] Emulator.
 
 Based on [chips emulators][2] by Andre Weissflog.
 
