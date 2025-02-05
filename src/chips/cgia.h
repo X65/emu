@@ -223,13 +223,13 @@ typedef struct {
     uint8_t reg[CGIA_NUM_REGS];
 
     // internal counters
-    uint h_count;
-    uint h_period;
-    uint l_count;
+    unsigned int h_count;
+    unsigned int h_period;
+    unsigned int l_count;
 
-    uint active_line;      // currently rendered physical line
-    uint16_t raster_line;  // current virtual raster line
-    bool badline;          // active when rasterizer code is running and stealing memory reads from CPU
+    unsigned int active_line;  // currently rendered physical line
+    uint16_t raster_line;      // current virtual raster line
+    bool badline;              // active when rasterizer code is running and stealing memory reads from CPU
 
     // copy of CGIA internal registers
     struct cgia_internal {

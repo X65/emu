@@ -99,8 +99,8 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
         }
 
         uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
-        for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
-            for (uint r = 0; r < FB_H_REPEAT; ++r) {
+        for (unsigned int x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
+            for (unsigned int r = 0; r < FB_H_REPEAT; ++r) {
                 *dst++ = *src | 0xFF000000;  // set ALPHA channel to 100% opacity
             }
         }
@@ -244,10 +244,10 @@ void interp_restore(interp_hw_t* interp, interp_hw_save_t* saver) {
     interp->mask[1] = saver->mask[1];
 }
 
-static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, uint lane) {
+static inline uintptr_t interp_get_accumulator(interp_hw_t* interp, unsigned int lane) {
     return interp->accum[lane];
 }
-static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
+static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, unsigned int lane) {
     assert(lane < 3);
     // compute masked values
     uint32_t lane0 = ((uint32_t)(interp->accum[0]) >> interp->shift[0]) & interp->mask[0];
@@ -262,7 +262,7 @@ static inline uintptr_t interp_pop_lane_result(interp_hw_t* interp, uint lane) {
 
     return interp->accum[lane];
 }
-static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, uint lane) {
+static inline uintptr_t interp_peek_lane_result(interp_hw_t* interp, unsigned int lane) {
     assert(lane < 2);
     return interp->accum[lane] + interp->base[lane];
 }
@@ -288,10 +288,10 @@ static inline void set_linear_scans(
 }
 static inline void set_mode7_interp_config(union cgia_plane_regs_t* plane) {
     // interp0 will scan texture row
-    const uint texture_width_bits = plane->affine.texture_bits & 0b0111;
+    const unsigned int texture_width_bits = plane->affine.texture_bits & 0b0111;
     interp0->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
     interp0->mask[0] = (1U << (texture_width_bits)) - 1;
-    const uint texture_height_bits = (plane->affine.texture_bits >> 4) & 0b0111;
+    const unsigned int texture_height_bits = (plane->affine.texture_bits >> 4) & 0b0111;
     interp0->shift[1] = CGIA_AFFINE_FRACTIONAL_BITS - texture_width_bits;
     interp0->mask[1] = ((1U << (texture_height_bits)) - 1) << texture_width_bits;
 
@@ -325,7 +325,7 @@ static inline void set_mode7_scans(union cgia_plane_regs_t* plane, uint8_t* memo
 #define FRAME_HEIGHT CGIA_DISPLAY_HEIGHT
 
 static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t color_idx) {
-    uint pixels = columns * CGIA_COLUMN_PX;
+    unsigned int pixels = columns * CGIA_COLUMN_PX;
     while (pixels) {
         *rgbbuf++ = cgia_rgb_palette[color_idx];
         --pixels;
@@ -346,7 +346,7 @@ cgia_encode_mode_2(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_genera
         uint8_t chr = *((uint8_t*)chr_addr);
         uint8_t bits = character_generator[chr << char_shift];
         for (int shift = 7; shift >= 0; shift--) {
-            uint bit_set = (bits >> shift) & 0b1;
+            unsigned int bit_set = (bits >> shift) & 0b1;
             if (bit_set) {
                 *rgbbuf++ = cgia_rgb_palette[fg_cl];
             }
@@ -386,7 +386,7 @@ uint32_t* cgia_encode_mode_3(uint32_t* rgbbuf, uint32_t columns, bool mapped) {
         uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
         uint8_t bits = *((uint8_t*)bits_addr);
         for (int shift = 7; shift >= 0; shift--) {
-            uint bit_set = (bits >> shift) & 0b1;
+            unsigned int bit_set = (bits >> shift) & 0b1;
             if (bit_set) {
                 *rgbbuf++ = cgia_rgb_palette[fg_cl];
             }
@@ -430,7 +430,7 @@ uint32_t* cgia_encode_mode_4(
         uint8_t chr = *((uint8_t*)chr_addr);
         uint8_t bits = character_generator[chr << char_shift];
         for (int shift = 6; shift >= 0; shift -= 2) {
-            uint color_no = (bits >> shift) & 0b11;
+            unsigned int color_no = (bits >> shift) & 0b11;
             switch (color_no) {
                 case 0b00:
                     if (mapped) {
@@ -508,7 +508,7 @@ uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_
         uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
         uint8_t bits = *((uint8_t*)bits_addr);
         for (int shift = 6; shift >= 0; shift -= 2) {
-            uint color_no = (bits >> shift) & 0b11;
+            unsigned int color_no = (bits >> shift) & 0b11;
             switch (color_no) {
                 case 0b00:
                     if (mapped) {

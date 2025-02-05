@@ -19,7 +19,7 @@ extern "C" {
 
 // PWM state
 typedef struct {
-    uint tick_hz;
+    unsigned int tick_hz;
     int counter;
     int period;
     uint8_t duty;
