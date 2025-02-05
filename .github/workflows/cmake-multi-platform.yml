@@ -58,6 +58,8 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "os=${RUNNER_OS@L}" >> "$GITHUB_OUTPUT"
+          echo "arch=${RUNNER_ARCH@L}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         uses: ConorMacBride/install-package@v1
@@ -84,6 +86,12 @@ jobs:
         # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest --build-config ${{ matrix.build_type }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emu_${{ steps.strings.outputs.os }}_${{ steps.strings.outputs.arch }}_${{ matrix.c_compiler }}
+          path: ${{ steps.strings.outputs.build-output-dir }}/emu
 
       - uses: "marvinpinto/action-automatic-releases@latest"
         if: github.ref == 'refs/heads/main'
