@@ -13,3 +13,6 @@
 [submodule "ext/ESFMu"]
 	path = ext/ESFMu
 	url = https://github.com/Kagamiin/ESFMu.git
+[submodule "ext/doctest"]
+	path = ext/doctest
+	url = https://github.com/doctest/doctest.git
