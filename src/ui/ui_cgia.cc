@@ -145,28 +145,28 @@ static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
         case 0x7:  // N/A
             ImGui::Text("???%02x: %02x: ", dl_instr & 0x0F, dl_instr);
             break;
-        case (0x0 | CGIA_MODE_BIT):  // MODE0 (8)
+        case (0x0 | CGIA_DL_MODE_BIT):  // MODE0 (8)
             ImGui::Text("MODE0: ???");
             break;
-        case (0x1 | CGIA_MODE_BIT):  // MODE1 (9)
+        case (0x1 | CGIA_DL_MODE_BIT):  // MODE1 (9)
             ImGui::Text("MODE1: ???");
             break;
-        case (0x2 | CGIA_MODE_BIT):  // MODE2 (A) - text/tile mode
+        case (0x2 | CGIA_DL_MODE_BIT):  // MODE2 (A) - text/tile mode
             ImGui::Text("MODE2: text/tile");
             break;
-        case (0x3 | CGIA_MODE_BIT):  // MODE3 (B) - bitmap mode
+        case (0x3 | CGIA_DL_MODE_BIT):  // MODE3 (B) - bitmap mode
             ImGui::Text("MODE3: bitmap");
             break;
-        case (0x4 | CGIA_MODE_BIT):  // MODE4 (C) - multicolor text/tile mode
+        case (0x4 | CGIA_DL_MODE_BIT):  // MODE4 (C) - multicolor text/tile mode
             ImGui::Text("MODE4: multicolor text/tile");
             break;
-        case (0x5 | CGIA_MODE_BIT):  // MODE5 (D) - multicolor bitmap mode
+        case (0x5 | CGIA_DL_MODE_BIT):  // MODE5 (D) - multicolor bitmap mode
             ImGui::Text("MODE5: multicolor bitmap");
             break;
-        case (0x6 | CGIA_MODE_BIT):  // MODE6 (E) - Hold-and-Modify (HAM) mode
+        case (0x6 | CGIA_DL_MODE_BIT):  // MODE6 (E) - Hold-and-Modify (HAM) mode
             ImGui::Text("MODE6: HAM");
             break;
-        case (0x7 | CGIA_MODE_BIT):  // MODE7 (F) - affine transform mode
+        case (0x7 | CGIA_DL_MODE_BIT):  // MODE7 (F) - affine transform mode
             ImGui::Text("MODE7: affine transform");
             break;
     }
