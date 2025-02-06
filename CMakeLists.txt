@@ -23,6 +23,7 @@ add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
 include_directories(ext/sokol/util)
+include_directories(ext/doctest/doctest)
 include_directories(ext)
 
 include_directories(src)
@@ -86,6 +87,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         -DNDEBUG
     )
 endif()
+
+include(CTest)
+enable_testing()
+add_subdirectory(src/tests)
 
 # Add a custom command that produces version.c, plus
 # a dummy output that's not actually produced, in order
