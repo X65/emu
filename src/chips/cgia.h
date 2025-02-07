@@ -261,6 +261,8 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins);
 void cgia_snapshot_onsave(cgia_t* snapshot);
 // fixup cgia_t snapshot after loading
 void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
+// mirror RAM writes to CGIA VRAM
+void cgia_mem_wr(uint32_t addr, uint8_t data);
 // copy VRAM - after fastload
 void cgia_mirror_vram(cgia_t* vpu);
 

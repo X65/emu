@@ -107,8 +107,6 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
 }
 
 uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
-    pins = _cgia_tick(vpu, pins);
-
     // handle registers
     if (pins & CGIA_CS) {
         uint8_t addr = CGIA_GET_REG_ADDR(pins);
@@ -121,20 +119,17 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
             cgia_reg_write(addr, data);
         }
     }
-    // mirror RAM writes to VRAM cache
-    if (!(pins & CGIA_RW)) {
-        uint32_t addr = CGIA_GET_ADDR(pins);
-        uint8_t data = CGIA_GET_DATA(pins);
-        cgia_ram_write(addr, data);
-    }
+
+    pins = _cgia_tick(vpu, pins);
 
     cgia_task();
+
     _copy_internal_regs(vpu);
 
     pwm_tick(&vpu->pwm[0]);
     pwm_tick(&vpu->pwm[1]);
 
-    if (vpu->regs[CGIA_REG_INT_STATUS]) {
+    if (cgia_reg_read(CGIA_REG_INT_STATUS)) {
         pins |= CGIA_INT;
     }
 
@@ -772,6 +767,9 @@ static void _cgia_transfer_vcache_bank(uint8_t bank) {
 void cgia_mirror_vram(cgia_t* vpu) {
     _cgia_copy_vcache_bank(vpu, vram_cache_ptr[0] == vram_cache[0] ? 0 : 1);
     _cgia_copy_vcache_bank(vpu, vram_cache_ptr[1] == vram_cache[0] ? 0 : 1);
+}
+void cgia_mem_wr(uint32_t addr, uint8_t data) {
+    cgia_ram_write(addr, data);
 }
 
 static void _copy_internal_regs(cgia_t* vpu) {
