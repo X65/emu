@@ -768,7 +768,7 @@ void cgia_mirror_vram(cgia_t* vpu) {
     _cgia_copy_vcache_bank(vpu, vram_cache_ptr[0] == vram_cache[0] ? 0 : 1);
     _cgia_copy_vcache_bank(vpu, vram_cache_ptr[1] == vram_cache[0] ? 0 : 1);
 }
-void cgia_mem_wr(uint32_t addr, uint8_t data) {
+void cgia_mem_wr(cgia_t* vpu, uint32_t addr, uint8_t data) {
     cgia_ram_write(addr, data);
 }
 

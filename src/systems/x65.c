@@ -266,7 +266,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             // memory write
             uint8_t data = W65816_GET_DATA(pins);
             mem_wr(&sys->mem, addr, data);
-            cgia_mem_wr(addr, data);
+            cgia_mem_wr(&sys->cgia, addr, data);
         }
     }
     return pins;
