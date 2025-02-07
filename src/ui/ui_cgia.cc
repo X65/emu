@@ -111,12 +111,13 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
 
 static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
     if (ImGui::CollapsingHeader("Raster Unit", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("H Period:     %4d", win->cgia->h_period);
-        ImGui::Text("H Counter:    %4d", win->cgia->h_count);
-        ImGui::Text("Line Counter: %4d", win->cgia->l_count);
-        ImGui::Text("Active Line:  %4d", win->cgia->active_line);
+        ImGui::Text("H Period:    %4d", win->cgia->h_period / CGIA_FIXEDPOINT_SCALE);
+        ImGui::Text("H Counter:   %4d", win->cgia->h_count / CGIA_FIXEDPOINT_SCALE);
+        ImGui::Text("V Counter:   %4d", win->cgia->v_count);
+        ImGui::Text("V Period:   %4d", MODE_V_TOTAL_LINES - 1);
+        ImGui::Text("Active Line: %4d", win->cgia->active_line);
         const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
-        ImGui::Text("Raster Line:  %4d", chip->raster);
+        ImGui::Text("Raster Line: %4d", chip->raster);
     }
 }
 

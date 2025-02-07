@@ -58,7 +58,7 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
 void cgia_reset(cgia_t* vpu) {
     CHIPS_ASSERT(vpu);
     vpu->h_count = 0;
-    vpu->l_count = 0;
+    vpu->v_count = 0;
     pwm_reset(&vpu->pwm[0]);
     pwm_reset(&vpu->pwm[1]);
 }
@@ -70,17 +70,17 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
     // rewind horizontal counter?
     if (vpu->h_count >= vpu->h_period) {
         vpu->h_count -= vpu->h_period;
-        vpu->l_count++;
-        if (vpu->l_count >= MODE_V_TOTAL_LINES) {
+        vpu->v_count++;
+        if (vpu->v_count >= MODE_V_TOTAL_LINES) {
             // rewind line counter, field sync off
-            vpu->l_count = 0;
+            vpu->v_count = 0;
             cgia_vbi();
         }
 
         uint32_t* src = vpu->linebuffer + CGIA_LINEBUFFER_PADDING;
 
-        if (vpu->l_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
-            vpu->active_line = vpu->l_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
+        if (vpu->v_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
+            vpu->active_line = vpu->v_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
 
             if (vpu->active_line % FB_V_REPEAT == 0) {
                 // rasterize new line
@@ -281,9 +281,6 @@ static inline void set_mode7_scans(union cgia_plane_regs_t* plane, uint8_t* memo
     interp0->accum[1] = (xy & 0xFF00);
     interp0->base[1] = plane->affine.dv;
 }
-
-#define FRAME_WIDTH  CGIA_DISPLAY_WIDTH
-#define FRAME_HEIGHT CGIA_DISPLAY_HEIGHT
 
 static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t color_idx) {
     uint pixels = columns * CGIA_COLUMN_PX;

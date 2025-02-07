@@ -180,7 +180,7 @@ extern "C" {
 #define CGIA_ACTIVE_HEIGHT (MODE_V_ACTIVE_LINES / FB_V_REPEAT)
 
 // fixed point precision for more precise error accumulation
-#define CGIA_FIXEDPOINT_SCALE (256)
+#define CGIA_FIXEDPOINT_SCALE (100)
 
 // a memory-fetch callback, used to read video memory bytes into the CGIA
 typedef uint64_t (*cgia_fetch_t)(uint64_t pins, void* user_data);
@@ -208,7 +208,7 @@ typedef struct {
     // internal counters
     uint h_count;
     uint h_period;
-    uint l_count;
+    uint v_count;
 
     uint active_line;  // currently rendered physical line
     bool badline;      // active when rasterizer code is running and stealing memory reads from CPU
