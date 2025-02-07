@@ -219,17 +219,16 @@ typedef struct {
     // last pin state
     uint64_t pins;
 
-    // internal registers (memory mapped)
-    uint8_t reg[CGIA_NUM_REGS];
-
     // internal counters
     uint h_count;
     uint h_period;
     uint l_count;
 
-    uint active_line;      // currently rendered physical line
-    uint16_t raster_line;  // current virtual raster line
-    bool badline;          // active when rasterizer code is running and stealing memory reads from CPU
+    uint active_line;  // currently rendered physical line
+    bool badline;      // active when rasterizer code is running and stealing memory reads from CPU
+
+    // CGIA registers
+    uint8_t* regs;
 
     // copy of CGIA internal registers
     struct cgia_internal {
@@ -241,6 +240,13 @@ typedef struct {
         bool wait_vbl;
         bool sprites_need_update;
     } internal[4];
+
+    // VRAM cache information
+    struct {
+        uint32_t bank_mask;
+        uint32_t wanted_bank_mask;
+        uint8_t cache_ptr_idx;
+    } vram_cache[2];
 
     // the fetch callback function
     cgia_fetch_t fetch_cb;

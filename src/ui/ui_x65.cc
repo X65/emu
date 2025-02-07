@@ -205,8 +205,8 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
     "CPU Mapped",
     "RAM Banks",
-    "Background Bank",
-    "Sprite Bank",
+    "VRAM0",
+    "VRAM1",
 };
 
 static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {

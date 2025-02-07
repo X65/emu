@@ -73,12 +73,21 @@ static void _ui_cgia_draw_rgb(const char* label, uint32_t val) {
 
 static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
     if (ImGui::CollapsingHeader("Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
+        const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
         ui_util_b8("planes: ", chip->planes);
 
-        ui_util_u8("bckgnd_bank:", chip->bckgnd_bank);
-        ImGui::SameLine();
-        ui_util_u8("sprite_bank:", chip->sprite_bank);
+        ImGui::Text(
+            "bckgnd_bank: %02X (VRAM%d: %06X/%06X)",
+            chip->bckgnd_bank,
+            win->cgia->vram_cache[0].cache_ptr_idx,
+            win->cgia->vram_cache[0].bank_mask,
+            win->cgia->vram_cache[0].wanted_bank_mask);
+        ImGui::Text(
+            "sprite_bank: %02X (VRAM%d: %06X/%06X)",
+            chip->bckgnd_bank,
+            win->cgia->vram_cache[1].cache_ptr_idx,
+            win->cgia->vram_cache[1].bank_mask,
+            win->cgia->vram_cache[1].wanted_bank_mask);
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
 
@@ -106,7 +115,8 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
         ImGui::Text("H Counter:    %4d", win->cgia->h_count);
         ImGui::Text("Line Counter: %4d", win->cgia->l_count);
         ImGui::Text("Active Line:  %4d", win->cgia->active_line);
-        ImGui::Text("Raster Line:  %4d", win->cgia->raster_line);
+        const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+        ImGui::Text("Raster Line:  %4d", chip->raster);
     }
 }
 
@@ -179,7 +189,7 @@ static void _ui_cgia_decode_BG_flags(uint8_t flags) {
 }
 
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
-    fwcgia_t* chip = (fwcgia_t*)&win->cgia->reg;
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
     for (int i = 0; i < CGIA_PLANES; i++) {
         ImGui::PushID(i);
         bool plane_active = chip->planes & (1u << i);
@@ -283,8 +293,8 @@ static void _ui_cgia_draw_beepers(const ui_cgia_t* win) {
             ImGui::Text("  Duty:    %.1f%% (%02x)", (float)cgia->pwm[i].duty * 100.0 / 255.0, cgia->pwm[i].duty);
             ImGui::Text(
                 "  Freq:    %4dHz",
-                (uint16_t)((uint16_t)(cgia->reg[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
-                           | ((uint16_t)(cgia->reg[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
+                (uint16_t)((uint16_t)(cgia->regs[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
+                           | ((uint16_t)(cgia->regs[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
         }
     }
 }

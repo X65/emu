@@ -21,6 +21,8 @@
 static cgia_t* CGIA_vpu;
 static uint8_t vram_cache[2][256 * 256];
 
+static void _copy_internal_regs(cgia_t* vpu);
+
 void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CHIPS_ASSERT(vpu && desc);
     CHIPS_ASSERT(desc->framebuffer.ptr && (desc->framebuffer.size == CGIA_FRAMEBUFFER_SIZE_BYTES));
@@ -47,6 +49,7 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CGIA_vpu = vpu;
 
     fwcgia_init();
+    _copy_internal_regs(vpu);
 
     pwm_init(&vpu->pwm[0], desc->tick_hz);
     pwm_init(&vpu->pwm[1], desc->tick_hz);
@@ -82,20 +85,14 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             if (vpu->active_line % FB_V_REPEAT == 0) {
                 // rasterize new line
                 vpu->badline = true;
-                vpu->raster_line = (uint16_t)(vpu->active_line / FB_V_REPEAT);
-                cgia_render(vpu->raster_line, src);
-
-                // bump right after processing, so CPU is free to modify regs
-                // before next line rasterization starts
-                ++vpu->raster_line;
-                if (vpu->raster_line >= CGIA_ACTIVE_HEIGHT) vpu->raster_line = 0;
+                cgia_render((uint16_t)(vpu->active_line / FB_V_REPEAT), src);
             }
             else {
                 vpu->badline = false;
             }
         }
         else {
-            vpu->raster_line = 0;
+            vpu->regs[CGIA_REG_RASTER] = 0;
         }
 
         uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
@@ -109,37 +106,6 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
     return pins;
 }
 
-#define CGIA_REG16(ADDR) (uint16_t)((uint16_t)(vpu->reg[ADDR]) | ((uint16_t)(vpu->reg[(ADDR) + 1]) << 8))
-
-static uint8_t _cgia_read(cgia_t* vpu, uint8_t addr) {
-    switch (addr) {
-        case CGIA_REG_INT_STATUS: return vpu->reg[CGIA_REG_INT_STATUS] & vpu->reg[CGIA_REG_INT_ENABLE];
-
-        case CGIA_REG_RASTER: return vpu->raster_line & 0xFF;
-        case CGIA_REG_RASTER + 1: return vpu->raster_line >> 8;
-    }
-
-    return vpu->reg[addr];
-}
-
-static void _cgia_write(cgia_t* vpu, uint8_t addr, uint8_t data) {
-    vpu->reg[addr] = data;
-
-    switch (addr) {
-        case CGIA_REG_INT_ENABLE: vpu->reg[addr] = data & 0b11100000; break;
-        case CGIA_REG_INT_STATUS: cgia_clear_int(); break;
-
-        case CGIA_REG_PWM_0_FREQ:
-        case CGIA_REG_PWM_0_FREQ + 1: pwm_set_freq(&vpu->pwm[0], CGIA_REG16(CGIA_REG_PWM_0_FREQ)); break;
-        case CGIA_REG_PWM_0_DUTY: pwm_set_duty(&vpu->pwm[0], data); break;
-        case CGIA_REG_PWM_1_FREQ:
-        case CGIA_REG_PWM_1_FREQ + 1: pwm_set_freq(&vpu->pwm[1], CGIA_REG16(CGIA_REG_PWM_1_FREQ)); break;
-        case CGIA_REG_PWM_1_DUTY: pwm_set_duty(&vpu->pwm[1], data); break;
-    }
-}
-
-static void _copy_internal_regs(cgia_t* vpu);
-
 uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     pins = _cgia_tick(vpu, pins);
 
@@ -147,12 +113,12 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     if (pins & CGIA_CS) {
         uint8_t addr = CGIA_GET_REG_ADDR(pins);
         if (pins & CGIA_RW) {
-            uint8_t data = _cgia_read(vpu, addr);
+            uint8_t data = cgia_reg_read(addr);
             CGIA_SET_DATA(pins, data);
         }
         else {
             uint8_t data = CGIA_GET_DATA(pins);
-            _cgia_write(vpu, addr, data);
+            cgia_reg_write(addr, data);
         }
     }
     // mirror RAM writes to VRAM cache
@@ -168,7 +134,7 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
     pwm_tick(&vpu->pwm[0]);
     pwm_tick(&vpu->pwm[1]);
 
-    if (vpu->reg[CGIA_REG_INT_STATUS]) {
+    if (vpu->regs[CGIA_REG_INT_STATUS]) {
         pins |= CGIA_INT;
     }
 
@@ -705,7 +671,16 @@ void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_da
     printf("cgia_encode_sprite\n");
 }
 
-#define CGIA      (*((struct cgia_t*)CGIA_vpu->reg))
+void aud_pwm_set_channel(size_t channel, uint16_t freq, uint8_t duty) {
+    assert(CGIA_vpu);
+    pwm_set_freq(&CGIA_vpu->pwm[channel], freq);
+    pwm_set_duty(&CGIA_vpu->pwm[channel], duty);
+}
+void aud_pwm_set_channel_duty(size_t channel, uint8_t duty) {
+    assert(CGIA_vpu);
+    pwm_set_duty(&CGIA_vpu->pwm[channel], duty);
+}
+
 #define cgia_init fwcgia_init
 #include "firmware/src/ria/cgia/cgia.c"
 #undef cgia_init
@@ -723,11 +698,12 @@ static void _cgia_transfer_vcache_bank(uint8_t bank) {
     }
 }
 void cgia_mirror_vram(cgia_t* vpu) {
-    _cgia_copy_vcache_bank(vpu, 0);
-    _cgia_copy_vcache_bank(vpu, 1);
+    _cgia_copy_vcache_bank(vpu, vram_cache_ptr[0] == vram_cache[0] ? 0 : 1);
+    _cgia_copy_vcache_bank(vpu, vram_cache_ptr[1] == vram_cache[0] ? 0 : 1);
 }
 
 static void _copy_internal_regs(cgia_t* vpu) {
+    vpu->regs = (uint8_t*)&CGIA;
     for (int i = 0; i < CGIA_PLANES; ++i) {
         vpu->internal[i].memory_scan = plane_int[i].memory_scan;
         vpu->internal[i].colour_scan = plane_int[i].colour_scan;
@@ -736,5 +712,10 @@ static void _copy_internal_regs(cgia_t* vpu) {
         vpu->internal[i].row_line_count = plane_int[i].row_line_count;
         vpu->internal[i].wait_vbl = plane_int[i].wait_vbl;
         vpu->internal[i].sprites_need_update = plane_int[i].sprites_need_update;
+    }
+    for (int i = 0; i < CGIA_VRAM_BANKS; ++i) {
+        vpu->vram_cache[i].bank_mask = vram_cache_bank_mask[i];
+        vpu->vram_cache[i].wanted_bank_mask = vram_wanted_bank_mask[i];
+        vpu->vram_cache[i].cache_ptr_idx = vram_cache_ptr[i] == vram_cache[0] ? 0 : 1;
     }
 }
