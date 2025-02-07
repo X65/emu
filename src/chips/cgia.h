@@ -154,21 +154,7 @@ extern "C" {
     { p = (((p) & ~0xFF0000ULL) | (((d) << 16) & 0xFF0000ULL)); }
 
 // timing constants
-// synced from ext/firmware/src/ria/sys/out.c
-#define MODE_H_SYNC_POLARITY (0)
-#define MODE_H_FRONT_PORCH   (24)
-#define MODE_H_SYNC_WIDTH    (72)
-#define MODE_H_BACK_PORCH    (96)
-#define MODE_H_ACTIVE_PIXELS (768)
-#define MODE_V_SYNC_POLARITY (1)
-#define MODE_V_FRONT_PORCH   (3)
-#define MODE_V_SYNC_WIDTH    (6)
-#define MODE_V_BACK_PORCH    (11)
-#define MODE_V_ACTIVE_LINES  (480)
-#define MODE_BIT_CLK_KHZ     (287500)
-
-#define FB_H_REPEAT (2)
-#define FB_V_REPEAT (2)
+#include "firmware/src/ria/sys/out.h"
 
 #define MODE_H_TOTAL_PIXELS (MODE_H_FRONT_PORCH + MODE_H_SYNC_WIDTH + MODE_H_BACK_PORCH + MODE_H_ACTIVE_PIXELS)
 #define MODE_V_TOTAL_LINES  (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH + MODE_V_ACTIVE_LINES)
