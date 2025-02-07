@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["roms/SMON.xex"],
+      "args": ["roms/sprites.xex"],
       "preLaunchTask": "CMake: build"
     }
   ]

@@ -668,7 +668,79 @@ uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
 }
 
 void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_data, uint32_t width) {
-    printf("cgia_encode_sprite\n");
+    struct cgia_sprite_t* dsc = (struct cgia_sprite_t*)descriptor;
+
+    if (dsc->pos_x > CGIA_ACTIVE_WIDTH || dsc->pos_x < -SPRITE_MAX_WIDTH * 8 * 2) return;
+
+    rgbbuf += dsc->pos_x;  // move RGB buffer pointer to correct position in line
+
+    const bool multicolor = dsc->flags & SPRITE_MASK_MULTICOLOR;
+    const bool mirror = dsc->flags & SPRITE_MASK_MIRROR_X;
+    const bool doubled = dsc->flags & SPRITE_MASK_DOUBLE_WIDTH;
+
+    ++width;  // 0 means 1 column
+
+    if (multicolor) {
+        int shift_start = 6;
+        int shift_delta = -2;
+        int shift_target = -2;
+        if (mirror) {
+            shift_start = 0;
+            shift_delta = 2;
+            shift_target = 8;
+        }
+        while (width) {
+            for (int shift = shift_start; shift != shift_target; shift += shift_delta) {
+                uint color_no = (*line_data >> shift) & 0b11;
+                switch (color_no) {
+                    case 0b00:
+                        rgbbuf++;  // transparent pixel
+                        if (doubled) rgbbuf++;
+                        break;
+                    case 0b01:
+                        *rgbbuf++ = cgia_rgb_palette[dsc->color[0]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[dsc->color[0]];
+                        break;
+                    case 0b10:
+                        *rgbbuf++ = cgia_rgb_palette[dsc->color[1]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[dsc->color[1]];
+                        break;
+                    case 0b11:
+                        *rgbbuf++ = cgia_rgb_palette[dsc->color[2]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[dsc->color[2]];
+                        break;
+                    default: abort();
+                }
+            }
+            --width;
+            ++line_data;
+        }
+    }
+    else {
+        int shift_start = 7;
+        int shift_delta = -1;
+        int shift_target = -1;
+        if (mirror) {
+            shift_start = 0;
+            shift_delta = 1;
+            shift_target = 8;
+        }
+        while (width) {
+            for (int shift = shift_start; shift != shift_target; shift += shift_delta) {
+                uint bit_set = (*line_data >> shift) & 0b1;
+                if (bit_set) {
+                    *rgbbuf++ = cgia_rgb_palette[dsc->color[0]];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[dsc->color[0]];
+                }
+                else {
+                    rgbbuf++;  // transparent pixel
+                    if (doubled) rgbbuf++;
+                }
+            }
+            --width;
+            ++line_data;
+        }
+    }
 }
 
 void aud_pwm_set_channel(size_t channel, uint16_t freq, uint8_t duty) {
