@@ -126,7 +126,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
 
     // tick the CPU
     pins = w65816_tick(&sys->cpu, pins);
-    const uint16_t addr = W65816_GET_ADDR(pins);
+    const uint32_t addr = W65816_GET_ADDR(pins);
 
     // those pins are set each tick by the CIAs and VIC
     pins &= ~(W65816_IRQ | W65816_NMI | W65816_RDY);

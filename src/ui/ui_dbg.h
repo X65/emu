@@ -1197,7 +1197,8 @@ static void _ui_dbg_heatmap_record_tick(ui_dbg_t* win, uint64_t pins) {
             win->heatmap.items[addr].state |= UI_DBG_HEATMAP_ITEM_WRITE;
         }
     #elif defined(UI_DBG_USE_W65C816S)
-        const uint16_t addr = W65816_GET_ADDR(pins);
+        const uint32_t addr = W65816_GET_ADDR(pins);
+        // FIXME: handle 24-bit address
         if (0 != (pins & W65816_RW)) {
             win->heatmap.items[addr].state |= UI_DBG_HEATMAP_ITEM_READ;
         } else {

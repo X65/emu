@@ -111,7 +111,7 @@ void ui_w65816_init(ui_w65816_t* win, const ui_w65816_desc_t* desc) {
     win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
     win->init_w = (float) ((desc->w == 0) ? 360 : desc->w);
-    win->init_h = (float) ((desc->h == 0) ? 320 : desc->h);
+    win->init_h = (float) ((desc->h == 0) ? 440 : desc->h);
     win->open = win->last_open = desc->open;
     win->valid = true;
     ui_chip_init(&win->chip, &desc->chip_desc);

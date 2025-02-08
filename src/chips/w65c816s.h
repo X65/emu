@@ -27,7 +27,7 @@
     *           +-----------+         *
     *   IRQ --->|           |---> A0  *
     *   NMI --->|           |...      *
-    *    RDY--->|           |---> A15 *
+    *    RDY--->|           |---> A23 *
     *    RES--->|           |         *
     *    RW <---|           |         *
     *  SYNC <---|           |         *
@@ -76,16 +76,16 @@
     The simplest-possible execution loop would look like this:
 
         ~~~C
-        // setup 64 kBytes of memory
-        uint8_t mem[1<<16] = { ... };
+        // setup 16 MBytes of memory
+        uint8_t mem[1<<24] = { ... };
         // initialize the CPU
         w65816_t cpu;
         uint64_t pins = w65816_init(&cpu, &(w65816_desc_t){...});
         while (...) {
             // run the CPU emulation for one tick
             pins = w65816_tick(&cpu, pins);
-            // extract 16-bit address from pin mask
-            const uint16_t addr = W65816_GET_ADDR(pins);
+            // extract 24-bit address from pin mask
+            const uint32_t addr = W65816_GET_ADDR(pins);
             // perform memory access
             if (pins & W65816_RW) {
                 // a memory read
@@ -219,6 +219,16 @@ extern "C" {
 #define W65816_PIN_RDY   (28)      // in: freeze execution at next read cycle
 #define W65816_PIN_RES   (30)      // request RESET
 
+// bank address pins
+#define W65816_PIN_A16   (32)
+#define W65816_PIN_A17   (33)
+#define W65816_PIN_A18   (34)
+#define W65816_PIN_A19   (35)
+#define W65816_PIN_A20   (36)
+#define W65816_PIN_A21   (37)
+#define W65816_PIN_A22   (38)
+#define W65816_PIN_A23   (39)
+
 // pin bit masks
 #define W65816_A0    (1ULL<<W65816_PIN_A0)
 #define W65816_A1    (1ULL<<W65816_PIN_A1)
@@ -236,6 +246,14 @@ extern "C" {
 #define W65816_A13   (1ULL<<W65816_PIN_A13)
 #define W65816_A14   (1ULL<<W65816_PIN_A14)
 #define W65816_A15   (1ULL<<W65816_PIN_A15)
+#define W65816_A16   (1ULL<<W65816_PIN_A16)
+#define W65816_A17   (1ULL<<W65816_PIN_A17)
+#define W65816_A18   (1ULL<<W65816_PIN_A18)
+#define W65816_A19   (1ULL<<W65816_PIN_A19)
+#define W65816_A20   (1ULL<<W65816_PIN_A20)
+#define W65816_A21   (1ULL<<W65816_PIN_A21)
+#define W65816_A22   (1ULL<<W65816_PIN_A22)
+#define W65816_A23   (1ULL<<W65816_PIN_A23)
 #define W65816_D0    (1ULL<<W65816_PIN_D0)
 #define W65816_D1    (1ULL<<W65816_PIN_D1)
 #define W65816_D2    (1ULL<<W65816_PIN_D2)
@@ -302,18 +320,18 @@ void w65816_set_x(w65816_t* cpu, uint8_t v);
 void w65816_set_y(w65816_t* cpu, uint8_t v);
 void w65816_set_s(w65816_t* cpu, uint8_t v);
 void w65816_set_p(w65816_t* cpu, uint8_t v);
-void w65816_set_pc(w65816_t* cpu, uint16_t v);
+void w65816_set_pc(w65816_t* cpu, uint32_t v);
 uint8_t w65816_a(w65816_t* cpu);
 uint8_t w65816_x(w65816_t* cpu);
 uint8_t w65816_y(w65816_t* cpu);
 uint8_t w65816_s(w65816_t* cpu);
 uint8_t w65816_p(w65816_t* cpu);
-uint16_t w65816_pc(w65816_t* cpu);
+uint32_t w65816_pc(w65816_t* cpu);
 
-/* extract 16-bit address bus from 64-bit pins */
-#define W65816_GET_ADDR(p) ((uint16_t)((p)&0xFFFFULL))
-/* merge 16-bit address bus value into 64-bit pins */
-#define W65816_SET_ADDR(p,a) {p=(((p)&~0xFFFFULL)|((a)&0xFFFFULL));}
+/* extract 24-bit address bus from 64-bit pins */
+#define W65816_GET_ADDR(p) ((uint32_t)((p)&0xFFFFULL)|(uint32_t)((p>>16)&0xFF0000ULL))
+/* merge 24-bit address bus value into 64-bit pins */
+#define W65816_SET_ADDR(p,a) {p=(((p)&~0xFF0000FFFFULL)|((a)&0xFFFFULL)|((a<<16)&0xFF00000000ULL));}
 /* extract 8-bit data bus from 64-bit pins */
 #define W65816_GET_DATA(p) ((uint8_t)(((p)&0xFF0000ULL)>>16))
 /* merge 8-bit data bus value into 64-bit pins */
@@ -321,7 +339,7 @@ uint16_t w65816_pc(w65816_t* cpu);
 /* copy data bus value from other pin mask */
 #define W65816_COPY_DATA(p0,p1) (((p0)&~0xFF0000ULL)|((p1)&0xFF0000ULL))
 /* return a pin mask with control-pins, address and data bus */
-#define W65816_MAKE_PINS(ctrl, addr, data) ((ctrl)|(((data)<<16)&0xFF0000ULL)|((addr)&0xFFFFULL))
+#define W65816_MAKE_PINS(ctrl, addr, data) ((ctrl)|(((data)<<16)&0xFF0000ULL)|((addr)&0xFFFFULL)|((addr<<16)&0xFF00000000ULL))
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -349,13 +367,13 @@ void w65816_set_x(w65816_t* cpu, uint8_t v) { cpu->X = v; }
 void w65816_set_y(w65816_t* cpu, uint8_t v) { cpu->Y = v; }
 void w65816_set_s(w65816_t* cpu, uint8_t v) { cpu->S = v; }
 void w65816_set_p(w65816_t* cpu, uint8_t v) { cpu->P = v; }
-void w65816_set_pc(w65816_t* cpu, uint16_t v) { cpu->PC = v; }
+void w65816_set_pc(w65816_t* cpu, uint32_t v) { cpu->PC = v; }
 uint8_t w65816_a(w65816_t* cpu) { return cpu->A; }
 uint8_t w65816_x(w65816_t* cpu) { return cpu->X; }
 uint8_t w65816_y(w65816_t* cpu) { return cpu->Y; }
 uint8_t w65816_s(w65816_t* cpu) { return cpu->S; }
 uint8_t w65816_p(w65816_t* cpu) { return cpu->P; }
-uint16_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
+uint32_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
 
 /* helper macros and functions for code-generated instruction decoder */
 #define _W65816_NZ(p,v) ((p&~(W65816_NF|W65816_ZF))|((v&0xFF)?(v&W65816_NF):W65816_ZF))
