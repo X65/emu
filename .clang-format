@@ -6,7 +6,7 @@ AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveMacros: true
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: DontAlign
+AlignEscapedNewlines: Left
 AlignOperands: false
 AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: false

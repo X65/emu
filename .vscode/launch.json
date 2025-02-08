@@ -12,6 +12,14 @@
       "program": "${workspaceFolder}/build/emu",
       "args": ["roms/sprites.xex"],
       "preLaunchTask": "CMake: build"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Test",
+      "cwd": "${workspaceFolder}/build",
+      "program": "${workspaceFolder}/build/src/tests/cputest",
+      "preLaunchTask": "CMake: build"
     }
   ]
 }

@@ -57,7 +57,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
 #endif
             ImGui::MenuItem("Audio Output", 0, &ui->audio.open);
             ImGui::MenuItem("Display", 0, &ui->display.open);
-            ImGui::MenuItem("MOS 6502 (CPU)", 0, &ui->cpu.open);
+            ImGui::MenuItem("WDC 65C816 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem("CGIA (VPU)", 0, &ui->cgia.open);
 #ifndef USE_WEB
             ImGui::MenuItem("MOS 6526 #1 (CIA)", 0, &ui->cia[0].open);
