@@ -91,7 +91,7 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
 
-        ui_util_u16("INT Raster:", chip->raster);
+        ui_util_u16("INT Raster:", chip->int_raster);
         ui_util_b8("INT Enable: ", chip->int_enable);
         ImGui::SameLine();
         ImGui::Text(
