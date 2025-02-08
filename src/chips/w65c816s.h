@@ -115,7 +115,7 @@
     status register to check which chip requested the interrupt).
 
     To find out whether a new instruction is about to start, check if the
-    W65816_SYNC pin is set.
+    both W65816_VPA and W65816_VDA pins are set.
 
     To "goto" a random address at any time, a 'prefetch' like this is
     necessary (this basically simulates a normal instruction fetch from
@@ -124,7 +124,7 @@
     the operating system call, and then continue execution somewhere else:
 
         ~~~C
-        pins = W65816_SYNC;
+        pins = W65816_VPA|W65816_VDA;
         W65816_SET_ADDR(pins, next_pc);
         W65816_SET_DATA(pins, mem[next_pc]);
         w65816_set_pc(next_pc);
@@ -213,11 +213,13 @@ extern "C" {
 
 // control pins
 #define W65816_PIN_RW    (24)      // out: memory read or write access
-#define W65816_PIN_SYNC  (25)      // out: start of a new instruction
-#define W65816_PIN_IRQ   (26)      // in: maskable interrupt requested
-#define W65816_PIN_NMI   (27)      // in: non-maskable interrupt requested
-#define W65816_PIN_RDY   (28)      // in: freeze execution at next read cycle
-#define W65816_PIN_RES   (30)      // request RESET
+#define W65816_PIN_VPA   (25)      // out: valid program address
+#define W65816_PIN_VDA   (26)      // out: valid data address
+#define W65816_PIN_IRQ   (27)      // in: maskable interrupt requested
+#define W65816_PIN_NMI   (28)      // in: non-maskable interrupt requested
+#define W65816_PIN_RDY   (29)      // in: freeze execution at next read cycle
+#define W65816_PIN_RES   (30)      // in: request RESET
+#define W65816_PIN_ABORT (31)      // in: request ABORT (not implemented)
 
 // bank address pins
 #define W65816_PIN_A16   (32)
@@ -263,11 +265,13 @@ extern "C" {
 #define W65816_D6    (1ULL<<W65816_PIN_D6)
 #define W65816_D7    (1ULL<<W65816_PIN_D7)
 #define W65816_RW    (1ULL<<W65816_PIN_RW)
-#define W65816_SYNC  (1ULL<<W65816_PIN_SYNC)
+#define W65816_VPA   (1ULL<<W65816_PIN_VPA)
+#define W65816_VDA   (1ULL<<W65816_PIN_VDA)
 #define W65816_IRQ   (1ULL<<W65816_PIN_IRQ)
 #define W65816_NMI   (1ULL<<W65816_PIN_NMI)
 #define W65816_RDY   (1ULL<<W65816_PIN_RDY)
 #define W65816_RES   (1ULL<<W65816_PIN_RES)
+#define W65816_ABORT (1ULL<<W65816_PIN_ABORT)
 
 /* bit mask for all CPU pins (up to bit pos 40) */
 #define W65816_PIN_MASK ((1ULL<<40)-1)
@@ -577,7 +581,7 @@ uint64_t w65816_init(w65816_t* c, const w65816_desc_t* desc) {
     memset(c, 0, sizeof(*c));
     c->P = W65816_ZF;
     c->bcd_enabled = !desc->bcd_disabled;
-    c->PINS = W65816_RW | W65816_SYNC | W65816_RES;
+    c->PINS = W65816_RW | W65816_VPA | W65816_VDA | W65816_RES;
     return c->PINS;
 }
 
@@ -596,7 +600,7 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 /* set 16-bit address and 8-bit data in 64-bit pin mask */
 #define _SAD(addr,data) pins=(pins&~0xFFFFFF)|((((data)&0xFF)<<16)&0xFF0000ULL)|((addr)&0xFFFFULL)
 /* fetch next opcode byte */
-#define _FETCH() _SA(c->PC);_ON(W65816_SYNC);
+#define _FETCH() _SA(c->PC);_ON(W65816_VPA|W65816_VDA);
 /* set 8-bit data in 64-bit pin mask */
 #define _SD(data) pins=((pins&~0xFF0000ULL)|(((data&0xFF)<<16)&0xFF0000ULL))
 /* extract 8-bit data from 64-bit pin mask */
@@ -618,7 +622,7 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 #endif
 
 uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
-    if (pins & (W65816_SYNC|W65816_IRQ|W65816_NMI|W65816_RDY|W65816_RES)) {
+    if (pins & (W65816_VPA|W65816_VDA|W65816_IRQ|W65816_NMI|W65816_RDY|W65816_RES)) {
         // interrupt detection also works in RDY phases, but only NMI is "sticky"
 
         // NMI is edge-triggered
@@ -636,10 +640,10 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             c->irq_pip <<= 1;
             return pins;
         }
-        if (pins & W65816_SYNC) {
+        if ((pins & W65816_VPA) && (pins & W65816_VDA)) {
             // load new instruction into 'instruction register' and restart tick counter
             c->IR = _GD()<<3;
-            _OFF(W65816_SYNC);
+            _OFF(W65816_VPA|W65816_VDA);
 
             // check IRQ, NMI and RES state
             //  - IRQ is level-triggered and must be active in the full cycle

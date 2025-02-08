@@ -357,9 +357,10 @@ TEST_CASE("testing instruction matrix") {
             snprintf(
                 buffer,
                 sizeof(buffer),
-                "%s%s ADDR: %04X DATA: %02X | PC: %04X \n",
+                "%s%s%s ADDR: %04X DATA: %02X | PC: %04X \n",
                 mem_read ? "R" : "w",
-                (pins & W65816_SYNC) ? "S" : " ",
+                (pins & W65816_VPA) ? "P" : " ",
+                (pins & W65816_VDA) ? "D" : " ",
                 mem_addr,
                 W65816_GET_DATA(pins),
                 pc);

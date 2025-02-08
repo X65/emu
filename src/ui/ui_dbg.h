@@ -2101,7 +2101,7 @@ void ui_dbg_tick(ui_dbg_t* win, uint64_t pins) {
     #if defined(UI_DBG_USE_M6502)
         const bool new_op = pins & M6502_SYNC;
     #elif defined(UI_DBG_USE_W65C816S)
-        const bool new_op = pins & W65816_SYNC;
+        const bool new_op = (pins & W65816_VPA) && (pins & W65816_VDA);
     #elif defined(UI_DBG_USE_Z80)
         const bool new_op = z80_opdone(win->dbg.z80);
     #endif
