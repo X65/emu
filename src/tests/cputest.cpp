@@ -65,7 +65,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x2D, "AND a",       4, 3, true  },
     { 0x2E, "ROL a",       6, 3, true  },
     { 0x2F, "AND al",      5, 4, false },
-    { 0x30, "BMI R",       2, 2, true  },
+    { 0x30, "BMI r",       2, 2, true  },
     { 0x31, "AND (d),y",   5, 2, true  },
     { 0x32, "AND (d)",     5, 2, true  },
     { 0x33, "AND (d,s),y", 7, 2, false },
@@ -275,12 +275,10 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xFF, "SBC al,x",    5, 4, false },
 };
 
-// Tests failing because VPA signal is missing and we cannot reliably see
-// which memory fetches are program-counter related.
-const int VPA_skip[] = {
-    0x04, 0x08, 0x0A, 0x0C, 0x14, 0x18, 0x1A, 0x1C, 0x28, 0x2A, 0x38, 0x3A, 0x48,
-    0x4A, 0x58, 0x5A, 0x68, 0x6A, 0x78, 0x7A, 0x7C, 0x88, 0x8A, 0x98, 0x9A, 0xA8,
-    0xAA, 0xB8, 0xBA, 0xC8, 0xCA, 0xCB, 0xD8, 0xDA, 0xDB, 0xE8, 0xEA, 0xF8, 0xFA,
+// Skip failing tests for unimplemented instructions.
+const int UNIMPL_skip[] = {
+    0x04, 0x0C, 0x14, 0x1A, 0x1C, 0x3A, 0x5A, 0x7A, 0x7C, 0xCB, 0xDA, 0xDB, 0xFA,  //
+    0x12, 0x32, 0x34, 0x3C, 0x52, 0x64, 0x72, 0x74, 0x80, 0x89, 0x92, 0x9C, 0x9E, 0xB2, 0xD2, 0xF2,
 };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \
@@ -309,7 +307,7 @@ TEST_CASE("testing instruction matrix") {
     DOCTEST_VALUE_PARAMETERIZED_DATA(data, INSTR_MATRIX);
 
     auto [instr, mnemonic, instr_cycles, instr_mem, enable_test] = data;
-    bool skip = find(begin(VPA_skip), end(VPA_skip), instr) != end(VPA_skip);
+    bool skip = find(begin(UNIMPL_skip), end(UNIMPL_skip), instr) != end(UNIMPL_skip);
     if (enable_test && !skip) {
         CAPTURE(instr);
         CAPTURE(mnemonic);
@@ -319,7 +317,7 @@ TEST_CASE("testing instruction matrix") {
 
         auto pc = w65816_pc(&cpu);
         REQUIRE(pc == 0x3333);
-        int start_pc = pc, end_pc = pc;
+        uint32_t start_pc = pc, end_pc = pc;
 
         string log;
         CAPTURE(log);
@@ -343,9 +341,8 @@ TEST_CASE("testing instruction matrix") {
                     // provide marker for instruction data
                     W65816_SET_DATA(pins, 0xAA);
                 }
-                if (mem_addr == end_pc) {
-                    // advance running program counter if memory is read
-                    // FIXME: should happen only when VPA is active
+                if (mem_addr == end_pc && (pins & W65816_VPA)) {
+                    // advance running program counter if program memory is read
                     end_pc = mem_addr + 1;
                 }
             }
