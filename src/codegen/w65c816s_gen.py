@@ -37,22 +37,41 @@ def branch_name(m, v):
         return 'BNE' if v==0 else 'BEQ'
 
 # addressing mode constants
-A____ = 0       # no addressing mode
-A_IMM = 1       # immediate
-A_ZER = 2       # zero-page
-A_ZPX = 3       # zp,X
-A_ZPY = 4       # zp,Y
-A_ABS = 5       # abs
-A_ABX = 6       # abs,X
-A_ABY = 7       # abs,Y
-A_IDX = 8       # (zp,X)
-A_IDY = 9       # (zp),Y
-A_JMP = 10      # special JMP abs
-A_JSR = 11      # special JSR abs
-A_INV = 12      # an invalid instruction
+A_ABS = 0       # Absolute - a
+A_AXI = 1       # Absolute Indexed with X Indirect - (a,x)
+A_ABX = 2       # Absolute Indexed with X - a,x
+A_ABY = 3       # Absolute Indexed with Y - a,y
+A_ABI = 4       # Absolute Indirect - (a)
+A_ALX = 5       # Absolute Long Indexed with X - al,x
+A_ALN = 6       # Absolute Long - al
+A_ACC = 7       # Accumulator - A
+A_BMV = 8       # Block Move - xyc
+A_DXI = 9       # Direct Indexed with X Indirect - (d,x)
+A_DIX = 10      # Direct Indexed with X - d,x
+A_DIY = 11      # Direct Indexed with Y - d,y
+A_DII = 12      # Direct Indirect Indexed with Y - (d),y
+A_DLY = 13      # Direct Indirect Long Indexed with Y - [d],y
+A_DIL = 14      # Direct Indirect Long - [d]
+A_DID = 15      # Direct Indirect - (d)
+A_DIR = 16      # Direct - d
+A_IMM = 17      # Immediate - #
+A_IMP = 18      # Implied - i
+A_PCL = 19      # Program Counter Relative Long - rl
+A_PCR = 20      # Program Counter Relative - r
+A_STC = 21      # Stack - s
+A_STR = 22      # Stack Relative - d,s
+A_SII = 23      # Stack Relative Indirect Indexed with Y - (d,s),y
+A_JMP = 24      # special JMP abs
+A_JSR = 25      # special JSR abs
+A_STS = 26      # Stack with Signature - s
+A_INV = 27      # an invalid instruction
 
 # addressing mode strings
-addr_mode_str = ['', '#', 'zp', 'zp,X', 'zp,Y', 'abs', 'abs,X', 'abs,Y', '(zp,X)', '(zp),Y', '', '', 'INVALID']
+addr_mode_str = [
+    'a', '(a,x)', 'a,x', 'a,y', '(a)', 'al,x', 'al', 'A', 'xyc', '(d,x)', 'd,x', 'd,y',
+    '(d),y', '[d],y', '[d]', '(d)', 'd', '#', 'i', 'rl', 'r', 's', 'd,s', '(d,s),y',
+    'a', 'a', 's', 'INVALID'
+]
 
 # memory access modes
 M___ = 0        # no memory access
@@ -61,53 +80,54 @@ M__W = 2        # write access
 M_RW = 3        # read-modify-write
 
 # addressing-modes and memory accesses for each instruction
+# %aaabbbcc => ops[cc][bbb][aaa]
 ops = [
     # cc = 00
     [
         # ---         BIT          JMP          JMP()        STY          LDY          CPY          CPX
-        [[A____,M___],[A_JSR,M_R_],[A____,M_R_],[A____,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M__W],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_]],
-        [[A____,M__W],[A____,M___],[A____,M__W],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___]],
-        [[A_ABS,M_R_],[A_ABS,M_R_],[A_JMP,M_R_],[A_JMP,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
-        [[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],  # relative branches
-        [[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M__W],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_]],
-        [[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___]],
-        [[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M__W],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_]]
+        [[A_STS,M___],[A_JSR,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
+        [[A_DIR,M_R_],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M_R_],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
+        [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
+        [[A_ABS,M_R_],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
+        [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
+        [[A_DIR,M_R_],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M_R_],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
+        [[A_ABS,M_R_],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
     ],
     # cc = 01
     [
         # ORA         AND          EOR          ADC          STA          LDA          CMP          SBC
-        [[A_IDX,M_R_],[A_IDX,M_R_],[A_IDX,M_R_],[A_IDX,M_R_],[A_IDX,M__W],[A_IDX,M_R_],[A_IDX,M_R_],[A_IDX,M_R_]],
-        [[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M__W],[A_ZER,M_R_],[A_ZER,M_R_],[A_ZER,M_R_]],
+        [[A_DXI,M_R_],[A_DXI,M_R_],[A_DXI,M_R_],[A_DXI,M_R_],[A_DXI,M__W],[A_DXI,M_R_],[A_DXI,M_R_],[A_DXI,M_R_]],
+        [[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
         [[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
         [[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
-        [[A_IDY,M_R_],[A_IDY,M_R_],[A_IDY,M_R_],[A_IDY,M_R_],[A_IDY,M__W],[A_IDY,M_R_],[A_IDY,M_R_],[A_IDY,M_R_]],
-        [[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M__W],[A_ZPX,M_R_],[A_ZPX,M_R_],[A_ZPX,M_R_]],
+        [[A_DII,M_R_],[A_DII,M_R_],[A_DII,M_R_],[A_DII,M_R_],[A_DII,M__W],[A_DII,M_R_],[A_DII,M_R_],[A_DII,M_R_]],
+        [[A_DIX,M_R_],[A_DIX,M_R_],[A_DIX,M_R_],[A_DIX,M_R_],[A_DIX,M__W],[A_DIX,M_R_],[A_DIX,M_R_],[A_DIX,M_R_]],
         [[A_ABY,M_R_],[A_ABY,M_R_],[A_ABY,M_R_],[A_ABY,M_R_],[A_ABY,M__W],[A_ABY,M_R_],[A_ABY,M_R_],[A_ABY,M_R_]],
         [[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M__W],[A_ABX,M_R_],[A_ABX,M_R_],[A_ABX,M_R_]]
     ],
     # cc = 02
     [
         # ASL         ROL          LSR          ROR          STX          LDX          DEC          INC
-        [[A_INV,M_RW],[A_INV,M_RW],[A_INV,M_RW],[A_INV,M_RW],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M__W],[A_ZER,M_R_],[A_ZER,M_RW],[A_ZER,M_RW]],
-        [[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___],[A____,M___]],
+        [[A_STS,M_RW],[A_ALN,M_RW],[A_IMP,M_RW],[A_STC,M_RW],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
+        [[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_RW],[A_DIR,M_RW]],
+        [[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
-        [[A_INV,M_RW],[A_INV,M_RW],[A_INV,M_RW],[A_INV,M_RW],[A_INV,M__W],[A_INV,M_R_],[A_INV,M_RW],[A_INV,M_RW]],
-        [[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPY,M__W],[A_ZPY,M_R_],[A_ZPX,M_RW],[A_ZPX,M_RW]],
-        [[A____,M_R_],[A____,M_R_],[A____,M_R_],[A____,M_R_],[A____,M___],[A____,M___],[A____,M_R_],[A____,M_R_]],
-        [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABY,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
+        [[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M__W],[A_DID,M_R_],[A_DID,M_RW],[A_DID,M_RW]],
+        [[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIY,M__W],[A_DIY,M_R_],[A_DIX,M_RW],[A_DIX,M_RW]],
+        [[A_ACC,M_R_],[A_ACC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_IMP,M___],[A_IMP,M___],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
     ],
     # cc = 03
     [
-        [[A_IDX,M_RW],[A_IDX,M_RW],[A_IDX,M_RW],[A_IDX,M_RW],[A_IDX,M__W],[A_IDX,M_R_],[A_IDX,M_RW],[A_IDX,M_RW]],
-        [[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M_RW],[A_ZER,M__W],[A_ZER,M_R_],[A_ZER,M_RW],[A_ZER,M_RW]],
-        [[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
-        [[A_IDY,M_RW],[A_IDY,M_RW],[A_IDY,M_RW],[A_IDY,M_RW],[A_IDY,M_RW],[A_IDY,M_R_],[A_IDY,M_RW],[A_IDY,M_RW]],
-        [[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPX,M_RW],[A_ZPY,M__W],[A_ZPY,M_R_],[A_ZPX,M_RW],[A_ZPX,M_RW]],
-        [[A_ABY,M_RW],[A_ABY,M_RW],[A_ABY,M_RW],[A_ABY,M_RW],[A_ABY,M__W],[A_ABY,M_R_],[A_ABY,M_RW],[A_ABY,M_RW]],
-        [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABY,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
+        [[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_RW],[A_STR,M_RW]],
+        [[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_RW],[A_DIL,M_RW]],
+        [[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M_R_]],
+        [[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_RW],[A_ALN,M_RW]],
+        [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
+        [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
+        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M__W],[A_IMP,M_R_],[A_IMP,M_RW],[A_IMP,M_RW]],
+        [[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_RW],[A_ALX,M_RW]]
     ]
 ]
 
@@ -155,7 +175,7 @@ def cmt(o,cmd):
 #-------------------------------------------------------------------------------
 def u_cmt(o,cmd):
     cmt(o,cmd)
-    o.cmt += ' (undoc)'
+    o.cmt += ' (unimpl)'
 
 #-------------------------------------------------------------------------------
 def invalid_opcode(op):
@@ -167,72 +187,78 @@ def invalid_opcode(op):
 
 #-------------------------------------------------------------------------------
 def enc_addr(op, addr_mode, mem_access):
-    if addr_mode == A____:
+    if addr_mode == A_IMP or addr_mode == A_ACC or addr_mode == A_STC:
         # no addressing, this still puts the PC on the address bus without
         # incrementing the PC
         op.t('_SA(c->PC);')
-    elif addr_mode == A_IMM:
+    if addr_mode == A_STS:
+        # INT signature byte, not used but puts the PC on the address bus without
+        # incrementing the PC
+        op.t('_VPA();_SA(c->PC);')
+    elif addr_mode == A_IMM or addr_mode == A_PCR:
         # immediate mode
-        op.t('_SA(c->PC++);')
-    elif addr_mode == A_ZER:
-        # zero page
-        op.t('_SA(c->PC++);')
-        op.t('_SA(_GD());')
-    elif addr_mode == A_ZPX:
-        # zero page + X
-        op.t('_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);')
+    elif addr_mode == A_DIR:
+        # direct page
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VDA();_SA(_GD());')
+    elif addr_mode == A_DIX:
+        # direct page + X
+        op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_SA((c->AD+c->X)&0x00FF);')
-    elif addr_mode == A_ZPY:
-        # zero page + Y
-        op.t('_SA(c->PC++);')
+        op.t('_VDA();_SA((c->AD+c->X)&0x00FF);')
+    elif addr_mode == A_DIY:
+        # direct page + Y
+        op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_SA((c->AD+c->Y)&0x00FF);')
+        op.t('_VDA();_SA((c->AD+c->Y)&0x00FF);')
     elif addr_mode == A_ABS:
         # absolute
-        op.t('_SA(c->PC++);')
-        op.t('_SA(c->PC++);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_ABX:
         # absolute + X
         # this needs to check if a page boundary is crossed, which costs
         # and additional cycle, but this early-out only happens when the
         # instruction doesn't need to write back to memory
-        op.t('_SA(c->PC++);')
-        op.t('_SA(c->PC++);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;')
-        op.t('_SA(c->AD+c->X);')
+        op.t('_VDA();_SA(c->AD+c->X);')
     elif addr_mode == A_ABY:
         # absolute + Y
         # same page-boundary-crossed special case as absolute+X
-        op.t('_SA(c->PC++);')
-        op.t('_SA(c->PC++);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;')
-        op.t('_SA(c->AD+c->Y);')
-    elif addr_mode == A_IDX:
-        # (zp,X)
-        op.t('_SA(c->PC++);')
+        op.t('_VDA();_SA(c->AD+c->Y);')
+    elif addr_mode == A_DXI:
+        # (d,x)
+        op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);')
-        op.t('_SA((c->AD+1)&0xFF);c->AD=_GD();')
-        op.t('_SA((_GD()<<8)|c->AD);')
-    elif addr_mode == A_IDY:
-        # (zp),Y
+        op.t('_VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);')
+        op.t('_VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();')
+        op.t('_VDA();_SA((_GD()<<8)|c->AD);')
+    elif addr_mode == A_DII:
+        # (d),y
         # same page-boundary-crossed special case as absolute+X
-        op.t('_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_SA((c->AD+1)&0xFF);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VDA();c->AD=_GD();_SA(c->AD);')
+        op.t('_VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();')
         op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;')
-        op.t('_SA(c->AD+c->Y);')
+        op.t('_VDA();_SA(c->AD+c->Y);')
+    elif addr_mode == A_STR or addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_ALN or addr_mode == A_ALX or addr_mode == A_DID:
+        op.t('/* (unimpl) */;')
     elif addr_mode == A_JMP:
         # jmp is completely handled in instruction decoding
         pass
@@ -246,12 +272,32 @@ def enc_addr(op, addr_mode, mem_access):
 #-------------------------------------------------------------------------------
 def i_brk(o):
     cmt(o, 'BRK')
-    o.t('if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|c->S--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
-    o.t('_SAD(0x0100|c->S--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
-    o.t('_SAD(0x0100|c->S--,c->P|W65816_XF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}')
-    o.t('_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->brk_flags=0; /* RES/NMI hijacking */')
-    o.t('_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
+    o.t('_VDA();if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|c->S--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->P|W65816_XF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}')
+    o.t('_VDA();_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->brk_flags=0; /* RES/NMI hijacking */')
+    o.t('_VDA();_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
     o.t('c->PC=(_GD()<<8)|c->AD;')
+
+#-------------------------------------------------------------------------------
+def i_cop(o):
+    u_cmt(o,'COP')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_wdm(o):
+    u_cmt(o,'WDM')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_wai(o):
+    u_cmt(o,'WAI')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_stp(o):
+    u_cmt(o,'STP')
+    o.t('')
 
 #-------------------------------------------------------------------------------
 def i_nop(o):
@@ -279,36 +325,24 @@ def i_ldy(o):
     o.t('c->Y=_GD();_NZ(c->Y);')
 
 #-------------------------------------------------------------------------------
-def u_lax(o):
-    u_cmt(o,'LAX')
-    o.t('c->A=c->X=_GD();_NZ(c->A);')
-
-#-------------------------------------------------------------------------------
-def x_lxa(o):
-    # undocumented LXA
-    # and immediate byte with A, then load X with A
-    u_cmt(o,'LXA')
-    o.t('c->A=c->X=(c->A|0xEE)&_GD();_NZ(c->A);')
+def i_stz(o):
+    u_cmt(o,'STZ')
+    o.ta('')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
     cmt(o,'STA')
-    o.ta('_SD(c->A);_WR();')
+    o.ta('_VDA();_SD(c->A);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
-    o.ta('_SD(c->X);_WR();')
+    o.ta('_VDA();_SD(c->X);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
-    o.ta('_SD(c->Y);_WR();')
-
-#-------------------------------------------------------------------------------
-def u_sax(o):
-    u_cmt(o,'SAX')
-    o.ta('_SD(c->A&c->X);_WR();')
+    o.ta('_VDA();_SD(c->Y);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_tax(o):
@@ -326,9 +360,19 @@ def i_txa(o):
     o.t('c->A=c->X;_NZ(c->A);')
 
 #-------------------------------------------------------------------------------
+def i_txy(o):
+    u_cmt(o,'TXY')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_tya(o):
     cmt(o,'TYA')
     o.t('c->A=c->Y;_NZ(c->A);')
+
+#-------------------------------------------------------------------------------
+def i_tyx(o):
+    u_cmt(o,'TYX')
+    o.t('')
 
 #-------------------------------------------------------------------------------
 def i_txs(o):
@@ -341,28 +385,128 @@ def i_tsx(o):
     o.t('c->X=c->S;_NZ(c->X);')
 
 #-------------------------------------------------------------------------------
+def i_tsc(o):
+    u_cmt(o,'TSC')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_tcs(o):
+    u_cmt(o,'TCS')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_tsb(o):
+    u_cmt(o,'TSB')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_trb(o):
+    u_cmt(o,'TRB')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_tcd(o):
+    u_cmt(o,'TCD')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_tdc(o):
+    u_cmt(o,'TDC')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_xba(o):
+    u_cmt(o,'XBA')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_xce(o):
+    u_cmt(o,'XCE')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_php(o):
     cmt(o,'PHP')
-    o.t('_SAD(0x0100|c->S--,c->P|W65816_XF);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->P|W65816_XF);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_plp(o):
     cmt(o,'PLP')
     o.t('_SA(0x0100|c->S++);')   # read junk byte from current SP
-    o.t('_SA(0x0100|c->S);')     # read actual byte
+    o.t('_VDA();_SA(0x0100|c->S);')     # read actual byte
     o.t('c->P=(_GD()|W65816_BF)&~W65816_XF;');
 
 #-------------------------------------------------------------------------------
 def i_pha(o):
     cmt(o,'PHA')
-    o.t('_SAD(0x0100|c->S--,c->A);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->A);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_pla(o):
     cmt(o,'PLA')
     o.t('_SA(0x0100|c->S++);') # read junk byte from current SP
-    o.t('_SA(0x0100|c->S);')   # read actual byte
+    o.t('_VDA();_SA(0x0100|c->S);')   # read actual byte
     o.t('c->A=_GD();_NZ(c->A);')
+
+#-------------------------------------------------------------------------------
+def i_phx(o):
+    u_cmt(o,'PHX')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_plx(o):
+    u_cmt(o,'PLX')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_phy(o):
+    u_cmt(o,'PHY')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_ply(o):
+    u_cmt(o,'PLY')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_phb(o):
+    u_cmt(o,'PHB')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_plb(o):
+    u_cmt(o,'PLB')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_phd(o):
+    u_cmt(o,'PHD')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_pld(o):
+    u_cmt(o,'PLD')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_phk(o):
+    u_cmt(o,'PHK')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_pea(o):
+    u_cmt(o,'PEA')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_pei(o):
+    u_cmt(o,'PEI')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_per(o):
+    u_cmt(o,'PER')
+    o.t('')
 
 #-------------------------------------------------------------------------------
 def i_se(o, f):
@@ -375,6 +519,16 @@ def i_cl(o, f):
     o.t('c->P&=~'+hex(f)+';')
 
 #-------------------------------------------------------------------------------
+def i_sep(o):
+    u_cmt(o,'SEP')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_rep(o):
+    u_cmt(o,'REP')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_br(o, m, v):
     cmt(o,branch_name(m,v))
     # if branch not taken?
@@ -385,36 +539,74 @@ def i_br(o, m, v):
     o.t('c->PC=c->AD;')
 
 #-------------------------------------------------------------------------------
+def i_bra(o):
+    u_cmt(o,'BRA')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_brl(o):
+    u_cmt(o,'BRL')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_jmp(o):
     cmt(o,'JMP')
-    o.t('_SA(c->PC++);')
-    o.t('_SA(c->PC++);c->AD=_GD();')
+    o.t('_VPA();_SA(c->PC++);')
+    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
+def i_jml(o):
+    u_cmt(o,'JML')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_jmpi(o):
-    cmt(o,'JMPI')
-    o.t('_SA(c->PC++);')
-    o.t('_SA(c->PC++);c->AD=_GD();')
-    o.t('c->AD|=_GD()<<8;_SA(c->AD);')
-    o.t('_SA((c->AD&0xFF00)|((c->AD+1)&0x00FF));c->AD=_GD();')
+    cmt(o,'JMP')
+    o.t('_VPA();_SA(c->PC++);')
+    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+    o.t('_VDA();c->AD|=_GD()<<8;_SA(c->AD);')
+    o.t('_VDA();_SA((c->AD&0xFF00)|((c->AD+1)&0x00FF));c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_jsr(o):
     cmt(o,'JSR')
     # read low byte of target address
-    o.t('_SA(c->PC++);')
+    o.t('_VPA();_SA(c->PC++);')
     # put SP on addr bus, next cycle is a junk read
     o.t('_SA(0x0100|c->S);c->AD=_GD();')
     # write PC high byte to stack
-    o.t('_SAD(0x0100|c->S--,c->PC>>8);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC>>8);_WR();')
     # write PC low byte to stack
-    o.t('_SAD(0x0100|c->S--,c->PC);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC);_WR();')
     # load target address high byte
-    o.t('_SA(c->PC);')
+    o.t('_VPA();_SA(c->PC);')
     # load PC and done
     o.t('c->PC=(_GD()<<8)|c->AD;')
+
+#-------------------------------------------------------------------------------
+def i_jsrx(o):
+    cmt(o,'JSR')
+    # read low byte of target address
+    o.t('_VPA();_SA(c->PC++);')
+    # write PC high byte to stack
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC>>8);_WR();')
+    # write PC low byte to stack
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC);_WR();')
+    # load target address high byte
+    o.t('_VPA();_SA(c->PC);')
+    # put PC on addr bus, next cycle is a junk read
+    o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
+    # load PC from pointed address
+    o.t('_VDA();_SA(c->AD+c->X);')
+    o.t('_VDA();_SA(c->AD+c->X+1);c->AD=_GD();')
+    o.t('c->PC=(_GD()<<8)|c->AD;')
+
+#-------------------------------------------------------------------------------
+def i_jsl(o):
+    u_cmt(o,'JSL')
+    o.t('')
 
 #-------------------------------------------------------------------------------
 def i_rts(o):
@@ -422,13 +614,18 @@ def i_rts(o):
     # put SP on stack and do a junk read
     o.t('_SA(0x0100|c->S++);')
     # load return address low byte from stack
-    o.t('_SA(0x0100|c->S++);')
+    o.t('_VDA();_SA(0x0100|c->S++);')
     # load return address high byte from stack
-    o.t('_SA(0x0100|c->S);c->AD=_GD();')
+    o.t('_VDA();_SA(0x0100|c->S);c->AD=_GD();')
     # put return address in PC, this is one byte before next op, do junk read from PC
     o.t('c->PC=(_GD()<<8)|c->AD;_SA(c->PC++);')
     # next tick is opcode fetch
     o.t('');
+
+#-------------------------------------------------------------------------------
+def i_rtl(o):
+    u_cmt(o,'RTL')
+    o.t('_SA(0x0100|c->S++);')
 
 #-------------------------------------------------------------------------------
 def i_rti(o):
@@ -436,11 +633,11 @@ def i_rti(o):
     # put SP on stack and do a junk read
     o.t('_SA(0x0100|c->S++);')
     # load processor status flag from stack
-    o.t('_SA(0x0100|c->S++);')
+    o.t('_VDA();_SA(0x0100|c->S++);')
     # load return address low byte from stack
-    o.t('_SA(0x0100|c->S++);c->P=(_GD()|W65816_BF)&~W65816_XF;')
+    o.t('_VDA();_SA(0x0100|c->S++);c->P=(_GD()|W65816_BF)&~W65816_XF;')
     # load return address high byte from stack
-    o.t('_SA(0x0100|c->S);c->AD=_GD();')
+    o.t('_VDA();_SA(0x0100|c->S);c->AD=_GD();')
     # update PC (which is already placed on the right return-to instruction)
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
@@ -470,11 +667,6 @@ def i_sbc(o):
     o.t('_w65816_sbc(c,_GD());')
 
 #-------------------------------------------------------------------------------
-def u_sbc(o):
-    u_cmt(o,'SBC')
-    o.t('_w65816_sbc(c,_GD());')
-
-#-------------------------------------------------------------------------------
 def i_cmp(o):
     cmt(o,'CMP')
     o.t('_w65816_cmp(c, c->A, _GD());')
@@ -490,28 +682,26 @@ def i_cpy(o):
     o.t('_w65816_cmp(c, c->Y, _GD());')
 
 #-------------------------------------------------------------------------------
-def u_dcp(o):
-    # undocumented 'decrement and compare'
-    u_cmt(o,'DCP')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD--;_NZ(c->AD);_SD(c->AD);_w65816_cmp(c, c->A, c->AD);_WR();')
-
-#-------------------------------------------------------------------------------
-def x_sbx(o):
-    u_cmt(o,'SBX')
-    o.t('_w65816_sbx(c, _GD());')
-
-#-------------------------------------------------------------------------------
 def i_dec(o):
     cmt(o,'DEC')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD--;_NZ(c->AD);_SD(c->AD);_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();c->AD--;_NZ(c->AD);_SD(c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_inc(o):
     cmt(o,'INC')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD++;_NZ(c->AD);_SD(c->AD);_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();c->AD++;_NZ(c->AD);_SD(c->AD);_WR();')
+
+#-------------------------------------------------------------------------------
+def i_inca(o):
+    u_cmt(o,'INC')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_deca(o):
+    u_cmt(o,'DEC')
+    o.t('')
 
 #-------------------------------------------------------------------------------
 def i_dex(o):
@@ -534,162 +724,48 @@ def i_iny(o):
     o.t('c->Y++;_NZ(c->Y);')
 
 #-------------------------------------------------------------------------------
-def u_isb(o):
-    # undocumented INC+SBC instruction
-    u_cmt(o,'ISB')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD++;_SD(c->AD);_w65816_sbc(c,c->AD);_WR();')
-
-#-------------------------------------------------------------------------------
 def i_asl(o):
     cmt(o,'ASL')
-    o.t('c->AD=_GD();_WR();')
-    o.t('_SD(_w65816_asl(c,c->AD));_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();_SD(_w65816_asl(c,c->AD));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_asla(o):
-    cmt(o,'ASLA')
+    cmt(o,'ASL')
     o.t('c->A=_w65816_asl(c,c->A);')
 
 #-------------------------------------------------------------------------------
 def i_lsr(o):
     cmt(o,'LSR')
-    o.t('c->AD=_GD();_WR();')
-    o.t('_SD(_w65816_lsr(c,c->AD));_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();_SD(_w65816_lsr(c,c->AD));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_lsra(o):
-    cmt(o,'LSRA')
+    cmt(o,'LSR')
     o.t('c->A=_w65816_lsr(c,c->A);')
-
-#-------------------------------------------------------------------------------
-def u_slo(o):
-    # undocumented ASL+OR
-    u_cmt(o,'SLO')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD=_w65816_asl(c,c->AD);_SD(c->AD);c->A|=c->AD;_NZ(c->A);_WR();')
-
-#-------------------------------------------------------------------------------
-def x_asr(o):
-    # undocumented AND+LSR
-    u_cmt(o, 'ASR')
-    o.t('c->A&=_GD();c->A=_w65816_lsr(c,c->A);')
-
-#-------------------------------------------------------------------------------
-def u_sre(o):
-    # undocumented LSR+EOR
-    u_cmt(o,'SRE')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD=_w65816_lsr(c,c->AD);_SD(c->AD);c->A^=c->AD;_NZ(c->A);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_rol(o):
     cmt(o,'ROL')
-    o.t('c->AD=_GD();_WR();')
-    o.t('_SD(_w65816_rol(c,c->AD));_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();_SD(_w65816_rol(c,c->AD));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_rola(o):
-    cmt(o,'ROLA')
+    cmt(o,'ROL')
     o.t('c->A=_w65816_rol(c,c->A);')
-
-#-------------------------------------------------------------------------------
-def u_rla(o):
-    # uncodumented ROL+AND
-    u_cmt(o,'RLA')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD=_w65816_rol(c,c->AD);_SD(c->AD);c->A&=c->AD;_NZ(c->A);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_ror(o):
     cmt(o,'ROR')
-    o.t('c->AD=_GD();_WR();')
-    o.t('_SD(_w65816_ror(c,c->AD));_WR();')
+    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('_VDA();_SD(_w65816_ror(c,c->AD));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_rora(o):
-    cmt(o,'RORA')
+    cmt(o,'ROR')
     o.t('c->A=_w65816_ror(c,c->A);')
-
-#-------------------------------------------------------------------------------
-def u_rra(o):
-    # undocumented ROR+ADC
-    u_cmt(o,'RRA')
-    o.t('c->AD=_GD();_WR();')
-    o.t('c->AD=_w65816_ror(c,c->AD);_SD(c->AD);_w65816_adc(c,c->AD);_WR();')
-
-#-------------------------------------------------------------------------------
-def x_arr(o):
-    # undocumented AND+ROR
-    u_cmt(o,'ARR')
-    o.t('c->A&=_GD();_w65816_arr(c);')
-
-#-------------------------------------------------------------------------------
-def x_ane(o):
-    # undocumented ANE
-    u_cmt(o,'ANE')
-    o.t('c->A=(c->A|0xEE)&c->X&_GD();_NZ(c->A);')
-
-#-------------------------------------------------------------------------------
-def x_sha(o):
-    # undocumented SHA
-    #  stores the result of A AND X AND the high byte of the target address of
-    #  the operand +1 in memory
-    #
-    u_cmt(o,'SHA')
-    o.ta('_SD(c->A&c->X&(uint8_t)((_GA()>>8)+1));_WR();')
-
-#-------------------------------------------------------------------------------
-def x_shx(o):
-    # undocumented SHX
-    # AND X register with the high byte of the target address of the
-    # argument + 1. Store the result in memory.
-    #
-    u_cmt(o, 'SHX')
-    o.ta('_SD(c->X&(uint8_t)((_GA()>>8)+1));_WR();')
-
-#-------------------------------------------------------------------------------
-def x_shy(o):
-    # undocumented SHX
-    # AND Y register with the high byte of the target address of the
-    # argument + 1. Store the result in memory.
-    #
-    u_cmt(o, 'SHY')
-    o.ta('_SD(c->Y&(uint8_t)((_GA()>>8)+1));_WR();')
-
-#-------------------------------------------------------------------------------
-def x_shs(o):
-    # undocumented SHS
-    # AND X register with accumulator and store result in stack pointer, then
-    # AND stack pointer with the high byte of the target address of the
-    # argument + 1. Store result in memory.
-    #
-    u_cmt(o, 'SHS')
-    o.ta('c->S=c->A&c->X;_SD(c->S&(uint8_t)((_GA()>>8)+1));_WR();')
-
-#-------------------------------------------------------------------------------
-def x_anc(o):
-    # undocumented ANC
-    # AND byte with accumulator. If result is negative then carry is set.
-    #
-    u_cmt(o, 'ANC')
-    o.t('c->A&=_GD();_NZ(c->A);if(c->A&0x80){c->P|=W65816_CF;}else{c->P&=~W65816_CF;}')
-
-#-------------------------------------------------------------------------------
-def x_las(o):
-    # undocumented LAS
-    # AND memory with stack pointer, transfer result to accumulator, X
-    # register and stack pointer.
-    #
-    u_cmt(o, 'LAS')
-    o.t('c->A=c->X=c->S=_GD()&c->S;_NZ(c->A);')
-
-#-------------------------------------------------------------------------------
-def x_jam(o):
-    # undocumented JAM, next opcode byte read, data and addr bus set to all 1, execution stops
-    u_cmt(o, 'JAM')
-    o.t('_SA(c->PC);')
-    o.t('_SAD(0xFFFF,0xFF);c->IR--;')
 
 #-------------------------------------------------------------------------------
 def i_bit(o):
@@ -697,10 +773,20 @@ def i_bit(o):
     o.t('_w65816_bit(c,_GD());')
 
 #-------------------------------------------------------------------------------
+def i_mvp(o):
+    u_cmt(o,'MVP')
+    o.t('')
+
+#-------------------------------------------------------------------------------
+def i_mvn(o):
+    u_cmt(o,'MVN')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def enc_op(op):
     o = opcode(op)
     if invalid_opcode(op):
-        x_jam(o);
+        i_stp(o);
         return o
 
     # decode the opcode byte
@@ -715,23 +801,29 @@ def enc_op(op):
     if cc == 0:
         if aaa == 0:
             if bbb == 0:        i_brk(o)
+            elif bbb == 1:      i_tsb(o)
             elif bbb == 2:      i_php(o)
+            elif bbb == 3:      i_tsb(o)
             elif bbb == 4:      i_br(o, NF, 0)  # BPL
+            elif bbb == 5:      i_trb(o)
             elif bbb == 6:      i_cl(o, CF)
+            elif bbb == 7:      i_trb(o)
             else:               u_nop(o)
         elif aaa == 1:
             if bbb == 0:        i_jsr(o)
             elif bbb == 2:      i_plp(o)
             elif bbb == 4:      i_br(o, NF, NF) # BMI
             elif bbb == 6:      i_se(o, CF)
-            elif bbb in [5, 7]: u_nop(o)
             else:               i_bit(o)
         elif aaa == 2:
             if bbb == 0:        i_rti(o)
+            elif bbb == 1:      i_mvp(o)
             elif bbb == 2:      i_pha(o)
             elif bbb == 3:      i_jmp(o)
             elif bbb == 4:      i_br(o, VF, 0)  # BVC
+            elif bbb == 5:      i_mvn(o)
             elif bbb == 6:      i_cl(o, IF)
+            elif bbb == 7:      i_jmp(o)
             else:               u_nop(o)
         elif aaa == 3:
             if bbb == 0:        i_rts(o)
@@ -739,13 +831,14 @@ def enc_op(op):
             elif bbb == 3:      i_jmpi(o)
             elif bbb == 4:      i_br(o, VF, VF) # BVS
             elif bbb == 6:      i_se(o, IF)
-            else:               u_nop(o)
+            elif bbb == 7:      i_jmpi(o)
+            else:               i_stz(o)
         elif aaa == 4:
-            if bbb == 0:        u_nop(o)
+            if bbb == 0:        i_bra(o)
             elif bbb == 2:      i_dey(o)
             elif bbb == 4:      i_br(o, CF, 0)  # BCC
             elif bbb == 6:      i_tya(o)
-            elif bbb == 7:      x_shy(o)
+            elif bbb == 7:      i_stz(o)
             else:               i_sty(o)
         elif aaa == 5:
             if bbb == 2:        i_tay(o)
@@ -755,14 +848,16 @@ def enc_op(op):
         elif aaa == 6:
             if bbb == 2:        i_iny(o)
             elif bbb == 4:      i_br(o, ZF, 0)  # BNE
+            elif bbb == 5:      i_pei(o)
             elif bbb == 6:      i_cl(o, DF)
-            elif bbb in [5, 7]: u_nop(o)
+            elif bbb == 7:      i_jml(o)
             else:               i_cpy(o)
         elif aaa == 7:
             if bbb == 2:        i_inx(o)
             elif bbb == 4:      i_br(o, ZF, ZF) # BEQ
+            elif bbb == 5:      i_pea(o)
             elif bbb == 6:      i_se(o, DF)
-            elif bbb in [5, 7]: u_nop(o)
+            elif bbb == 7:      i_jsrx(o)
             else:               i_cpx(o)
     elif cc == 1:
         if aaa == 0:    i_ora(o)
@@ -770,75 +865,93 @@ def enc_op(op):
         elif aaa == 2:  i_eor(o)
         elif aaa == 3:  i_adc(o)
         elif aaa == 4:
-            if bbb == 2:    u_nop(o)
+            if bbb == 2:    i_bit(o)
             else:           i_sta(o)
         elif aaa == 5:  i_lda(o)
         elif aaa == 6:  i_cmp(o)
         else:           i_sbc(o)
     elif cc == 2:
         if aaa == 0:
-            if bbb == 2:    i_asla(o)
-            elif bbb == 6:  u_nop(o)
+            if bbb == 0:    i_cop(o)
+            elif bbb == 2:  i_asla(o)
+            elif bbb == 4:  i_ora(o)
+            elif bbb == 6:  i_inca(o)
             else:           i_asl(o)
         elif aaa == 1:
-            if bbb == 2:    i_rola(o)
-            elif bbb == 6:  u_nop(o)
+            if bbb == 0:    i_jsl(o)
+            elif bbb == 2:  i_rola(o)
+            elif bbb == 4:  i_and(o)
+            elif bbb == 6:  i_deca(o)
             else:           i_rol(o)
         elif aaa == 2:
-            if bbb == 2:    i_lsra(o)
-            elif bbb == 6:  u_nop(o)
+            if bbb == 0:    i_wdm(o)
+            elif bbb == 2:  i_lsra(o)
+            elif bbb == 4:  i_eor(o)
+            elif bbb == 6:  i_phy(o)
             else:           i_lsr(o)
         elif aaa == 3:
-            if bbb == 2:    i_rora(o)
-            elif bbb == 6:  u_nop(o)
+            if bbb == 0:    i_per(o)
+            elif bbb == 2:  i_rora(o)
+            elif bbb == 4:  i_adc(o)
+            elif bbb == 6:  i_ply(o)
             else:           i_ror(o)
         elif aaa == 4:
-            if bbb == 0:    u_nop(o)
+            if bbb == 0:    i_brl(o)
             elif bbb == 2:  i_txa(o)
+            elif bbb == 4:  i_sta(o)
             elif bbb == 6:  i_txs(o)
-            elif bbb == 7:  x_shx(o)
+            elif bbb == 7:  i_stz(o)
             else:           i_stx(o)
         elif aaa == 5:
             if bbb == 2:    i_tax(o)
+            elif bbb == 4:  i_lda(o)
             elif bbb == 6:  i_tsx(o)
             else:           i_ldx(o)
         elif aaa == 6:
-            if bbb == 2:        i_dex(o)
-            elif bbb in [0, 6]: u_nop(o)
+            if bbb == 0:        i_rep(o)
+            elif bbb == 2:      i_dex(o)
+            elif bbb == 4:      i_cmp(o)
+            elif bbb == 6:      i_phx(o)
             else:               i_dec(o)
         elif aaa == 7:
-            if bbb == 2:        i_nop(o)
-            elif bbb in [0, 6]: u_nop(o)
+            if bbb == 0:        i_sep(o)
+            elif bbb == 2:      i_nop(o)
+            elif bbb == 4:      i_sbc(o)
+            elif bbb == 6:      i_plx(o)
             else:               i_inc(o)
     elif cc == 3:
-        # undocumented block
         if aaa == 0:
-            if bbb == 2:    x_anc(o)
-            else:           u_slo(o)
+            if bbb == 2:    i_phd(o)
+            elif bbb == 6:  i_tcs(o)
+            else:           i_ora(o)
         elif aaa == 1:
-            if bbb == 2:    x_anc(o)
-            else:           u_rla(o)
+            if bbb == 2:    i_pld(o)
+            elif bbb == 6:  i_tsc(o)
+            else:           i_and(o)
         elif aaa == 2:
-            if bbb == 2:    x_asr(o)
-            else:           u_sre(o)
+            if bbb == 2:    i_phk(o)
+            elif bbb == 6:  i_tcd(o)
+            else:           i_eor(o)
         elif aaa == 3:
-            if bbb == 2:    x_arr(o)
-            else:           u_rra(o)
+            if bbb == 2:    i_rtl(o)
+            elif bbb == 6:  i_tdc(o)
+            else:           i_adc(o)
         elif aaa == 4:
-            if bbb == 2:        x_ane(o)
-            elif bbb == 6:      x_shs(o)
-            elif bbb in [4,7]:  x_sha(o)
-            else:               u_sax(o)
+            if bbb == 2:    i_phb(o)
+            elif bbb == 6:  i_txy(o)
+            else:           i_sta(o)
         elif aaa == 5:
-            if bbb == 2:    x_lxa(o)
-            elif bbb == 6:  x_las(o)
-            else:           u_lax(o)
+            if bbb == 2:    i_plb(o)
+            elif bbb == 6:  i_tyx(o)
+            else:           i_lda(o)
         elif aaa == 6:
-            if bbb == 2:    x_sbx(o)
-            else:           u_dcp(o)
+            if bbb == 2:    i_wai(o)
+            elif bbb == 6:  i_stp(o)
+            else:           i_cmp(o)
         elif aaa == 7:
-            if bbb == 2:    u_sbc(o)
-            else:           u_isb(o)
+            if bbb == 2:    i_xba(o)
+            elif bbb == 6:  i_xce(o)
+            else:           i_sbc(o)
     # fetch next opcode byte
     if mem_access in [M_R_,M___]:
         o.ta('_FETCH();')

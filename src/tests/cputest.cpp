@@ -96,7 +96,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x4C, "JMP a",       3, 3, true  },
     { 0x4D, "EOR a",       4, 3, true  },
     { 0x4E, "LSR a",       6, 3, true  },
-    { 0x4F, "EOR Al",      5, 4, false },
+    { 0x4F, "EOR al",      5, 4, false },
     { 0x50, "BVC r",       2, 2, true  },
     { 0x51, "EOR (d),y",   5, 2, true  },
     { 0x52, "EOR (d)",     5, 2, true  },
@@ -104,7 +104,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x54, "MVN xyc",     7, 3, false },
     { 0x55, "EOR d,x",     4, 2, true  },
     { 0x56, "LSR d,x",     6, 2, true  },
-    { 0x57, "EOR [d].y",   6, 2, false },
+    { 0x57, "EOR [d],y",   6, 2, false },
     { 0x58, "CLI i",       2, 1, true  },
     { 0x59, "EOR a,y",     4, 3, true  },
     { 0x5A, "PHY s",       3, 1, true  },
@@ -220,7 +220,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xC8, "INY i",       2, 1, true  },
     { 0xC9, "CMP #",       2, 2, true  },
     { 0xCA, "DEX i",       2, 1, true  },
-    { 0xCB, "WAI I",       3, 1, true  },
+    { 0xCB, "WAI i",       3, 1, true  },
     { 0xCC, "CPY a",       4, 3, true  },
     { 0xCD, "CMP a",       4, 3, true  },
     { 0xCE, "DEC a",       6, 3, true  },
@@ -269,7 +269,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xF9, "SBC a,y",     4, 3, true  },
     { 0xFA, "PLX s",       4, 1, true  },
     { 0xFB, "XCE i",       2, 1, false },
-    { 0xFC, "JSR (a,x)",   8, 3, false },
+    { 0xFC, "JSR (a,x)",   8, 3, true  },
     { 0xFD, "SBC a,x",     4, 3, true  },
     { 0xFE, "INC a,x",     7, 3, true  },
     { 0xFF, "SBC al,x",    5, 4, false },
@@ -277,8 +277,8 @@ initializer_list<instr_data> INSTR_MATRIX = {
 
 // Skip failing tests for unimplemented instructions.
 const int UNIMPL_skip[] = {
-    0x04, 0x0C, 0x14, 0x1A, 0x1C, 0x3A, 0x5A, 0x7A, 0x7C, 0xCB, 0xDA, 0xDB, 0xFA,  //
-    0x12, 0x32, 0x34, 0x3C, 0x52, 0x64, 0x72, 0x74, 0x80, 0x89, 0x92, 0x9C, 0x9E, 0xB2, 0xD2, 0xF2,
+    0x04, 0x0C, 0x14, 0x1C, 0x5A, 0x7A, 0xCB, 0xDA, 0xFA,  //
+    0x64, 0x74, 0x92, 0xB2,
 };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \
