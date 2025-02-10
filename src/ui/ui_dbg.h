@@ -1647,7 +1647,7 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
             char p_str[9] = {
                 (p & W65816_NF) ? 'N':'-',
                 (p & W65816_VF) ? 'V':'-',
-                (p & W65816_XF) ? 'X':'-',
+                (p & W65816_UF) ? '1':'-',
                 (p & W65816_BF) ? 'B':'-',
                 (p & W65816_DF) ? 'D':'-',
                 (p & W65816_IF) ? 'I':'-',

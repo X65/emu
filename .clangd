@@ -3,6 +3,7 @@
 CompileFlags:
   Add:
     - -DCHIPS_IMPL
+    - -DCHIPS_UTIL_IMPL
     - -Wall
     - -Wextra
     - -Wpedantic

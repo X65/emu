@@ -124,69 +124,83 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 #define _STR_U16(u16) _w65816dasm_u16((uint16_t)(u16),out_cb,user_data);
 
 /* addressing modes */
-#define A____    (0)     /* no addressing mode */
-#define A_IMM    (1)     /* # */
-#define A_ZER    (2)     /* zp */
-#define A_ZPX    (3)     /* zp,X */
-#define A_ZPY    (4)     /* zp,Y */
-#define A_ABS    (5)     /* abs */
-#define A_ABX    (6)     /* abs,X */
-#define A_ABY    (7)     /* abs,Y */
-#define A_IDX    (8)     /* (zp,X) */
-#define A_IDY    (9)     /*(zp),Y */
-#define A_JMP    (10)    /* special JMP abs */
-#define A_JSR    (11)    /* special JSR abs */
-#define A_BRA    (12)    /* special relative branch */
-#define A_INV    (13)    /* this is an invalid instruction */
+#define A_ABS    (0)     /* a       - Absolute */
+#define A_AXI    (1)     /* (a,x)   - Absolute Indexed with X Indirect */
+#define A_ABX    (2)     /* a,x     - Absolute Indexed with X */
+#define A_ABY    (3)     /* a,y     - Absolute Indexed with Y */
+#define A_ABI    (4)     /* (a)     - Absolute Indirect */
+#define A_ALX    (5)     /* al,x    - Absolute Long Indexed with X */
+#define A_ALN    (6)     /* al      - Absolute Long */
+#define A_ACC    (7)     /* A       - Accumulator */
+#define A_BMV    (8)     /* xyc     - Block Move */
+#define A_DXI    (9)     /* (d,x)   - Direct Indexed with X Indirect */
+#define A_DIX    (10)    /* d,x     - Direct Indexed with X */
+#define A_DIY    (11)    /* d,y     - Direct Indexed with Y */
+#define A_DII    (12)    /* (d),y   - Direct Indirect Indexed with Y */
+#define A_DLY    (13)    /* [d],y   - Direct Indirect Long Indexed with Y */
+#define A_DIL    (14)    /* [d]     - Direct Indirect Long */
+#define A_DID    (15)    /* (d)     - Direct Indirect */
+#define A_DIR    (16)    /* d       - Direct */
+#define A_IMM    (17)    /* #       - Immediate */
+#define A_IMP    (18)    /* i       - Implied */
+#define A_PCL    (19)    /* rl      - Program Counter Relative Long */
+#define A_PCR    (20)    /* r       - Program Counter Relative */
+#define A_STC    (21)    /* s       - Stack */
+#define A_STR    (22)    /* d,s     - Stack Relative */
+#define A_SII    (23)    /* (d,s),y - Stack Relative Indirect Indexed with Y */
+#define A_STS    (24)    /* s       - Stack with Signature */
+#define A_JMP    (25)    /* special JMP abs */
+#define A_JSR    (26)    /* special JSR abs */
+#define A_INV    (28)    /* this is an invalid instruction */
 
 /* opcode descriptions */
 static uint8_t _w65816dasm_ops[4][8][8] = {
 /* cc = 00 */
 {
     //---  BIT   JMP   JMP() STY   LDY   CPY   CPX
-    {A____,A_JSR,A____,A____,A_IMM,A_IMM,A_IMM,A_IMM},
-    {A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER},
-    {A____,A____,A____,A____,A____,A____,A____,A____},
-    {A_ABS,A_ABS,A_JMP,A_JMP,A_ABS,A_ABS,A_ABS,A_ABS},
-    {A_BRA,A_BRA,A_BRA,A_BRA,A_BRA,A_BRA,A_BRA,A_BRA},  /* relative branches */
-    {A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX},
-    {A____,A____,A____,A____,A____,A____,A____,A____},
-    {A_ABX,A_ABX,A_ABS,A_ABS,A_INV,A_ABX,A_ABX,A_ABX}
+    {A_STS,A_JSR,A_STC,A_STC,A_PCR,A_IMM,A_IMM,A_IMM},
+    {A_DIR,A_DIR,A_BMV,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR},
+    {A_STC,A_STC,A_STC,A_STC,A_IMP,A_IMP,A_IMP,A_IMP},
+    {A_ABS,A_ABS,A_JMP,A_ABI,A_ABS,A_ABS,A_ABS,A_ABS},
+    {A_PCR,A_PCR,A_PCR,A_PCR,A_PCR,A_PCR,A_PCR,A_PCR},
+    {A_DIR,A_DIX,A_BMV,A_DIX,A_DIX,A_DIX,A_STC,A_STC},
+    {A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP},
+    {A_ABS,A_ABX,A_ALN,A_AXI,A_ABS,A_ABX,A_ABI,A_AXI},
 },
 /* cc = 01 */
 {
     //ORA  AND   EOR   ADC   STA   LDA   CMP   SBC
-    {A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX},
-    {A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER},
+    {A_DXI,A_DXI,A_DXI,A_DXI,A_DXI,A_DXI,A_DXI,A_DXI},
+    {A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR},
     {A_IMM,A_IMM,A_IMM,A_IMM,A_IMM,A_IMM,A_IMM,A_IMM},
     {A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS},
-    {A_IDY,A_IDY,A_IDY,A_IDY,A_IDY,A_IDY,A_IDY,A_IDY},
-    {A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPX},
+    {A_DII,A_DII,A_DII,A_DII,A_DII,A_DII,A_DII,A_DII},
+    {A_DIX,A_DIX,A_DIX,A_DIX,A_DIX,A_DIX,A_DIX,A_DIX},
     {A_ABY,A_ABY,A_ABY,A_ABY,A_ABY,A_ABY,A_ABY,A_ABY},
     {A_ABX,A_ABX,A_ABX,A_ABX,A_ABX,A_ABX,A_ABX,A_ABX},
 },
 /* cc = 02 */
 {
     //ASL  ROL   LSR   ROR   STX   LDX   DEC   INC
-    {A_INV,A_INV,A_INV,A_INV,A_IMM,A_IMM,A_IMM,A_IMM},
-    {A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER},
-    {A____,A____,A____,A____,A____,A____,A____,A____},
+    {A_STS,A_ALN,A_IMP,A_STC,A_PCL,A_IMM,A_IMM,A_IMM},
+    {A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR},
+    {A_ACC,A_ACC,A_ACC,A_ACC,A_IMP,A_IMP,A_IMP,A_IMP},
     {A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS},
-    {A_INV,A_INV,A_INV,A_INV,A_INV,A_INV,A_INV,A_INV},
-    {A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPY,A_ZPY,A_ZPX,A_ZPX},
-    {A____,A____,A____,A____,A____,A____,A____,A____},
-    {A_ABX,A_ABX,A_ABX,A_ABX,A_INV,A_ABY,A_ABX,A_ABX},
+    {A_DID,A_DID,A_DID,A_DID,A_DID,A_DID,A_DID,A_DID},
+    {A_DIX,A_DIX,A_DIX,A_DIX,A_DIY,A_DIY,A_DIX,A_DIX},
+    {A_ACC,A_ACC,A_STC,A_STC,A_IMP,A_IMP,A_STC,A_STC},
+    {A_ABX,A_ABX,A_ABX,A_ABX,A_ABX,A_ABY,A_ABX,A_ABX},
 },
 /* cc = 03 */
 {
-    {A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX,A_IDX},
-    {A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER,A_ZER},
-    {A_INV,A_INV,A_INV,A_INV,A_INV,A_INV,A_INV,A_IMM},
-    {A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS},
-    {A_IDY,A_IDY,A_IDY,A_IDY,A_INV,A_IDY,A_IDY,A_IDY},
-    {A_ZPX,A_ZPX,A_ZPX,A_ZPX,A_ZPY,A_ZPY,A_ZPX,A_ZPX},
-    {A_ABY,A_ABY,A_ABY,A_ABY,A_INV,A_INV,A_ABY,A_ABY},
-    {A_ABX,A_ABX,A_ABX,A_ABX,A_INV,A_ABY,A_ABX,A_ABX}
+    {A_STR,A_STR,A_STR,A_STR,A_STR,A_STR,A_STR,A_STR},
+    {A_DIL,A_DIL,A_DIL,A_DIL,A_DIL,A_DIL,A_DIL,A_DIL},
+    {A_STC,A_STC,A_STC,A_STC,A_STC,A_STC,A_IMP,A_IMP},
+    {A_ALN,A_ALN,A_ALN,A_ALN,A_ALN,A_ALN,A_ALN,A_ALN},
+    {A_SII,A_SII,A_SII,A_SII,A_SII,A_SII,A_SII,A_SII},
+    {A_DLY,A_DLY,A_DLY,A_DLY,A_DLY,A_DLY,A_DLY,A_DLY},
+    {A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP,A_IMP},
+    {A_ALX,A_ALX,A_ALX,A_ALX,A_ALX,A_ALX,A_ALX,A_ALX},
 } };
 
 static const char* _w65816dasm_hex = "0123456789ABCDEF";
@@ -233,15 +247,20 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
     /* opcode name */
     const char* n = "???";
     bool indirect = false;
+    bool ignore_signature = false;
     switch (cc) {
         case 0:
             switch (aaa) {
                 case 0:
                     switch (bbb) {
-                        case 0:  n = "BRK"; break;
+                        case 0:  n = "BRK"; ignore_signature = true; break;
+                        case 1:  n = "TSB"; break;
                         case 2:  n = "PHP"; break;
+                        case 3:  n = "TSB"; break;
                         case 4:  n = "BPL"; break;
+                        case 5:  n = "TRB"; break;
                         case 6:  n = "CLC"; break;
+                        case 7:  n = "TRB"; break;
                         default: n = "*NOP"; break;
                     }
                     break;
@@ -250,19 +269,20 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                         case 0:  n = "JSR"; break;
                         case 2:  n = "PLP"; break;
                         case 4:  n = "BMI"; break;
-                        case 5:  n = "*NOP"; break;
                         case 6:  n = "SEC"; break;
-                        case 7:  n = "*NOP"; break;
                         default: n = "BIT"; break;
                     }
                     break;
                 case 2:
                     switch (bbb) {
                         case 0:  n = "RTI"; break;
+                        case 1:  n = "MVP"; break;
                         case 2:  n = "PHA"; break;
                         case 3:  n = "JMP"; break;
                         case 4:  n = "BVC"; break;
+                        case 5:  n = "MVN"; break;
                         case 6:  n = "CLI"; break;
+                        case 7:  n = "JMP"; break;
                         default: n = "*NOP"; break;
                     }
                     break;
@@ -270,18 +290,20 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "RTS"; break;
                         case 2:  n = "PLA"; break;
-                        case 3:  n = "JMP"; indirect = true; break;  /* jmp () */
+                        case 3:  n = "JMP"; indirect = true; break;  /* jmp (a) */
                         case 4:  n = "BVS"; break;
                         case 6:  n = "SEI"; break;
-                        default: n = "*NOP"; break;
+                        case 7:  n = "JMP"; indirect = true; break;  /* jmp (a,x) */
+                        default: n = "STZ"; break;
                     }
                     break;
                 case 4:
                     switch (bbb) {
-                        case 0:  n = "*NOP"; break;
+                        case 0:  n = "BRA"; break;
                         case 2:  n = "DEY"; break;
                         case 4:  n = "BCC"; break;
                         case 6:  n = "TYA"; break;
+                        case 7:  n = "STZ"; break;
                         default: n = "STY"; break;
                     }
                     break;
@@ -297,9 +319,9 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 2:  n = "INY"; break;
                         case 4:  n = "BNE"; break;
-                        case 5:  n = "*NOP"; break;
+                        case 5:  n = "PEI"; break;
                         case 6:  n = "CLD"; break;
-                        case 7:  n = "*NOP"; break;
+                        case 7:  n = "JML"; break;
                         default: n = "CPY"; break;
                     }
                     break;
@@ -307,9 +329,9 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 2:  n = "INX"; break;
                         case 4:  n = "BEQ"; break;
-                        case 5:  n = "*NOP"; break;
+                        case 5:  n = "PEA"; break;
                         case 6:  n = "SED"; break;
-                        case 7:  n = "*NOP"; break;
+                        case 7:  n = "JSR"; indirect = true; break;  /* jsr (a,x) */
                         default: n = "CPX"; break;
                     }
                     break;
@@ -324,7 +346,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                 case 3: n = "ADC"; break;
                 case 4:
                     switch (bbb) {
-                        case 2:  n = "*NOP"; break;
+                        case 2:  n = "BIT"; break;
                         default: n = "STA"; break;
                     }
                     break;
@@ -338,56 +360,73 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
             switch (aaa) {
                 case 0:
                     switch (bbb) {
-                        case 6:  n = "*NOP"; break;
+                        case 0:  n = "COP"; break;
+                        case 2:  n = "ASL"; break; /* ASL A */
+                        case 4:  n = "ORA"; break;
+                        case 6:  n = "INC"; break; /* INC A */
                         default: n = "ASL"; break;
                     }
                     break;
                 case 1:
                     switch (bbb) {
-                        case 6:  n = "*NOP"; break;
+                        case 0:  n = "JSL"; break;
+                        case 2:  n = "ROL"; break; /* ROL A */
+                        case 4:  n = "AND"; break;
+                        case 6:  n = "DEC"; break; /* DEC A */
                         default: n = "ROL"; break;
                     }
                     break;
                 case 2:
                     switch (bbb) {
-                        case 6:  n = "*NOP"; break;
+                        case 0:  n = "WDM"; break;
+                        case 2:  n = "LSR"; break; /* LSR A */
+                        case 4:  n = "EOR"; break;
+                        case 6:  n = "PHY"; break;
                         default: n = "LSR"; break;
                     }
                     break;
                 case 3:
                     switch (bbb) {
-                        case 6:  n = "*NOP"; break;
+                        case 0:  n = "PER"; break;
+                        case 2:  n = "ROR"; break; /* ROR A */
+                        case 4:  n = "ADC"; break;
+                        case 6:  n = "PLY"; break;
                         default: n = "ROR"; break;
                     }
                     break;
                 case 4:
                     switch (bbb) {
-                        case 0:  n = "*NOP"; break;
+                        case 0:  n = "BRL"; break;
                         case 2:  n = "TXA"; break;
+                        case 4:  n = "STA"; break;
                         case 6:  n = "TXS"; break;
+                        case 7:  n = "STZ"; break;
                         default: n = "STX"; break;
                     }
                     break;
                 case 5:
                     switch (bbb) {
                         case 2:  n = "TAX"; break;
+                        case 4:  n = "LDA"; break;
                         case 6:  n = "TSX"; break;
                         default: n = "LDX"; break;
                     }
                     break;
                 case 6:
                     switch (bbb) {
-                        case 0:  n = "*NOP"; break;
+                        case 0:  n = "REP"; break;
                         case 2:  n = "DEX"; break;
-                        case 6:  n = "*NOP"; break;
+                        case 4:  n = "CMP"; break;
+                        case 6:  n = "PHX"; break;
                         default: n = "DEC"; break;
                     }
                     break;
                 case 7:
                     switch (bbb) {
-                        case 0:  n = "*NOP"; break;
+                        case 0:  n = "SEP"; break;
                         case 2:  n = "NOP"; break;
-                        case 6:  n = "*NOP"; break;
+                        case 4:  n = "SBC"; break;
+                        case 6:  n = "PLX"; break;
                         default: n = "INC"; break;
                     }
                     break;
@@ -396,17 +435,60 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 
         case 3:
             switch (aaa) {
-                case 0: n = "*SLO"; break;
-                case 1: n = "*RLA"; break;
-                case 2: n = "*SRE"; break;
-                case 3: n = "*RRA"; break;
-                case 4: n = "*SAX"; break;
-                case 5: n = "*LAX"; break;
-                case 6: n = "*DCP"; break;
+                case 0:
+                    switch (bbb) {
+                        case 2:  n = "PHD"; break;
+                        case 6:  n = "TCS"; break;
+                        default: n = "ORA"; break;
+                    }
+                    break;
+                case 1:
+                    switch (bbb) {
+                        case 2:  n = "PLD"; break;
+                        case 6:  n = "TSC"; break;
+                        default: n = "AND"; break;
+                    }
+                    break;
+                case 2:
+                    switch (bbb) {
+                        case 2:  n = "PHK"; break;
+                        case 6:  n = "TCD"; break;
+                        default: n = "EOR"; break;
+                    }
+                    break;
+                case 3:
+                    switch (bbb) {
+                        case 2:  n = "RTL"; break;
+                        case 6:  n = "TDC"; break;
+                        default: n = "ADC"; break;
+                    }
+                    break;
+                case 4:
+                    switch (bbb) {
+                        case 2:  n = "PHB"; break;
+                        case 6:  n = "TXY"; break;
+                        default: n = "STA"; break;
+                    }
+                    break;
+                case 5:
+                    switch (bbb) {
+                        case 2:  n = "PLB"; break;
+                        case 6:  n = "TYX"; break;
+                        default: n = "LDA"; break;
+                    }
+                    break;
+                case 6:
+                    switch (bbb) {
+                        case 2:  n = "WAI"; break;
+                        case 6:  n = "STP"; break;
+                        default: n = "CMP"; break;
+                    }
+                    break;
                 case 7:
                     switch (bbb) {
-                        case 2:  n = "*SBC"; break;
-                        default: n = "*ISB"; break;
+                        case 2:  n = "XBA"; break;
+                        case 6:  n = "XCE"; break;
+                        default: n = "SBC"; break;
                     }
                     break;
             }
@@ -415,21 +497,30 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 
     uint8_t u8; int8_t i8; uint16_t u16;
     switch (_w65816dasm_ops[cc][bbb][aaa]) {
-        case A_IMM:
+        case A_IMP: /* i       - Implied */
+        case A_STC: /* s       - Stack */
+            break;
+        case A_ACC: /* A       - Accumulator */
+            _STR(" A");
+            break;
+        case A_STS: /* s       - Stack with Signature */
+            if (ignore_signature) break;
+            [[fallthrough]]; 
+        case A_IMM: /* #       - Immediate */
             _CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8);
             break;
-        case A_ZER:
+        case A_DIR: /* d       - Direct */
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8);
             break;
-        case A_ZPX:
+        case A_DIX: /* d,x     - Direct Indexed with X */
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _STR(",X");
             break;
-        case A_ZPY:
+        case A_DIY: /* d,y     - Direct Indexed with Y */
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _STR(",Y");
             break;
-        case A_ABS:
-        case A_JSR:
-        case A_JMP:
+        case A_ABS: /* a       - Absolute */
+        case A_JSR: /* special JSR abs */
+        case A_JMP: /* special JMP abs */
             _CHR(' '); _FETCH_U16(u16);
             if (indirect) {
                 _CHR('('); _STR_U16(u16); _CHR(')');
@@ -438,20 +529,45 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                 _STR_U16(u16);
             }
             break;
-        case A_ABX:
+        case A_ABX: /* a,x     - Absolute Indexed with X */
             _CHR(' '); _FETCH_U16(u16); _STR_U16(u16); _STR(",X");
             break;
-        case A_ABY:
+        case A_ABY: /* a,y     - Absolute Indexed with Y */
             _CHR(' '); _FETCH_U16(u16); _STR_U16(u16); _STR(",Y");
             break;
-        case A_IDX:
+        case A_ABI: /* (a)     - Absolute Indirect */
+            _CHR(' '); _FETCH_U16(u16); _CHR('('); _STR_U16(u16); _STR(")");
+            break;
+        case A_AXI: /* (a,x)   - Absolute Indexed with X Indirect */
+            _CHR(' '); _FETCH_U16(u16); _CHR('('); _STR_U16(u16); _STR(",X)");
+            break;
+        case A_DID: /* (d)     - Direct Indirect */
+            _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR(")");
+            break;
+        case A_DXI: /* (d,x)   - Direct Indexed with X Indirect */
             _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR(",X)");
             break;
-        case A_IDY:
+        case A_DII: /* (d),y   - Direct Indirect Indexed with Y */
             _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR("),Y");
             break;
-        case A_BRA: /* relative branch, compute target address */
+        case A_PCR: /* r       - Program Counter Relative *//* compute target address */
             _CHR(' '); _FETCH_I8(i8); _STR_U16(pc+i8);
+            break;
+        case A_STR: /* d,s     - Stack Relative */
+            _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _STR(",S");
+            break;
+        case A_SII: /* (d,s),y - Stack Relative Indirect Indexed with Y */
+            _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR(",S),Y");
+            break;
+        case A_BMV: /* xyc     - Block Move */
+            _CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8); _FETCH_U8(u8); _STR(", #"); _STR_U8(u8);
+            break;
+        case A_ALX: /* al,x    - Absolute Long Indexed with X */
+        case A_ALN: /* al      - Absolute Long */
+        case A_DLY: /* [d],y   - Direct Indirect Long Indexed with Y */
+        case A_DIL: /* [d]     - Direct Indirect Long */
+        case A_PCL: /* rl      - Program Counter Relative Long */
+            _STR(" ?long?");
             break;
 
     }

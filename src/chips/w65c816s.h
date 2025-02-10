@@ -282,7 +282,7 @@ extern "C" {
 #define W65816_IF    (1<<2)  /* IRQ disable */
 #define W65816_DF    (1<<3)  /* decimal mode */
 #define W65816_BF    (1<<4)  /* BRK command */
-#define W65816_XF    (1<<5)  /* unused */
+#define W65816_UF    (1<<5)  /* unused */
 #define W65816_VF    (1<<6)  /* overflow */
 #define W65816_NF    (1<<7)  /* negative */
 
@@ -675,7 +675,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x00<<3)|0: _VPA();_SA(c->PC);break;
         case (0x00<<3)|1: _VDA();if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|c->S--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<3)|2: _VDA();_SAD(0x0100|c->S--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
-        case (0x00<<3)|3: _VDA();_SAD(0x0100|c->S--,c->P|W65816_XF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}break;
+        case (0x00<<3)|3: _VDA();_SAD(0x0100|c->S--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}break;
         case (0x00<<3)|4: _VDA();_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x00<<3)|5: _VDA();_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x00<<3)|6: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
@@ -745,7 +745,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x07<<3)|7: assert(false);break;
     /* PHP s */
         case (0x08<<3)|0: _SA(c->PC);break;
-        case (0x08<<3)|1: _VDA();_SAD(0x0100|c->S--,c->P|W65816_XF);_WR();break;
+        case (0x08<<3)|1: _VDA();_SAD(0x0100|c->S--,c->P|W65816_UF);_WR();break;
         case (0x08<<3)|2: _FETCH();break;
         case (0x08<<3)|3: assert(false);break;
         case (0x08<<3)|4: assert(false);break;
@@ -887,7 +887,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x17<<3)|5: assert(false);break;
         case (0x17<<3)|6: assert(false);break;
         case (0x17<<3)|7: assert(false);break;
-    /* CLC i */
+    /* CLE i */
         case (0x18<<3)|0: _SA(c->PC);break;
         case (0x18<<3)|1: c->P&=~0x1;_FETCH();break;
         case (0x18<<3)|2: assert(false);break;
@@ -1035,7 +1035,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x28<<3)|0: _SA(c->PC);break;
         case (0x28<<3)|1: _SA(0x0100|c->S++);break;
         case (0x28<<3)|2: _VDA();_SA(0x0100|c->S);break;
-        case (0x28<<3)|3: c->P=(_GD()|W65816_BF)&~W65816_XF;_FETCH();break;
+        case (0x28<<3)|3: c->P=(_GD()|W65816_BF)&~W65816_UF;_FETCH();break;
         case (0x28<<3)|4: assert(false);break;
         case (0x28<<3)|5: assert(false);break;
         case (0x28<<3)|6: assert(false);break;
@@ -1175,7 +1175,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x37<<3)|5: assert(false);break;
         case (0x37<<3)|6: assert(false);break;
         case (0x37<<3)|7: assert(false);break;
-    /* SEC i */
+    /* SEE i */
         case (0x38<<3)|0: _SA(c->PC);break;
         case (0x38<<3)|1: c->P|=0x1;_FETCH();break;
         case (0x38<<3)|2: assert(false);break;
@@ -1251,7 +1251,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x40<<3)|0: _SA(c->PC);break;
         case (0x40<<3)|1: _SA(0x0100|c->S++);break;
         case (0x40<<3)|2: _VDA();_SA(0x0100|c->S++);break;
-        case (0x40<<3)|3: _VDA();_SA(0x0100|c->S++);c->P=(_GD()|W65816_BF)&~W65816_XF;break;
+        case (0x40<<3)|3: _VDA();_SA(0x0100|c->S++);c->P=(_GD()|W65816_BF)&~W65816_UF;break;
         case (0x40<<3)|4: _VDA();_SA(0x0100|c->S);c->AD=_GD();break;
         case (0x40<<3)|5: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x40<<3)|6: assert(false);break;

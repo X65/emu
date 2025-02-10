@@ -265,6 +265,35 @@ static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr)
             }
         }
     }
+    if (win->cpu_type == UI_DASM_CPUTYPE_W65C816S) {
+        /* W65C816S CPU */
+        if (win->bin_pos == 3) {
+            uint8_t l, h;
+            uint16_t addr;
+            switch (win->bin_buf[0]) {
+                /* JSR/JMP abs */
+                case 0x20: case 0x4C:
+                    *out_addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
+                    return true;
+                /* JMP ind */
+                case 0x6C:
+                    addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
+                    l = win->read_cb(win->cur_layer, addr++, win->user_data);
+                    h = win->read_cb(win->cur_layer, addr++, win->user_data);
+                    *out_addr = (h<<8) | l;
+                    return true;
+            }
+        }
+        else if (win->bin_pos == 2) {
+            switch (win->bin_buf[0]) {
+                /* relative branch */
+                case 0x10: case 0x30: case 0x50: case 0x70: case 0x80:
+                case 0x90: case 0xB0: case 0xD0: case 0xF0:
+                    *out_addr = pc + (int8_t)win->bin_buf[1];
+                    return true;
+            }
+        }
+    }
     else {
         /* M6502 CPU */
         if (win->bin_pos == 3) {
