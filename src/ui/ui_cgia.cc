@@ -47,7 +47,7 @@ static void _ui_cgia_draw_hwcolors(ui_cgia_t* win) {
             c = ImColor(win->cgia->hwcolors[i]);
             ImGui::PushID(i);
             char desc_id[64];
-            sprintf(desc_id, "%d 0x%02X##hw_color", i, i);
+            sprintf(desc_id, "%03d 0x%02X##hw_color", i, i);
             ImGui::ColorButton(desc_id, c, ImGuiColorEditFlags_NoAlpha, size);
             ImGui::PopID();
             if (((i + 1) % 8) != 0) {
@@ -217,10 +217,10 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->sprite_bank << 16) | chip->offset[i]);
 
                 ui_util_b8("sprites active: ", chip->plane[i].sprite.active);
-                ImGui::Text("border: %d columns", chip->plane[i].sprite.border_columns);
-                ImGui::Text("start_y: %d", chip->plane[i].sprite.start_y);
+                ImGui::Text("border: %03d columns", chip->plane[i].sprite.border_columns);
+                ImGui::Text("start_y: %03d", chip->plane[i].sprite.start_y);
                 ImGui::SameLine();
-                ImGui::Text("stop_y: %d", chip->plane[i].sprite.stop_y);
+                ImGui::Text("stop_y : %03d", chip->plane[i].sprite.stop_y);
             }
             else {
                 ImGui::Text(
@@ -235,11 +235,11 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 _ui_cgia_decode_DL(win->cgia, chip->offset[i]);
                 ui_util_b8("flags: ", chip->plane[i].bckgnd.flags);
                 _ui_cgia_decode_BG_flags(chip->plane[i].bckgnd.flags);
-                ImGui::Text("border: %d columns", chip->plane[i].bckgnd.border_columns);
-                ImGui::Text("row_height: %d", chip->plane[i].bckgnd.row_height + 1);
-                ImGui::Text("row_line  : %d", win->cgia->internal[i].row_line_count);
+                ImGui::Text("border: %03d columns", chip->plane[i].bckgnd.border_columns);
+                ImGui::Text("row_height: %03d", chip->plane[i].bckgnd.row_height + 1);
+                ImGui::Text("row_line  : %03d", win->cgia->internal[i].row_line_count);
                 ImGui::Separator();
-                ImGui::Text("stride: %d", chip->plane[i].bckgnd.stride);
+                ImGui::Text("stride: %03d columns", chip->plane[i].bckgnd.stride);
                 ImGui::Text("colors:");
                 for (int c = 0; c < 2; ++c) {
                     ImGui::SameLine();
@@ -255,19 +255,19 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                     _ui_cgia_draw_color(win, "", chip->plane[i].ham.base_color[c]);
                     ImGui::PopID();
                 }
-                ImGui::Text("scroll_x: %d", chip->plane[i].bckgnd.scroll_x);
-                ImGui::Text("offset_x: %d", chip->plane[i].bckgnd.offset_x);
-                ImGui::Text("scroll_y: %d", chip->plane[i].bckgnd.scroll_y);
-                ImGui::Text("offset_y: %d", chip->plane[i].bckgnd.offset_y);
+                ImGui::Text("scroll_x: %03d", chip->plane[i].bckgnd.scroll_x);
+                ImGui::Text("offset_x: %03d", chip->plane[i].bckgnd.offset_x);
+                ImGui::Text("scroll_y: %03d", chip->plane[i].bckgnd.scroll_y);
+                ImGui::Text("offset_y: %03d", chip->plane[i].bckgnd.offset_y);
                 ImGui::Separator();
                 // ui_util_b8("flags: ", chip->plane[i].affine.flags);
-                // ImGui::Text("border: %d columns", chip->plane[i].affine.border_columns);
-                // ImGui::Text("row_height: %d", chip->plane[i].affine.row_height);
+                // ImGui::Text("border: %03d columns", chip->plane[i].affine.border_columns);
+                // ImGui::Text("row_height: %03d", chip->plane[i].affine.row_height);
                 ui_util_b8("texture_bits: ", chip->plane[i].affine.texture_bits);
                 ImGui::SameLine();
-                ImGui::Text("w: %d", (int)pow(2, (chip->plane[i].affine.texture_bits & 0x0F)));
+                ImGui::Text("w: %03d", (int)pow(2, (chip->plane[i].affine.texture_bits & 0x0F)));
                 ImGui::SameLine();
-                ImGui::Text("h: %d", (int)pow(2, (chip->plane[i].affine.texture_bits >> 4)));
+                ImGui::Text("h: %03d", (int)pow(2, (chip->plane[i].affine.texture_bits >> 4)));
                 ImGui::Text(" u: %d", chip->plane[i].affine.u);
                 ImGui::SameLine();
                 ImGui::Text(" v: %d", chip->plane[i].affine.v);
