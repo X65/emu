@@ -7,22 +7,28 @@ import templ
 INOUT_PATH = '../chips/w65c816s.h'
 
 # flag bits
-CF = (1<<0)
-ZF = (1<<1)
-IF = (1<<2)
-DF = (1<<3)
-BF = (1<<4)
-XF = (1<<5)
-VF = (1<<6)
-NF = (1<<7)
+EF = (1<<0) # Emulation
+CF = (1<<0) # Carry
+ZF = (1<<1) # Zero
+IF = (1<<2) # IRQ disable
+DF = (1<<3) # Decimal mode
+BF = (1<<4) # Break - Emulation
+XF = (1<<4) # Index Register Select - Native
+UF = (1<<5) # Unused - Emulated
+MF = (1<<5) # Memory Select - Native
+VF = (1<<6) # Overflow
+NF = (1<<7) # Negative
 
 def flag_name(f):
-    if f == CF: return 'C'
+    if f == EF: return 'E'
+    elif f == CF: return 'C'
     elif f == ZF: return 'Z'
     elif f == IF: return 'I'
     elif f == DF: return 'D'
     elif f == BF: return 'B'
     elif f == XF: return 'X'
+    elif f == UF: return '1'
+    elif f == MF: return 'M'
     elif f == VF: return 'V'
     elif f == NF: return 'N'
 
@@ -126,7 +132,7 @@ ops = [
         [[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_RW],[A_ALN,M_RW]],
         [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
         [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
-        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M__W],[A_IMP,M_R_],[A_IMP,M_RW],[A_IMP,M_RW]],
+        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M__W],[A_IMP,M_R_],[A_IMP,M_RW],[A_IMP,M___]],
         [[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_RW],[A_ALX,M_RW]]
     ]
 ]
@@ -421,8 +427,8 @@ def i_xba(o):
 
 #-------------------------------------------------------------------------------
 def i_xce(o):
-    u_cmt(o,'XCE')
-    o.t('')
+    cmt(o,'XCE')
+    o.t('_w65816_xce(c);')
 
 #-------------------------------------------------------------------------------
 def i_php(o):

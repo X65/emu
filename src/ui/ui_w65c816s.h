@@ -143,7 +143,8 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     ImGui::Text("P:  %02X %s", f, f_str);
     ImGui::Text("PC: %04X", cpu->PC);
     ImGui::Separator();
-    ImGui::Text("BCD: %s", cpu->bcd_enabled ? "enabled":"disabled");
+    ImGui::Text("Mode: %s", cpu->emulation ? "Emulation":"Native");
+    ImGui::Text("BCD : %s", cpu->bcd_enabled ? "enabled":"disabled");
 }
 
 void ui_w65816_draw(ui_w65816_t* win) {

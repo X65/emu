@@ -305,6 +305,7 @@ typedef struct {
     uint64_t PINS;      /* last stored pin state (do NOT modify) */
     uint16_t irq_pip;
     uint16_t nmi_pip;
+    uint8_t emulation;  /* W65C02 Emulation mode */
     uint8_t brk_flags;  /* W65816_BRK_* */
     uint8_t bcd_enabled;
 } w65816_t;
@@ -519,45 +520,12 @@ static inline void _w65816_bit(w65816_t* cpu, uint8_t v) {
     cpu->P |= v & (W65816_NF|W65816_VF);
 }
 
-static inline void _w65816_arr(w65816_t* cpu) {
-    /* undocumented, unreliable ARR instruction, but this is tested
-       by the Wolfgang Lorenz C64 test suite
-       implementation taken from MAME
-    */
-    if (cpu->bcd_enabled && (cpu->P & W65816_DF)) {
-        bool c = cpu->P & W65816_CF;
-        cpu->P &= ~(W65816_NF|W65816_VF|W65816_ZF|W65816_CF);
-        uint8_t a = cpu->A>>1;
-        if (c) {
-            a |= 0x80;
-        }
-        cpu->P = _W65816_NZ(cpu->P,a);
-        if ((a ^ cpu->A) & 0x40) {
-            cpu->P |= W65816_VF;
-        }
-        if ((cpu->A & 0xF) >= 5) {
-            a = ((a + 6) & 0xF) | (a & 0xF0);
-        }
-        if ((cpu->A & 0xF0) >= 0x50) {
-            a += 0x60;
-            cpu->P |= W65816_CF;
-        }
-        cpu->A = a;
-    }
-    else {
-        bool c = cpu->P & W65816_CF;
-        cpu->P &= ~(W65816_NF|W65816_VF|W65816_ZF|W65816_CF);
-        cpu->A >>= 1;
-        if (c) {
-            cpu->A |= 0x80;
-        }
-        cpu->P = _W65816_NZ(cpu->P,cpu->A);
-        if (cpu->A & 0x40) {
-            cpu->P |= W65816_VF|W65816_CF;
-        }
-        if (cpu->A & 0x20) {
-            cpu->P ^= W65816_VF;
-        }
+static inline void _w65816_xce(w65816_t* cpu) {
+    uint8_t e = cpu->emulation;
+    cpu->emulation = cpu->P & W65816_CF;
+    cpu->P &= ~W65816_CF;
+    if (e) {
+        cpu->P |= W65816_CF;
     }
 }
 #undef _W65816_NZ
@@ -565,6 +533,7 @@ static inline void _w65816_arr(w65816_t* cpu) {
 uint64_t w65816_init(w65816_t* c, const w65816_desc_t* desc) {
     CHIPS_ASSERT(c && desc);
     memset(c, 0, sizeof(*c));
+    c->emulation = true; /* start in Emulation mode */
     c->P = W65816_ZF;
     c->bcd_enabled = !desc->bcd_disabled;
     c->PINS = W65816_RW | W65816_VPA | W65816_VDA | W65816_RES;
@@ -2930,10 +2899,10 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFA<<3)|5: assert(false);break;
         case (0xFA<<3)|6: assert(false);break;
         case (0xFA<<3)|7: assert(false);break;
-    /* XCE i (unimpl) */
+    /* XCE i */
         case (0xFB<<3)|0: _SA(c->PC);break;
-        case (0xFB<<3)|1: break;
-        case (0xFB<<3)|2: _FETCH();break;
+        case (0xFB<<3)|1: _w65816_xce(c);_FETCH();break;
+        case (0xFB<<3)|2: assert(false);break;
         case (0xFB<<3)|3: assert(false);break;
         case (0xFB<<3)|4: assert(false);break;
         case (0xFB<<3)|5: assert(false);break;
