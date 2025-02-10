@@ -540,8 +540,13 @@ def i_br(o, m, v):
 
 #-------------------------------------------------------------------------------
 def i_bra(o):
-    u_cmt(o,'BRA')
-    o.t('')
+    cmt(o,'BRA')
+    # branch is always taken - adds a cycle
+    o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();')
+    # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
+    o.t('_SA((c->PC&0xFF00)|(c->AD&0x00FF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    # page crossed extra cycle:
+    o.t('c->PC=c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_brl(o):

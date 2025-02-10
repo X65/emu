@@ -1823,11 +1823,11 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x7F<<3)|5: assert(false);break;
         case (0x7F<<3)|6: assert(false);break;
         case (0x7F<<3)|7: assert(false);break;
-    /* BRA r (unimpl) */
+    /* BRA r */
         case (0x80<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0x80<<3)|1: _FETCH();break;
-        case (0x80<<3)|2: assert(false);break;
-        case (0x80<<3)|3: assert(false);break;
+        case (0x80<<3)|1: _SA(c->PC);c->AD=c->PC+(int8_t)_GD();break;
+        case (0x80<<3)|2: _SA((c->PC&0xFF00)|(c->AD&0x00FF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};break;
+        case (0x80<<3)|3: c->PC=c->AD;_FETCH();break;
         case (0x80<<3)|4: assert(false);break;
         case (0x80<<3)|5: assert(false);break;
         case (0x80<<3)|6: assert(false);break;
