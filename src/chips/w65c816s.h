@@ -302,7 +302,8 @@ typedef struct {
     uint16_t PC;        /* internal Program Counter register */
     uint16_t AD;        /* ADL/ADH internal register */
     uint16_t C;         /* BA=C accumulator */
-    uint8_t X,Y,S,P;    /* regular registers */
+    uint16_t X,Y;       /* index registers */
+    uint8_t S,P;        /* regular registers */
     uint64_t PINS;      /* last stored pin state (do NOT modify) */
     uint16_t irq_pip;
     uint16_t nmi_pip;
@@ -324,16 +325,16 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys);
 void w65816_set_a(w65816_t* cpu, uint8_t v);
 void w65816_set_b(w65816_t* cpu, uint8_t v);
 void w65816_set_c(w65816_t* cpu, uint16_t v);
-void w65816_set_x(w65816_t* cpu, uint8_t v);
-void w65816_set_y(w65816_t* cpu, uint8_t v);
+void w65816_set_x(w65816_t* cpu, uint16_t v);
+void w65816_set_y(w65816_t* cpu, uint16_t v);
 void w65816_set_s(w65816_t* cpu, uint8_t v);
 void w65816_set_p(w65816_t* cpu, uint8_t v);
 void w65816_set_pc(w65816_t* cpu, uint32_t v);
 uint8_t w65816_a(w65816_t* cpu);
 uint8_t w65816_b(w65816_t* cpu);
 uint16_t w65816_c(w65816_t* cpu);
-uint8_t w65816_x(w65816_t* cpu);
-uint8_t w65816_y(w65816_t* cpu);
+uint16_t w65816_x(w65816_t* cpu);
+uint16_t w65816_y(w65816_t* cpu);
 uint8_t w65816_s(w65816_t* cpu);
 uint8_t w65816_p(w65816_t* cpu);
 uint32_t w65816_pc(w65816_t* cpu);
@@ -375,21 +376,23 @@ uint32_t w65816_pc(w65816_t* cpu);
 #define _A(c) (*(((uint8_t*)(void*)&c->C)))
 #define _B(c) (*(((uint8_t*)((void*)&c->C))+1))
 #define _C(c) (*((uint16_t*)(&c->C)))
+#define _X(c) (*(((uint8_t*)(void*)&c->X)))
+#define _Y(c) (*(((uint8_t*)(void*)&c->Y)))
 
 /* register access functions */
 void w65816_set_a(w65816_t* cpu, uint8_t v) { _A(cpu) = v; }
 void w65816_set_b(w65816_t* cpu, uint8_t v) { _B(cpu) = v; }
 void w65816_set_c(w65816_t* cpu, uint16_t v) { cpu->C = v; }
-void w65816_set_x(w65816_t* cpu, uint8_t v) { cpu->X = v; }
-void w65816_set_y(w65816_t* cpu, uint8_t v) { cpu->Y = v; }
+void w65816_set_x(w65816_t* cpu, uint16_t v) { cpu->X = v; }
+void w65816_set_y(w65816_t* cpu, uint16_t v) { cpu->Y = v; }
 void w65816_set_s(w65816_t* cpu, uint8_t v) { cpu->S = v; }
 void w65816_set_p(w65816_t* cpu, uint8_t v) { cpu->P = v; }
 void w65816_set_pc(w65816_t* cpu, uint32_t v) { cpu->PC = v; }
 uint8_t w65816_a(w65816_t* cpu) { return _A(cpu); }
 uint8_t w65816_b(w65816_t* cpu) { return _B(cpu); }
 uint16_t w65816_c(w65816_t* cpu) { return cpu->C; }
-uint8_t w65816_x(w65816_t* cpu) { return cpu->X; }
-uint8_t w65816_y(w65816_t* cpu) { return cpu->Y; }
+uint16_t w65816_x(w65816_t* cpu) { return cpu->X; }
+uint16_t w65816_y(w65816_t* cpu) { return cpu->Y; }
 uint8_t w65816_s(w65816_t* cpu) { return cpu->S; }
 uint8_t w65816_p(w65816_t* cpu) { return cpu->P; }
 uint32_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
@@ -672,7 +675,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ORA (d,x) */
         case (0x01<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x01<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x01<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0x01<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0x01<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0x01<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0x01<<3)|5: _A(c)|=_GD();_NZ(_A(c));_FETCH();break;
@@ -817,8 +820,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x11<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x11<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0x11<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0x11<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x11<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0x11<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x11<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0x11<<3)|5: _A(c)|=_GD();_NZ(_A(c));_FETCH();break;
         case (0x11<<3)|6: assert(false);break;
         case (0x11<<3)|7: assert(false);break;
@@ -852,7 +855,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ORA d,x */
         case (0x15<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x15<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x15<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x15<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x15<<3)|3: _A(c)|=_GD();_NZ(_A(c));_FETCH();break;
         case (0x15<<3)|4: assert(false);break;
         case (0x15<<3)|5: assert(false);break;
@@ -861,7 +864,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ASL d,x */
         case (0x16<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x16<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x16<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x16<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x16<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0x16<<3)|4: _VDA();_SD(_w65816_asl(c,c->AD));_WR();break;
         case (0x16<<3)|5: _FETCH();break;
@@ -888,8 +891,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ORA a,y */
         case (0x19<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x19<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x19<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x19<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0x19<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x19<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0x19<<3)|4: _A(c)|=_GD();_NZ(_A(c));_FETCH();break;
         case (0x19<<3)|5: assert(false);break;
         case (0x19<<3)|6: assert(false);break;
@@ -924,8 +927,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ORA a,x */
         case (0x1D<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x1D<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x1D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0x1D<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x1D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0x1D<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x1D<<3)|4: _A(c)|=_GD();_NZ(_A(c));_FETCH();break;
         case (0x1D<<3)|5: assert(false);break;
         case (0x1D<<3)|6: assert(false);break;
@@ -933,8 +936,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ASL a,x */
         case (0x1E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x1E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x1E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x1E<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x1E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x1E<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x1E<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0x1E<<3)|5: _VDA();_SD(_w65816_asl(c,c->AD));_WR();break;
         case (0x1E<<3)|6: _FETCH();break;
@@ -960,7 +963,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* AND (d,x) */
         case (0x21<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x21<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x21<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0x21<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0x21<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0x21<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0x21<<3)|5: _A(c)&=_GD();_NZ(_A(c));_FETCH();break;
@@ -1105,8 +1108,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x31<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x31<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0x31<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0x31<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x31<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0x31<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x31<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0x31<<3)|5: _A(c)&=_GD();_NZ(_A(c));_FETCH();break;
         case (0x31<<3)|6: assert(false);break;
         case (0x31<<3)|7: assert(false);break;
@@ -1131,7 +1134,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* BIT d,x */
         case (0x34<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x34<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x34<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x34<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x34<<3)|3: _w65816_bit(c,_GD());_FETCH();break;
         case (0x34<<3)|4: assert(false);break;
         case (0x34<<3)|5: assert(false);break;
@@ -1140,7 +1143,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* AND d,x */
         case (0x35<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x35<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x35<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x35<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x35<<3)|3: _A(c)&=_GD();_NZ(_A(c));_FETCH();break;
         case (0x35<<3)|4: assert(false);break;
         case (0x35<<3)|5: assert(false);break;
@@ -1149,7 +1152,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ROL d,x */
         case (0x36<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x36<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x36<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x36<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x36<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0x36<<3)|4: _VDA();_SD(_w65816_rol(c,c->AD));_WR();break;
         case (0x36<<3)|5: _FETCH();break;
@@ -1176,8 +1179,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* AND a,y */
         case (0x39<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x39<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x39<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x39<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0x39<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x39<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0x39<<3)|4: _A(c)&=_GD();_NZ(_A(c));_FETCH();break;
         case (0x39<<3)|5: assert(false);break;
         case (0x39<<3)|6: assert(false);break;
@@ -1203,8 +1206,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* BIT a,x */
         case (0x3C<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x3C<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x3C<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0x3C<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x3C<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0x3C<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x3C<<3)|4: _w65816_bit(c,_GD());_FETCH();break;
         case (0x3C<<3)|5: assert(false);break;
         case (0x3C<<3)|6: assert(false);break;
@@ -1212,8 +1215,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* AND a,x */
         case (0x3D<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x3D<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x3D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0x3D<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x3D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0x3D<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x3D<<3)|4: _A(c)&=_GD();_NZ(_A(c));_FETCH();break;
         case (0x3D<<3)|5: assert(false);break;
         case (0x3D<<3)|6: assert(false);break;
@@ -1221,8 +1224,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ROL a,x */
         case (0x3E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x3E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x3E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x3E<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x3E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x3E<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x3E<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0x3E<<3)|5: _VDA();_SD(_w65816_rol(c,c->AD));_WR();break;
         case (0x3E<<3)|6: _FETCH();break;
@@ -1248,7 +1251,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* EOR (d,x) */
         case (0x41<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x41<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x41<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0x41<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0x41<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0x41<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0x41<<3)|5: _A(c)^=_GD();_NZ(_A(c));_FETCH();break;
@@ -1393,8 +1396,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x51<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x51<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0x51<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0x51<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x51<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0x51<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x51<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0x51<<3)|5: _A(c)^=_GD();_NZ(_A(c));_FETCH();break;
         case (0x51<<3)|6: assert(false);break;
         case (0x51<<3)|7: assert(false);break;
@@ -1428,7 +1431,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* EOR d,x */
         case (0x55<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x55<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x55<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x55<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x55<<3)|3: _A(c)^=_GD();_NZ(_A(c));_FETCH();break;
         case (0x55<<3)|4: assert(false);break;
         case (0x55<<3)|5: assert(false);break;
@@ -1437,7 +1440,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LSR d,x */
         case (0x56<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x56<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x56<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x56<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x56<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0x56<<3)|4: _VDA();_SD(_w65816_lsr(c,c->AD));_WR();break;
         case (0x56<<3)|5: _FETCH();break;
@@ -1464,15 +1467,15 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* EOR a,y */
         case (0x59<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x59<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x59<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x59<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0x59<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x59<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0x59<<3)|4: _A(c)^=_GD();_NZ(_A(c));_FETCH();break;
         case (0x59<<3)|5: assert(false);break;
         case (0x59<<3)|6: assert(false);break;
         case (0x59<<3)|7: assert(false);break;
     /* PHY s */
         case (0x5A<<3)|0: _SA(c->PC);break;
-        case (0x5A<<3)|1: _VDA();_SAD(0x0100|c->S--,c->Y);_WR();break;
+        case (0x5A<<3)|1: _VDA();_SAD(0x0100|c->S--,_Y(c));_WR();break;
         case (0x5A<<3)|2: _FETCH();break;
         case (0x5A<<3)|3: assert(false);break;
         case (0x5A<<3)|4: assert(false);break;
@@ -1500,8 +1503,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* EOR a,x */
         case (0x5D<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x5D<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x5D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0x5D<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x5D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0x5D<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x5D<<3)|4: _A(c)^=_GD();_NZ(_A(c));_FETCH();break;
         case (0x5D<<3)|5: assert(false);break;
         case (0x5D<<3)|6: assert(false);break;
@@ -1509,8 +1512,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LSR a,x */
         case (0x5E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x5E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x5E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x5E<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x5E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x5E<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x5E<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0x5E<<3)|5: _VDA();_SD(_w65816_lsr(c,c->AD));_WR();break;
         case (0x5E<<3)|6: _FETCH();break;
@@ -1536,7 +1539,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ADC (d,x) */
         case (0x61<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x61<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x61<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0x61<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0x61<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0x61<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0x61<<3)|5: _w65816_adc(c,_GD());_FETCH();break;
@@ -1681,8 +1684,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x71<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x71<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0x71<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0x71<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x71<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0x71<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x71<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0x71<<3)|5: _w65816_adc(c,_GD());_FETCH();break;
         case (0x71<<3)|6: assert(false);break;
         case (0x71<<3)|7: assert(false);break;
@@ -1707,7 +1710,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STZ d,x */
         case (0x74<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x74<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x74<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);_VDA();_SD(0);_WR();break;
+        case (0x74<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);_VDA();_SD(0);_WR();break;
         case (0x74<<3)|3: _FETCH();break;
         case (0x74<<3)|4: assert(false);break;
         case (0x74<<3)|5: assert(false);break;
@@ -1716,7 +1719,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ADC d,x */
         case (0x75<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x75<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x75<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x75<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x75<<3)|3: _w65816_adc(c,_GD());_FETCH();break;
         case (0x75<<3)|4: assert(false);break;
         case (0x75<<3)|5: assert(false);break;
@@ -1725,7 +1728,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ROR d,x */
         case (0x76<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x76<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x76<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0x76<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0x76<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0x76<<3)|4: _VDA();_SD(_w65816_ror(c,c->AD));_WR();break;
         case (0x76<<3)|5: _FETCH();break;
@@ -1752,8 +1755,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ADC a,y */
         case (0x79<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x79<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x79<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0x79<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0x79<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0x79<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0x79<<3)|4: _w65816_adc(c,_GD());_FETCH();break;
         case (0x79<<3)|5: assert(false);break;
         case (0x79<<3)|6: assert(false);break;
@@ -1762,7 +1765,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x7A<<3)|0: _SA(c->PC);break;
         case (0x7A<<3)|1: _SA(c->PC);break;
         case (0x7A<<3)|2: _VDA();_SA(0x0100|++c->S);break;
-        case (0x7A<<3)|3: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0x7A<<3)|3: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0x7A<<3)|4: assert(false);break;
         case (0x7A<<3)|5: assert(false);break;
         case (0x7A<<3)|6: assert(false);break;
@@ -1788,8 +1791,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ADC a,x */
         case (0x7D<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x7D<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x7D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0x7D<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x7D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0x7D<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x7D<<3)|4: _w65816_adc(c,_GD());_FETCH();break;
         case (0x7D<<3)|5: assert(false);break;
         case (0x7D<<3)|6: assert(false);break;
@@ -1797,8 +1800,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* ROR a,x */
         case (0x7E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x7E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x7E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x7E<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0x7E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x7E<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0x7E<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0x7E<<3)|5: _VDA();_SD(_w65816_ror(c,c->AD));_WR();break;
         case (0x7E<<3)|6: _FETCH();break;
@@ -1824,7 +1827,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STA (d,x) */
         case (0x81<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x81<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x81<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0x81<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0x81<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0x81<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);_VDA();_SD(_A(c));_WR();break;
         case (0x81<<3)|5: _FETCH();break;
@@ -1850,7 +1853,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x83<<3)|7: assert(false);break;
     /* STY d */
         case (0x84<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0x84<<3)|1: _VDA();_SA(_GD());_VDA();_SD(c->Y);_WR();break;
+        case (0x84<<3)|1: _VDA();_SA(_GD());_VDA();_SD(_Y(c));_WR();break;
         case (0x84<<3)|2: _FETCH();break;
         case (0x84<<3)|3: assert(false);break;
         case (0x84<<3)|4: assert(false);break;
@@ -1868,7 +1871,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x85<<3)|7: assert(false);break;
     /* STX d */
         case (0x86<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0x86<<3)|1: _VDA();_SA(_GD());_VDA();_SD(c->X);_WR();break;
+        case (0x86<<3)|1: _VDA();_SA(_GD());_VDA();_SD(_X(c));_WR();break;
         case (0x86<<3)|2: _FETCH();break;
         case (0x86<<3)|3: assert(false);break;
         case (0x86<<3)|4: assert(false);break;
@@ -1886,7 +1889,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x87<<3)|7: assert(false);break;
     /* DEY i */
         case (0x88<<3)|0: _SA(c->PC);break;
-        case (0x88<<3)|1: c->Y--;_NZ(c->Y);_FETCH();break;
+        case (0x88<<3)|1: _Y(c)--;_NZ(_Y(c));_FETCH();break;
         case (0x88<<3)|2: assert(false);break;
         case (0x88<<3)|3: assert(false);break;
         case (0x88<<3)|4: assert(false);break;
@@ -1904,7 +1907,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x89<<3)|7: assert(false);break;
     /* TXA i */
         case (0x8A<<3)|0: _SA(c->PC);break;
-        case (0x8A<<3)|1: _A(c)=c->X;_NZ(_A(c));_FETCH();break;
+        case (0x8A<<3)|1: _A(c)=_X(c);_NZ(_A(c));_FETCH();break;
         case (0x8A<<3)|2: assert(false);break;
         case (0x8A<<3)|3: assert(false);break;
         case (0x8A<<3)|4: assert(false);break;
@@ -1923,7 +1926,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STY a */
         case (0x8C<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x8C<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x8C<<3)|2: _SA((_GD()<<8)|c->AD);_VDA();_SD(c->Y);_WR();break;
+        case (0x8C<<3)|2: _SA((_GD()<<8)|c->AD);_VDA();_SD(_Y(c));_WR();break;
         case (0x8C<<3)|3: _FETCH();break;
         case (0x8C<<3)|4: assert(false);break;
         case (0x8C<<3)|5: assert(false);break;
@@ -1941,7 +1944,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STX a */
         case (0x8E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x8E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x8E<<3)|2: _SA((_GD()<<8)|c->AD);_VDA();_SD(c->X);_WR();break;
+        case (0x8E<<3)|2: _SA((_GD()<<8)|c->AD);_VDA();_SD(_X(c));_WR();break;
         case (0x8E<<3)|3: _FETCH();break;
         case (0x8E<<3)|4: assert(false);break;
         case (0x8E<<3)|5: assert(false);break;
@@ -1969,8 +1972,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x91<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x91<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0x91<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0x91<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));break;
-        case (0x91<<3)|4: _VDA();_SA(c->AD+c->Y);_VDA();_SD(_A(c));_WR();break;
+        case (0x91<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));break;
+        case (0x91<<3)|4: _VDA();_SA(c->AD+_Y(c));_VDA();_SD(_A(c));_WR();break;
         case (0x91<<3)|5: _FETCH();break;
         case (0x91<<3)|6: assert(false);break;
         case (0x91<<3)|7: assert(false);break;
@@ -1995,7 +1998,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STY d,x */
         case (0x94<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x94<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x94<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);_VDA();_SD(c->Y);_WR();break;
+        case (0x94<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);_VDA();_SD(_Y(c));_WR();break;
         case (0x94<<3)|3: _FETCH();break;
         case (0x94<<3)|4: assert(false);break;
         case (0x94<<3)|5: assert(false);break;
@@ -2004,7 +2007,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STA d,x */
         case (0x95<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x95<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x95<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);_VDA();_SD(_A(c));_WR();break;
+        case (0x95<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);_VDA();_SD(_A(c));_WR();break;
         case (0x95<<3)|3: _FETCH();break;
         case (0x95<<3)|4: assert(false);break;
         case (0x95<<3)|5: assert(false);break;
@@ -2013,7 +2016,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STX d,y */
         case (0x96<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x96<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0x96<<3)|2: _VDA();_SA((c->AD+c->Y)&0x00FF);_VDA();_SD(c->X);_WR();break;
+        case (0x96<<3)|2: _VDA();_SA((c->AD+_Y(c))&0x00FF);_VDA();_SD(_X(c));_WR();break;
         case (0x96<<3)|3: _FETCH();break;
         case (0x96<<3)|4: assert(false);break;
         case (0x96<<3)|5: assert(false);break;
@@ -2030,7 +2033,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x97<<3)|7: assert(false);break;
     /* TYA i */
         case (0x98<<3)|0: _SA(c->PC);break;
-        case (0x98<<3)|1: _A(c)=c->Y;_NZ(_A(c));_FETCH();break;
+        case (0x98<<3)|1: _A(c)=_Y(c);_NZ(_A(c));_FETCH();break;
         case (0x98<<3)|2: assert(false);break;
         case (0x98<<3)|3: assert(false);break;
         case (0x98<<3)|4: assert(false);break;
@@ -2040,15 +2043,15 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STA a,y */
         case (0x99<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x99<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x99<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));break;
-        case (0x99<<3)|3: _VDA();_SA(c->AD+c->Y);_VDA();_SD(_A(c));_WR();break;
+        case (0x99<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));break;
+        case (0x99<<3)|3: _VDA();_SA(c->AD+_Y(c));_VDA();_SD(_A(c));_WR();break;
         case (0x99<<3)|4: _FETCH();break;
         case (0x99<<3)|5: assert(false);break;
         case (0x99<<3)|6: assert(false);break;
         case (0x99<<3)|7: assert(false);break;
     /* TXS i */
         case (0x9A<<3)|0: _SA(c->PC);break;
-        case (0x9A<<3)|1: c->S=c->X;_FETCH();break;
+        case (0x9A<<3)|1: c->S=_X(c);_FETCH();break;
         case (0x9A<<3)|2: assert(false);break;
         case (0x9A<<3)|3: assert(false);break;
         case (0x9A<<3)|4: assert(false);break;
@@ -2057,7 +2060,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x9A<<3)|7: assert(false);break;
     /* TXY i */
         case (0x9B<<3)|0: _SA(c->PC);break;
-        case (0x9B<<3)|1: c->Y=c->X;_NZ(c->Y);_FETCH();break;
+        case (0x9B<<3)|1: _Y(c)=_X(c);_NZ(_Y(c));_FETCH();break;
         case (0x9B<<3)|2: assert(false);break;
         case (0x9B<<3)|3: assert(false);break;
         case (0x9B<<3)|4: assert(false);break;
@@ -2076,8 +2079,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STA a,x */
         case (0x9D<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x9D<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x9D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x9D<<3)|3: _VDA();_SA(c->AD+c->X);_VDA();_SD(_A(c));_WR();break;
+        case (0x9D<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x9D<<3)|3: _VDA();_SA(c->AD+_X(c));_VDA();_SD(_A(c));_WR();break;
         case (0x9D<<3)|4: _FETCH();break;
         case (0x9D<<3)|5: assert(false);break;
         case (0x9D<<3)|6: assert(false);break;
@@ -2085,8 +2088,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* STZ a,x */
         case (0x9E<<3)|0: _VPA();_SA(c->PC++);break;
         case (0x9E<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x9E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0x9E<<3)|3: _VDA();_SA(c->AD+c->X);_VDA();_SD(0);_WR();break;
+        case (0x9E<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0x9E<<3)|3: _VDA();_SA(c->AD+_X(c));_VDA();_SD(0);_WR();break;
         case (0x9E<<3)|4: _FETCH();break;
         case (0x9E<<3)|5: assert(false);break;
         case (0x9E<<3)|6: assert(false);break;
@@ -2102,7 +2105,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x9F<<3)|7: assert(false);break;
     /* LDY # */
         case (0xA0<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0xA0<<3)|1: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0xA0<<3)|1: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0xA0<<3)|2: assert(false);break;
         case (0xA0<<3)|3: assert(false);break;
         case (0xA0<<3)|4: assert(false);break;
@@ -2112,7 +2115,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDA (d,x) */
         case (0xA1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xA1<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xA1<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0xA1<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0xA1<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0xA1<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0xA1<<3)|5: _A(c)=_GD();_NZ(_A(c));_FETCH();break;
@@ -2120,7 +2123,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xA1<<3)|7: assert(false);break;
     /* LDX # */
         case (0xA2<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0xA2<<3)|1: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xA2<<3)|1: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xA2<<3)|2: assert(false);break;
         case (0xA2<<3)|3: assert(false);break;
         case (0xA2<<3)|4: assert(false);break;
@@ -2139,7 +2142,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDY d */
         case (0xA4<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xA4<<3)|1: _VDA();_SA(_GD());break;
-        case (0xA4<<3)|2: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0xA4<<3)|2: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0xA4<<3)|3: assert(false);break;
         case (0xA4<<3)|4: assert(false);break;
         case (0xA4<<3)|5: assert(false);break;
@@ -2157,7 +2160,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDX d */
         case (0xA6<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xA6<<3)|1: _VDA();_SA(_GD());break;
-        case (0xA6<<3)|2: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xA6<<3)|2: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xA6<<3)|3: assert(false);break;
         case (0xA6<<3)|4: assert(false);break;
         case (0xA6<<3)|5: assert(false);break;
@@ -2174,7 +2177,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xA7<<3)|7: assert(false);break;
     /* TAY i */
         case (0xA8<<3)|0: _SA(c->PC);break;
-        case (0xA8<<3)|1: c->Y=_A(c);_NZ(c->Y);_FETCH();break;
+        case (0xA8<<3)|1: _Y(c)=_A(c);_NZ(_Y(c));_FETCH();break;
         case (0xA8<<3)|2: assert(false);break;
         case (0xA8<<3)|3: assert(false);break;
         case (0xA8<<3)|4: assert(false);break;
@@ -2192,7 +2195,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xA9<<3)|7: assert(false);break;
     /* TAX i */
         case (0xAA<<3)|0: _SA(c->PC);break;
-        case (0xAA<<3)|1: c->X=_A(c);_NZ(c->X);_FETCH();break;
+        case (0xAA<<3)|1: _X(c)=_A(c);_NZ(_X(c));_FETCH();break;
         case (0xAA<<3)|2: assert(false);break;
         case (0xAA<<3)|3: assert(false);break;
         case (0xAA<<3)|4: assert(false);break;
@@ -2212,7 +2215,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xAC<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xAC<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xAC<<3)|2: _SA((_GD()<<8)|c->AD);break;
-        case (0xAC<<3)|3: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0xAC<<3)|3: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0xAC<<3)|4: assert(false);break;
         case (0xAC<<3)|5: assert(false);break;
         case (0xAC<<3)|6: assert(false);break;
@@ -2230,7 +2233,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xAE<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xAE<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xAE<<3)|2: _SA((_GD()<<8)|c->AD);break;
-        case (0xAE<<3)|3: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xAE<<3)|3: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xAE<<3)|4: assert(false);break;
         case (0xAE<<3)|5: assert(false);break;
         case (0xAE<<3)|6: assert(false);break;
@@ -2257,8 +2260,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xB1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xB1<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0xB1<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0xB1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xB1<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0xB1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xB1<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0xB1<<3)|5: _A(c)=_GD();_NZ(_A(c));_FETCH();break;
         case (0xB1<<3)|6: assert(false);break;
         case (0xB1<<3)|7: assert(false);break;
@@ -2283,8 +2286,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDY d,x */
         case (0xB4<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xB4<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xB4<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
-        case (0xB4<<3)|3: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0xB4<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
+        case (0xB4<<3)|3: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0xB4<<3)|4: assert(false);break;
         case (0xB4<<3)|5: assert(false);break;
         case (0xB4<<3)|6: assert(false);break;
@@ -2292,7 +2295,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDA d,x */
         case (0xB5<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xB5<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xB5<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0xB5<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0xB5<<3)|3: _A(c)=_GD();_NZ(_A(c));_FETCH();break;
         case (0xB5<<3)|4: assert(false);break;
         case (0xB5<<3)|5: assert(false);break;
@@ -2301,8 +2304,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDX d,y */
         case (0xB6<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xB6<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xB6<<3)|2: _VDA();_SA((c->AD+c->Y)&0x00FF);break;
-        case (0xB6<<3)|3: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xB6<<3)|2: _VDA();_SA((c->AD+_Y(c))&0x00FF);break;
+        case (0xB6<<3)|3: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xB6<<3)|4: assert(false);break;
         case (0xB6<<3)|5: assert(false);break;
         case (0xB6<<3)|6: assert(false);break;
@@ -2328,15 +2331,15 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDA a,y */
         case (0xB9<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xB9<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xB9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xB9<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0xB9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xB9<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0xB9<<3)|4: _A(c)=_GD();_NZ(_A(c));_FETCH();break;
         case (0xB9<<3)|5: assert(false);break;
         case (0xB9<<3)|6: assert(false);break;
         case (0xB9<<3)|7: assert(false);break;
     /* TSX i */
         case (0xBA<<3)|0: _SA(c->PC);break;
-        case (0xBA<<3)|1: c->X=c->S;_NZ(c->X);_FETCH();break;
+        case (0xBA<<3)|1: _X(c)=c->S;_NZ(_X(c));_FETCH();break;
         case (0xBA<<3)|2: assert(false);break;
         case (0xBA<<3)|3: assert(false);break;
         case (0xBA<<3)|4: assert(false);break;
@@ -2345,7 +2348,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xBA<<3)|7: assert(false);break;
     /* TYX i */
         case (0xBB<<3)|0: _SA(c->PC);break;
-        case (0xBB<<3)|1: c->X=c->Y;_NZ(c->X);_FETCH();break;
+        case (0xBB<<3)|1: _X(c)=_Y(c);_NZ(_X(c));_FETCH();break;
         case (0xBB<<3)|2: assert(false);break;
         case (0xBB<<3)|3: assert(false);break;
         case (0xBB<<3)|4: assert(false);break;
@@ -2355,17 +2358,17 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDY a,x */
         case (0xBC<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xBC<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xBC<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0xBC<<3)|3: _VDA();_SA(c->AD+c->X);break;
-        case (0xBC<<3)|4: c->Y=_GD();_NZ(c->Y);_FETCH();break;
+        case (0xBC<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0xBC<<3)|3: _VDA();_SA(c->AD+_X(c));break;
+        case (0xBC<<3)|4: _Y(c)=_GD();_NZ(_Y(c));_FETCH();break;
         case (0xBC<<3)|5: assert(false);break;
         case (0xBC<<3)|6: assert(false);break;
         case (0xBC<<3)|7: assert(false);break;
     /* LDA a,x */
         case (0xBD<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xBD<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xBD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0xBD<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0xBD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0xBD<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0xBD<<3)|4: _A(c)=_GD();_NZ(_A(c));_FETCH();break;
         case (0xBD<<3)|5: assert(false);break;
         case (0xBD<<3)|6: assert(false);break;
@@ -2373,9 +2376,9 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* LDX a,y */
         case (0xBE<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xBE<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xBE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xBE<<3)|3: _VDA();_SA(c->AD+c->Y);break;
-        case (0xBE<<3)|4: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xBE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xBE<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
+        case (0xBE<<3)|4: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xBE<<3)|5: assert(false);break;
         case (0xBE<<3)|6: assert(false);break;
         case (0xBE<<3)|7: assert(false);break;
@@ -2390,7 +2393,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xBF<<3)|7: assert(false);break;
     /* CPY # */
         case (0xC0<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0xC0<<3)|1: _w65816_cmp(c, c->Y, _GD());_FETCH();break;
+        case (0xC0<<3)|1: _w65816_cmp(c, _Y(c), _GD());_FETCH();break;
         case (0xC0<<3)|2: assert(false);break;
         case (0xC0<<3)|3: assert(false);break;
         case (0xC0<<3)|4: assert(false);break;
@@ -2400,7 +2403,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CMP (d,x) */
         case (0xC1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xC1<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xC1<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0xC1<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0xC1<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0xC1<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0xC1<<3)|5: _w65816_cmp(c, _A(c), _GD());_FETCH();break;
@@ -2427,7 +2430,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CPY d */
         case (0xC4<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xC4<<3)|1: _VDA();_SA(_GD());break;
-        case (0xC4<<3)|2: _w65816_cmp(c, c->Y, _GD());_FETCH();break;
+        case (0xC4<<3)|2: _w65816_cmp(c, _Y(c), _GD());_FETCH();break;
         case (0xC4<<3)|3: assert(false);break;
         case (0xC4<<3)|4: assert(false);break;
         case (0xC4<<3)|5: assert(false);break;
@@ -2462,7 +2465,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xC7<<3)|7: assert(false);break;
     /* INY i */
         case (0xC8<<3)|0: _SA(c->PC);break;
-        case (0xC8<<3)|1: c->Y++;_NZ(c->Y);_FETCH();break;
+        case (0xC8<<3)|1: _Y(c)++;_NZ(_Y(c));_FETCH();break;
         case (0xC8<<3)|2: assert(false);break;
         case (0xC8<<3)|3: assert(false);break;
         case (0xC8<<3)|4: assert(false);break;
@@ -2480,7 +2483,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xC9<<3)|7: assert(false);break;
     /* DEX i */
         case (0xCA<<3)|0: _SA(c->PC);break;
-        case (0xCA<<3)|1: c->X--;_NZ(c->X);_FETCH();break;
+        case (0xCA<<3)|1: _X(c)--;_NZ(_X(c));_FETCH();break;
         case (0xCA<<3)|2: assert(false);break;
         case (0xCA<<3)|3: assert(false);break;
         case (0xCA<<3)|4: assert(false);break;
@@ -2500,7 +2503,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xCC<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xCC<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xCC<<3)|2: _SA((_GD()<<8)|c->AD);break;
-        case (0xCC<<3)|3: _w65816_cmp(c, c->Y, _GD());_FETCH();break;
+        case (0xCC<<3)|3: _w65816_cmp(c, _Y(c), _GD());_FETCH();break;
         case (0xCC<<3)|4: assert(false);break;
         case (0xCC<<3)|5: assert(false);break;
         case (0xCC<<3)|6: assert(false);break;
@@ -2545,8 +2548,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xD1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xD1<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0xD1<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0xD1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xD1<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0xD1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xD1<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0xD1<<3)|5: _w65816_cmp(c, _A(c), _GD());_FETCH();break;
         case (0xD1<<3)|6: assert(false);break;
         case (0xD1<<3)|7: assert(false);break;
@@ -2580,7 +2583,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CMP d,x */
         case (0xD5<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xD5<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xD5<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0xD5<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0xD5<<3)|3: _w65816_cmp(c, _A(c), _GD());_FETCH();break;
         case (0xD5<<3)|4: assert(false);break;
         case (0xD5<<3)|5: assert(false);break;
@@ -2589,7 +2592,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* DEC d,x */
         case (0xD6<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xD6<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xD6<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0xD6<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0xD6<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0xD6<<3)|4: _VDA();c->AD--;_NZ(c->AD);_SD(c->AD);_WR();break;
         case (0xD6<<3)|5: _FETCH();break;
@@ -2616,15 +2619,15 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CMP a,y */
         case (0xD9<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xD9<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xD9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xD9<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0xD9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xD9<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0xD9<<3)|4: _w65816_cmp(c, _A(c), _GD());_FETCH();break;
         case (0xD9<<3)|5: assert(false);break;
         case (0xD9<<3)|6: assert(false);break;
         case (0xD9<<3)|7: assert(false);break;
     /* PHX s */
         case (0xDA<<3)|0: _SA(c->PC);break;
-        case (0xDA<<3)|1: _VDA();_SAD(0x0100|c->S--,c->X);_WR();break;
+        case (0xDA<<3)|1: _VDA();_SAD(0x0100|c->S--,_X(c));_WR();break;
         case (0xDA<<3)|2: _FETCH();break;
         case (0xDA<<3)|3: assert(false);break;
         case (0xDA<<3)|4: assert(false);break;
@@ -2652,8 +2655,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CMP a,x */
         case (0xDD<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xDD<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xDD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0xDD<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0xDD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0xDD<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0xDD<<3)|4: _w65816_cmp(c, _A(c), _GD());_FETCH();break;
         case (0xDD<<3)|5: assert(false);break;
         case (0xDD<<3)|6: assert(false);break;
@@ -2661,8 +2664,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* DEC a,x */
         case (0xDE<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xDE<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xDE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0xDE<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0xDE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0xDE<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0xDE<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0xDE<<3)|5: _VDA();c->AD--;_NZ(c->AD);_SD(c->AD);_WR();break;
         case (0xDE<<3)|6: _FETCH();break;
@@ -2678,7 +2681,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xDF<<3)|7: assert(false);break;
     /* CPX # */
         case (0xE0<<3)|0: _VPA();_SA(c->PC++);break;
-        case (0xE0<<3)|1: _w65816_cmp(c, c->X, _GD());_FETCH();break;
+        case (0xE0<<3)|1: _w65816_cmp(c, _X(c), _GD());_FETCH();break;
         case (0xE0<<3)|2: assert(false);break;
         case (0xE0<<3)|3: assert(false);break;
         case (0xE0<<3)|4: assert(false);break;
@@ -2688,7 +2691,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* SBC (d,x) */
         case (0xE1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xE1<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xE1<<3)|2: _VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);break;
+        case (0xE1<<3)|2: _VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);break;
         case (0xE1<<3)|3: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
         case (0xE1<<3)|4: _VDA();_SA((_GD()<<8)|c->AD);break;
         case (0xE1<<3)|5: _w65816_sbc(c,_GD());_FETCH();break;
@@ -2715,7 +2718,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* CPX d */
         case (0xE4<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xE4<<3)|1: _VDA();_SA(_GD());break;
-        case (0xE4<<3)|2: _w65816_cmp(c, c->X, _GD());_FETCH();break;
+        case (0xE4<<3)|2: _w65816_cmp(c, _X(c), _GD());_FETCH();break;
         case (0xE4<<3)|3: assert(false);break;
         case (0xE4<<3)|4: assert(false);break;
         case (0xE4<<3)|5: assert(false);break;
@@ -2750,7 +2753,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xE7<<3)|7: assert(false);break;
     /* INX i */
         case (0xE8<<3)|0: _SA(c->PC);break;
-        case (0xE8<<3)|1: c->X++;_NZ(c->X);_FETCH();break;
+        case (0xE8<<3)|1: _X(c)++;_NZ(_X(c));_FETCH();break;
         case (0xE8<<3)|2: assert(false);break;
         case (0xE8<<3)|3: assert(false);break;
         case (0xE8<<3)|4: assert(false);break;
@@ -2788,7 +2791,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xEC<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xEC<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xEC<<3)|2: _SA((_GD()<<8)|c->AD);break;
-        case (0xEC<<3)|3: _w65816_cmp(c, c->X, _GD());_FETCH();break;
+        case (0xEC<<3)|3: _w65816_cmp(c, _X(c), _GD());_FETCH();break;
         case (0xEC<<3)|4: assert(false);break;
         case (0xEC<<3)|5: assert(false);break;
         case (0xEC<<3)|6: assert(false);break;
@@ -2833,8 +2836,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xF1<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xF1<<3)|1: _VDA();c->AD=_GD();_SA(c->AD);break;
         case (0xF1<<3)|2: _VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();break;
-        case (0xF1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xF1<<3)|4: _VDA();_SA(c->AD+c->Y);break;
+        case (0xF1<<3)|3: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xF1<<3)|4: _VDA();_SA(c->AD+_Y(c));break;
         case (0xF1<<3)|5: _w65816_sbc(c,_GD());_FETCH();break;
         case (0xF1<<3)|6: assert(false);break;
         case (0xF1<<3)|7: assert(false);break;
@@ -2868,7 +2871,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* SBC d,x */
         case (0xF5<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xF5<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xF5<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0xF5<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0xF5<<3)|3: _w65816_sbc(c,_GD());_FETCH();break;
         case (0xF5<<3)|4: assert(false);break;
         case (0xF5<<3)|5: assert(false);break;
@@ -2877,7 +2880,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* INC d,x */
         case (0xF6<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xF6<<3)|1: c->AD=_GD();_SA(c->AD);break;
-        case (0xF6<<3)|2: _VDA();_SA((c->AD+c->X)&0x00FF);break;
+        case (0xF6<<3)|2: _VDA();_SA((c->AD+_X(c))&0x00FF);break;
         case (0xF6<<3)|3: _VDA();c->AD=_GD();_WR();break;
         case (0xF6<<3)|4: _VDA();c->AD++;_NZ(c->AD);_SD(c->AD);_WR();break;
         case (0xF6<<3)|5: _FETCH();break;
@@ -2904,8 +2907,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* SBC a,y */
         case (0xF9<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xF9<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xF9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;break;
-        case (0xF9<<3)|3: _VDA();_SA(c->AD+c->Y);break;
+        case (0xF9<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;break;
+        case (0xF9<<3)|3: _VDA();_SA(c->AD+_Y(c));break;
         case (0xF9<<3)|4: _w65816_sbc(c,_GD());_FETCH();break;
         case (0xF9<<3)|5: assert(false);break;
         case (0xF9<<3)|6: assert(false);break;
@@ -2914,7 +2917,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFA<<3)|0: _SA(c->PC);break;
         case (0xFA<<3)|1: _SA(c->PC);break;
         case (0xFA<<3)|2: _VDA();_SA(0x0100|++c->S);break;
-        case (0xFA<<3)|3: c->X=_GD();_NZ(c->X);_FETCH();break;
+        case (0xFA<<3)|3: _X(c)=_GD();_NZ(_X(c));_FETCH();break;
         case (0xFA<<3)|4: assert(false);break;
         case (0xFA<<3)|5: assert(false);break;
         case (0xFA<<3)|6: assert(false);break;
@@ -2934,14 +2937,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFC<<3)|2: _VDA();_SAD(0x0100|c->S--,c->PC);_WR();break;
         case (0xFC<<3)|3: _VPA();_SA(c->PC);break;
         case (0xFC<<3)|4: _SA(c->PC);c->AD=(_GD()<<8)|c->AD;break;
-        case (0xFC<<3)|5: _VDA();_SA(c->AD+c->X);break;
-        case (0xFC<<3)|6: _VDA();_SA(c->AD+c->X+1);c->AD=_GD();break;
+        case (0xFC<<3)|5: _VDA();_SA(c->AD+_X(c));break;
+        case (0xFC<<3)|6: _VDA();_SA(c->AD+_X(c)+1);c->AD=_GD();break;
         case (0xFC<<3)|7: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
     /* SBC a,x */
         case (0xFD<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xFD<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xFD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;break;
-        case (0xFD<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0xFD<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;break;
+        case (0xFD<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0xFD<<3)|4: _w65816_sbc(c,_GD());_FETCH();break;
         case (0xFD<<3)|5: assert(false);break;
         case (0xFD<<3)|6: assert(false);break;
@@ -2949,8 +2952,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* INC a,x */
         case (0xFE<<3)|0: _VPA();_SA(c->PC++);break;
         case (0xFE<<3)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0xFE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));break;
-        case (0xFE<<3)|3: _VDA();_SA(c->AD+c->X);break;
+        case (0xFE<<3)|2: c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));break;
+        case (0xFE<<3)|3: _VDA();_SA(c->AD+_X(c));break;
         case (0xFE<<3)|4: _VDA();c->AD=_GD();_WR();break;
         case (0xFE<<3)|5: _VDA();c->AD++;_NZ(c->AD);_SD(c->AD);_WR();break;
         case (0xFE<<3)|6: _FETCH();break;

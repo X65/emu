@@ -212,12 +212,12 @@ def enc_addr(op, addr_mode, mem_access):
         # direct page + X
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA();_SA((c->AD+c->X)&0x00FF);')
+        op.t('_VDA();_SA((c->AD+_X(c))&0x00FF);')
     elif addr_mode == A_DIY:
         # direct page + Y
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA();_SA((c->AD+c->Y)&0x00FF);')
+        op.t('_VDA();_SA((c->AD+_Y(c))&0x00FF);')
     elif addr_mode == A_ABS:
         # absolute
         op.t('_VPA();_SA(c->PC++);')
@@ -230,26 +230,26 @@ def enc_addr(op, addr_mode, mem_access):
         # instruction doesn't need to write back to memory
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->X)&0xFF));')
+        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->X)>>8)))&1;')
-        op.t('_VDA();_SA(c->AD+c->X);')
+            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;')
+        op.t('_VDA();_SA(c->AD+_X(c));')
     elif addr_mode == A_ABY:
         # absolute + Y
         # same page-boundary-crossed special case as absolute+X
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));')
+        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;')
-        op.t('_VDA();_SA(c->AD+c->Y);')
+            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
+        op.t('_VDA();_SA(c->AD+_Y(c));')
     elif addr_mode == A_DXI:
         # (d,x)
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA();c->AD=(c->AD+c->X)&0xFF;_SA(c->AD);')
+        op.t('_VDA();c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);')
         op.t('_VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();')
         op.t('_VDA();_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DII:
@@ -258,11 +258,11 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VDA();c->AD=_GD();_SA(c->AD);')
         op.t('_VDA();_SA((c->AD+1)&0xFF);c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+c->Y)&0xFF));')
+        op.t('c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_Y(c))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+c->Y)>>8)))&1;')
-        op.t('_VDA();_SA(c->AD+c->Y);')
+            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
+        op.t('_VDA();_SA(c->AD+_Y(c));')
     elif addr_mode == A_STR or addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_ALN or addr_mode == A_ALX or addr_mode == A_DID:
         op.t('/* (unimpl) */;')
     elif addr_mode == A_JMP:
@@ -328,12 +328,12 @@ def i_lda(o):
 #-------------------------------------------------------------------------------
 def i_ldx(o):
     cmt(o,'LDX')
-    o.t('c->X=_GD();_NZ(c->X);')
+    o.t('_X(c)=_GD();_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_ldy(o):
     cmt(o,'LDY')
-    o.t('c->Y=_GD();_NZ(c->Y);')
+    o.t('_Y(c)=_GD();_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_stz(o):
@@ -348,52 +348,52 @@ def i_sta(o):
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
-    o.ta('_VDA();_SD(c->X);_WR();')
+    o.ta('_VDA();_SD(_X(c));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
-    o.ta('_VDA();_SD(c->Y);_WR();')
+    o.ta('_VDA();_SD(_Y(c));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_tax(o):
     cmt(o,'TAX')
-    o.t('c->X=_A(c);_NZ(c->X);')
+    o.t('_X(c)=_A(c);_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_tay(o):
     cmt(o,'TAY')
-    o.t('c->Y=_A(c);_NZ(c->Y);')
+    o.t('_Y(c)=_A(c);_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_txa(o):
     cmt(o,'TXA')
-    o.t('_A(c)=c->X;_NZ(_A(c));')
+    o.t('_A(c)=_X(c);_NZ(_A(c));')
 
 #-------------------------------------------------------------------------------
 def i_txy(o):
     cmt(o,'TXY')
-    o.t('c->Y=c->X;_NZ(c->Y);')
+    o.t('_Y(c)=_X(c);_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_tya(o):
     cmt(o,'TYA')
-    o.t('_A(c)=c->Y;_NZ(_A(c));')
+    o.t('_A(c)=_Y(c);_NZ(_A(c));')
 
 #-------------------------------------------------------------------------------
 def i_tyx(o):
     cmt(o,'TYX')
-    o.t('c->X=c->Y;_NZ(c->X);')
+    o.t('_X(c)=_Y(c);_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_txs(o):
     cmt(o,'TXS')
-    o.t('c->S=c->X;')
+    o.t('c->S=_X(c);')
 
 #-------------------------------------------------------------------------------
 def i_tsx(o):
     cmt(o,'TSX')
-    o.t('c->X=c->S;_NZ(c->X);')
+    o.t('_X(c)=c->S;_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_tsc(o):
@@ -463,26 +463,26 @@ def i_pla(o):
 #-------------------------------------------------------------------------------
 def i_phx(o):
     cmt(o,'PHX')
-    o.t('_VDA();_SAD(0x0100|c->S--,c->X);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,_X(c));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_plx(o):
     cmt(o,'PLX')
     o.t('_SA(c->PC);') # read junk byte from current PC
     o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
-    o.t('c->X=_GD();_NZ(c->X);')
+    o.t('_X(c)=_GD();_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_phy(o):
     cmt(o,'PHY')
-    o.t('_VDA();_SAD(0x0100|c->S--,c->Y);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,_Y(c));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_ply(o):
     cmt(o,'PLY')
     o.t('_SA(c->PC);') # read junk byte from current PC
     o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
-    o.t('c->Y=_GD();_NZ(c->Y);')
+    o.t('_Y(c)=_GD();_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_phb(o):
@@ -622,8 +622,8 @@ def i_jsrx(o):
     # put PC on addr bus, next cycle is a junk read
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     # load PC from pointed address
-    o.t('_VDA();_SA(c->AD+c->X);')
-    o.t('_VDA();_SA(c->AD+c->X+1);c->AD=_GD();')
+    o.t('_VDA();_SA(c->AD+_X(c));')
+    o.t('_VDA();_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -697,12 +697,12 @@ def i_cmp(o):
 #-------------------------------------------------------------------------------
 def i_cpx(o):
     cmt(o,'CPX')
-    o.t('_w65816_cmp(c, c->X, _GD());')
+    o.t('_w65816_cmp(c, _X(c), _GD());')
 
 #-------------------------------------------------------------------------------
 def i_cpy(o):
     cmt(o,'CPY')
-    o.t('_w65816_cmp(c, c->Y, _GD());')
+    o.t('_w65816_cmp(c, _Y(c), _GD());')
 
 #-------------------------------------------------------------------------------
 def i_dec(o):
@@ -729,22 +729,22 @@ def i_deca(o):
 #-------------------------------------------------------------------------------
 def i_dex(o):
     cmt(o,'DEX')
-    o.t('c->X--;_NZ(c->X);')
+    o.t('_X(c)--;_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_dey(o):
     cmt(o,'DEY')
-    o.t('c->Y--;_NZ(c->Y);')
+    o.t('_Y(c)--;_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_inx(o):
     cmt(o,'INX')
-    o.t('c->X++;_NZ(c->X);')
+    o.t('_X(c)++;_NZ(_X(c));')
 
 #-------------------------------------------------------------------------------
 def i_iny(o):
     cmt(o,'INY')
-    o.t('c->Y++;_NZ(c->Y);')
+    o.t('_Y(c)++;_NZ(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_asl(o):

@@ -1631,16 +1631,17 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
         w65816_t* c = win->dbg.w65816;
         if (ImGui::BeginTable("##reg_columns", 7)) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
-            for (int i = 1; i < 5; i++) {
-                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
-            }
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 72);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             w65816_set_c(c, ui_util_input_u16("C", w65816_c(c))); ImGui::TableNextColumn();
-            w65816_set_x(c, ui_util_input_u8("X", w65816_x(c))); ImGui::TableNextColumn();
-            w65816_set_y(c, ui_util_input_u8("Y", w65816_y(c))); ImGui::TableNextColumn();
+            w65816_set_x(c, ui_util_input_u16("X", w65816_x(c))); ImGui::TableNextColumn();
+            w65816_set_y(c, ui_util_input_u16("Y", w65816_y(c))); ImGui::TableNextColumn();
             w65816_set_s(c, ui_util_input_u8("S", w65816_s(c))); ImGui::TableNextColumn();
             w65816_set_p(c, ui_util_input_u8("P", w65816_p(c))); ImGui::TableNextColumn();
             w65816_set_pc(c, ui_util_input_u16("PC", w65816_pc(c))); ImGui::TableNextColumn();
