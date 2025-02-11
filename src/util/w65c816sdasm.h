@@ -182,7 +182,7 @@ static uint8_t _w65816dasm_ops[4][8][8] = {
 /* cc = 02 */
 {
     //ASL  ROL   LSR   ROR   STX   LDX   DEC   INC
-    {A_STS,A_ALN,A_IMP,A_STC,A_PCL,A_IMM,A_IMM,A_IMM},
+    {A_STS,A_ALN,A_STS,A_STC,A_PCL,A_IMM,A_IMM,A_IMM},
     {A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR},
     {A_ACC,A_ACC,A_ACC,A_ACC,A_IMP,A_IMP,A_IMP,A_IMP},
     {A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS},
@@ -504,8 +504,9 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
             _STR(" A");
             break;
         case A_STS: /* s       - Stack with Signature */
-            if (ignore_signature) break;
-            [[fallthrough]]; 
+            if (!ignore_signature)
+            {_CHR(' '); _FETCH_U8(u8); _STR_U8(u8);}
+            break;
         case A_IMM: /* #       - Immediate */
             _CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8);
             break;

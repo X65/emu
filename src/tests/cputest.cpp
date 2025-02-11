@@ -19,7 +19,7 @@ typedef tuple<int, string, int, int, bool> instr_data;
 initializer_list<instr_data> INSTR_MATRIX = {
     { 0x00, "BRK s",       7, 2, true  },
     { 0x01, "ORA (d,x)",   6, 2, true  },
-    { 0x02, "COP s",       7, 2, false },
+    { 0x02, "COP s",       7, 2, true  },
     { 0x03, "ORA d,s",     4, 2, false },
     { 0x04, "TSB d",       5, 2, true  },
     { 0x05, "ORA d",       3, 2, true  },
@@ -83,7 +83,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x3F, "AND al,x",    5, 4, false },
     { 0x40, "RTI s",       7, 1, false },
     { 0x41, "EOR (d,x)",   6, 2, true  },
-    { 0x42, "WDM i",       2, 2, false },
+    { 0x42, "WDM #",       2, 2, true  },
     { 0x43, "EOR d,s",     4, 2, false },
     { 0x44, "MVP xyc",     7, 3, false },
     { 0x45, "EOR d",       3, 2, true  },
@@ -172,7 +172,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x98, "TYA i",       2, 1, true  },
     { 0x99, "STA a,y",     5, 3, true  },
     { 0x9A, "TXS i",       2, 1, true  },
-    { 0x9B, "TXY i",       2, 1, false },
+    { 0x9B, "TXY i",       2, 1, true  },
     { 0x9C, "STZ a",       4, 3, true  },
     { 0x9D, "STA a,x",     5, 3, true  },
     { 0x9E, "STZ a,x",     5, 3, true  },
@@ -204,14 +204,14 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xB8, "CLV i",       2, 1, true  },
     { 0xB9, "LDA a,y",     4, 3, true  },
     { 0xBA, "TSX i",       2, 1, true  },
-    { 0xBB, "TYX i",       2, 1, false },
+    { 0xBB, "TYX i",       2, 1, true  },
     { 0xBC, "LDY a,x",     4, 3, true  },
     { 0xBD, "LDA a,x",     4, 3, true  },
     { 0xBE, "LDX a,y",     4, 3, true  },
     { 0xBF, "LDA al,x",    5, 4, false },
     { 0xC0, "CPY #",       2, 2, true  },
     { 0xC1, "CMP (d,x)",   6, 2, true  },
-    { 0xC2, "REP #",       3, 2, false },
+    { 0xC2, "REP #",       3, 2, true  },
     { 0xC3, "CMP d,s",     4, 2, false },
     { 0xC4, "CPY d",       3, 2, true  },
     { 0xC5, "CMP d",       3, 2, true  },
@@ -243,7 +243,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xDF, "CMP al,x",    5, 4, false },
     { 0xE0, "CPX #",       2, 2, true  },
     { 0xE1, "SBC (d,x)",   6, 2, true  },
-    { 0xE2, "SEP #",       3, 2, false },
+    { 0xE2, "SEP #",       3, 2, true  },
     { 0xE3, "SBC d,s",     4, 2, false },
     { 0xE4, "CPX d",       3, 2, true  },
     { 0xE5, "SBC d",       3, 2, true  },
@@ -277,8 +277,8 @@ initializer_list<instr_data> INSTR_MATRIX = {
 
 // Skip failing tests for unimplemented instructions.
 const int UNIMPL_skip[] = {
-    0x04, 0x0C, 0x14, 0x1C, 0x5A, 0x7A, 0xCB, 0xDA, 0xFA,  //
-    0x64, 0x74, 0x92, 0xB2,
+    0x04, 0x0C, 0x14, 0x1C, 0xCB,  //
+    0x92, 0xB2,
 };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \

@@ -12,10 +12,10 @@ CF = (1<<0) # Carry
 ZF = (1<<1) # Zero
 IF = (1<<2) # IRQ disable
 DF = (1<<3) # Decimal mode
-BF = (1<<4) # Break - Emulation
-XF = (1<<4) # Index Register Select - Native
-UF = (1<<5) # Unused - Emulated
-MF = (1<<5) # Memory Select - Native
+BF = (1<<4) # Break (Emulation)
+XF = (1<<4) # Index Register Select (Native)
+UF = (1<<5) # Unused (Emulated)
+MF = (1<<5) # Memory Select (Native)
 VF = (1<<6) # Overflow
 NF = (1<<7) # Negative
 
@@ -92,11 +92,11 @@ ops = [
     [
         # ---         BIT          JMP          JMP()        STY          LDY          CPY          CPX
         [[A_STS,M___],[A_JSR,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_DIR,M_R_],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M_R_],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
+        [[A_DIR,M_R_],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_R_],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
-        [[A_DIR,M_R_],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M_R_],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_DIR,M_R_],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_R_],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
     ],
@@ -115,13 +115,13 @@ ops = [
     # cc = 02
     [
         # ASL         ROL          LSR          ROR          STX          LDX          DEC          INC
-        [[A_STS,M_RW],[A_ALN,M_RW],[A_IMP,M_RW],[A_STC,M_RW],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
+        [[A_STS,M_RW],[A_ALN,M_RW],[A_IMM,M___],[A_STC,M_RW],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M___],[A_IMM,M___]],
         [[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_RW],[A_DIR,M_RW]],
         [[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
         [[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M__W],[A_DID,M_R_],[A_DID,M_RW],[A_DID,M_RW]],
         [[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIY,M__W],[A_DIY,M_R_],[A_DIX,M_RW],[A_DIX,M_RW]],
-        [[A_ACC,M_R_],[A_ACC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_IMP,M___],[A_IMP,M___],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_ACC,M_R_],[A_ACC,M_R_],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_STC,M__W],[A_STC,M___]],
         [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
     ],
     # cc = 03
@@ -132,7 +132,7 @@ ops = [
         [[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_RW],[A_ALN,M_RW]],
         [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
         [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
-        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M__W],[A_IMP,M_R_],[A_IMP,M_RW],[A_IMP,M___]],
+        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
         [[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_RW],[A_ALX,M_RW]]
     ]
 ]
@@ -200,7 +200,7 @@ def enc_addr(op, addr_mode, mem_access):
     if addr_mode == A_STS:
         # INT signature byte, not used but puts the PC on the address bus without
         # incrementing the PC
-        op.t('_VPA();_SA(c->PC);')
+        op.t('if(0==c->brk_flags){_VPA();}_SA(c->PC);')
     elif addr_mode == A_IMM or addr_mode == A_PCR:
         # immediate mode
         op.t('_VPA();_SA(c->PC++);')
@@ -287,13 +287,13 @@ def i_brk(o):
 
 #-------------------------------------------------------------------------------
 def i_cop(o):
-    u_cmt(o,'COP')
-    o.t('')
-
-#-------------------------------------------------------------------------------
-def i_wdm(o):
-    u_cmt(o,'WDM')
-    o.t('')
+    cmt(o,'COP')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC>>8);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->PC);_WR();')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->P|W65816_UF);_WR();c->AD=0xFFF4;')
+    o.t('_VDA();_SA(c->AD++);c->P|=W65816_IF;c->brk_flags=0; /* RES/NMI hijacking */')
+    o.t('_VDA();_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
+    o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_wai(o):
@@ -316,6 +316,11 @@ def u_nop(o):
     o.t('')
 
 #-------------------------------------------------------------------------------
+def i_wdm(o):
+    cmt(o,'WDM')
+    o.t('')
+
+#-------------------------------------------------------------------------------
 def i_lda(o):
     cmt(o,'LDA')
     o.t('c->A=_GD();_NZ(c->A);')
@@ -332,8 +337,8 @@ def i_ldy(o):
 
 #-------------------------------------------------------------------------------
 def i_stz(o):
-    u_cmt(o,'STZ')
-    o.ta('')
+    cmt(o,'STZ')
+    o.ta('_VDA();_SD(0);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
@@ -367,8 +372,8 @@ def i_txa(o):
 
 #-------------------------------------------------------------------------------
 def i_txy(o):
-    u_cmt(o,'TXY')
-    o.t('')
+    cmt(o,'TXY')
+    o.t('c->Y=c->X;_NZ(c->Y);')
 
 #-------------------------------------------------------------------------------
 def i_tya(o):
@@ -377,8 +382,8 @@ def i_tya(o):
 
 #-------------------------------------------------------------------------------
 def i_tyx(o):
-    u_cmt(o,'TYX')
-    o.t('')
+    cmt(o,'TYX')
+    o.t('c->X=c->Y;_NZ(c->X);')
 
 #-------------------------------------------------------------------------------
 def i_txs(o):
@@ -438,8 +443,8 @@ def i_php(o):
 #-------------------------------------------------------------------------------
 def i_plp(o):
     cmt(o,'PLP')
-    o.t('_SA(0x0100|c->S++);')   # read junk byte from current SP
-    o.t('_VDA();_SA(0x0100|c->S);')     # read actual byte
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
     o.t('c->P=(_GD()|W65816_BF)&~W65816_UF;');
 
 #-------------------------------------------------------------------------------
@@ -450,29 +455,33 @@ def i_pha(o):
 #-------------------------------------------------------------------------------
 def i_pla(o):
     cmt(o,'PLA')
-    o.t('_SA(0x0100|c->S++);') # read junk byte from current SP
-    o.t('_VDA();_SA(0x0100|c->S);')   # read actual byte
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
     o.t('c->A=_GD();_NZ(c->A);')
 
 #-------------------------------------------------------------------------------
 def i_phx(o):
-    u_cmt(o,'PHX')
-    o.t('')
+    cmt(o,'PHX')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->X);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_plx(o):
-    u_cmt(o,'PLX')
-    o.t('')
+    cmt(o,'PLX')
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
+    o.t('c->X=_GD();_NZ(c->X);')
 
 #-------------------------------------------------------------------------------
 def i_phy(o):
-    u_cmt(o,'PHY')
-    o.t('')
+    cmt(o,'PHY')
+    o.t('_VDA();_SAD(0x0100|c->S--,c->Y);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_ply(o):
-    u_cmt(o,'PLY')
-    o.t('')
+    cmt(o,'PLY')
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    o.t('_VDA();_SA(0x0100|++c->S);')   # read actual byte
+    o.t('c->Y=_GD();_NZ(c->Y);')
 
 #-------------------------------------------------------------------------------
 def i_phb(o):
@@ -526,13 +535,15 @@ def i_cl(o, f):
 
 #-------------------------------------------------------------------------------
 def i_sep(o):
-    u_cmt(o,'SEP')
-    o.t('')
+    cmt(o,'SEP')
+    o.t('c->P|=_GD();_SA(c->PC);')
+    o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
 def i_rep(o):
-    u_cmt(o,'REP')
-    o.t('')
+    cmt(o,'REP')
+    o.t('c->P&=~_GD();_SA(c->PC);')
+    o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
 def i_br(o, m, v):
