@@ -599,7 +599,7 @@ static webapi_cpu_state_t web_dbg_cpu_state(void) {
     return (webapi_cpu_state_t){
         .items = {
             [WEBAPI_CPUSTATE_TYPE] = WEBAPI_CPUTYPE_6502,
-            [WEBAPI_CPUSTATE_6502_A] = cpu->A,
+            [WEBAPI_CPUSTATE_6502_A] = cpu->C,
             [WEBAPI_CPUSTATE_6502_X] = cpu->X,
             [WEBAPI_CPUSTATE_6502_Y] = cpu->Y,
             [WEBAPI_CPUSTATE_6502_S] = cpu->S,

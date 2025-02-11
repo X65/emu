@@ -124,7 +124,7 @@ void ui_w65816_discard(ui_w65816_t* win) {
 
 static void _ui_w65816_regs(ui_w65816_t* win) {
     w65816_t* cpu = win->cpu;
-    ImGui::Text("A:  %02X", cpu->A);
+    ImGui::Text("C:  %04X  (B:%02X A:%02X)", cpu->C, cpu->C>>8, cpu->C&0xFF);
     ImGui::Text("X:  %02X", cpu->X);
     ImGui::Text("Y:  %02X", cpu->Y);
     ImGui::Text("S:  %02X", cpu->S);

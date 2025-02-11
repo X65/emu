@@ -1630,14 +1630,15 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
     #elif defined(UI_DBG_USE_W65C816S)
         w65816_t* c = win->dbg.w65816;
         if (ImGui::BeginTable("##reg_columns", 7)) {
-            for (int i = 0; i < 5; i++) {
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
+            for (int i = 1; i < 5; i++) {
                 ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
             }
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 72);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            w65816_set_a(c, ui_util_input_u8("A", w65816_a(c))); ImGui::TableNextColumn();
+            w65816_set_c(c, ui_util_input_u16("C", w65816_c(c))); ImGui::TableNextColumn();
             w65816_set_x(c, ui_util_input_u8("X", w65816_x(c))); ImGui::TableNextColumn();
             w65816_set_y(c, ui_util_input_u8("Y", w65816_y(c))); ImGui::TableNextColumn();
             w65816_set_s(c, ui_util_input_u8("S", w65816_s(c))); ImGui::TableNextColumn();

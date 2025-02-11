@@ -252,7 +252,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xE8, "INX i",       2, 1, true  },
     { 0xE9, "SBC #",       2, 2, true  },
     { 0xEA, "NOP i",       2, 1, true  },
-    { 0xEB, "XBA i",       3, 1, false },
+    { 0xEB, "XBA i",       3, 1, true  },
     { 0xEC, "CPX a",       4, 3, true  },
     { 0xED, "SBC a",       4, 3, true  },
     { 0xEE, "INC a",       6, 3, true  },
