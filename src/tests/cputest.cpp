@@ -28,7 +28,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x08, "PHP s",       3, 1, true  },
     { 0x09, "ORA #",       2, 2, true  },
     { 0x0A, "ASL A",       2, 1, true  },
-    { 0x0B, "PHD s",       4, 1, false },
+    { 0x0B, "PHD s",       4, 1, true  },
     { 0x0C, "TSB a",       6, 3, true  },
     { 0x0D, "ORA a",       4, 3, true  },
     { 0x0E, "ASL a",       6, 3, true  },
@@ -44,7 +44,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x18, "CLC i",       2, 1, true  },
     { 0x19, "ORA a,y",     4, 3, true  },
     { 0x1A, "INC A",       2, 1, true  },
-    { 0x1B, "TCS i",       2, 1, false },
+    { 0x1B, "TCS i",       2, 1, true  },
     { 0x1C, "TRB a",       6, 3, true  },
     { 0x1D, "ORA a,x",     4, 3, true  },
     { 0x1E, "ASL a,x",     7, 3, true  },
@@ -60,7 +60,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x28, "PLP s",       4, 1, true  },
     { 0x29, "AND #",       2, 2, true  },
     { 0x2A, "ROL A",       2, 1, true  },
-    { 0x2B, "PLD s",       5, 1, false },
+    { 0x2B, "PLD s",       5, 1, true  },
     { 0x2C, "BIT a",       4, 3, true  },
     { 0x2D, "AND a",       4, 3, true  },
     { 0x2E, "ROL a",       6, 3, true  },
@@ -76,7 +76,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x38, "SEC i",       2, 1, true  },
     { 0x39, "AND a,y",     4, 3, true  },
     { 0x3A, "DEC A",       2, 1, true  },
-    { 0x3B, "TSC i",       2, 1, false },
+    { 0x3B, "TSC i",       2, 1, true  },
     { 0x3C, "BIT a,x",     4, 3, true  },
     { 0x3D, "AND a,x",     4, 3, true  },
     { 0x3E, "ROL a,x",     7, 3, true  },
@@ -92,7 +92,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x48, "PHA s",       3, 1, true  },
     { 0x49, "EOR #",       2, 2, true  },
     { 0x4A, "LSR A",       2, 1, true  },
-    { 0x4B, "PHK s",       3, 1, false },
+    { 0x4B, "PHK s",       3, 1, true  },
     { 0x4C, "JMP a",       3, 3, true  },
     { 0x4D, "EOR a",       4, 3, true  },
     { 0x4E, "LSR a",       6, 3, true  },
@@ -108,7 +108,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x58, "CLI i",       2, 1, true  },
     { 0x59, "EOR a,y",     4, 3, true  },
     { 0x5A, "PHY s",       3, 1, true  },
-    { 0x5B, "TCD i",       2, 1, false },
+    { 0x5B, "TCD i",       2, 1, true  },
     { 0x5C, "JMP al",      4, 4, false },
     { 0x5D, "EOR a,x",     4, 3, true  },
     { 0x5E, "LSR a,x",     7, 3, true  },
@@ -140,7 +140,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x78, "SEI i",       2, 1, true  },
     { 0x79, "ADC a,y",     4, 3, true  },
     { 0x7A, "PLY s",       4, 1, true  },
-    { 0x7B, "TDC i",       2, 1, false },
+    { 0x7B, "TDC i",       2, 1, true  },
     { 0x7C, "JMP (a,x)",   6, 3, true  },
     { 0x7D, "ADC a,x",     4, 3, true  },
     { 0x7E, "ROR a,x",     7, 3, true  },
@@ -156,7 +156,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x88, "DEY i",       2, 1, true  },
     { 0x89, "BIT #",       2, 2, true  },
     { 0x8A, "TXA i",       2, 1, true  },
-    { 0x8B, "PHB s",       3, 1, false },
+    { 0x8B, "PHB s",       3, 1, true  },
     { 0x8C, "STY a",       4, 3, true  },
     { 0x8D, "STA a",       4, 3, true  },
     { 0x8E, "STX a",       4, 3, true  },
@@ -188,7 +188,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xA8, "TAY i",       2, 1, true  },
     { 0xA9, "LDA #",       2, 2, true  },
     { 0xAA, "TAX i",       2, 1, true  },
-    { 0xAB, "PLB s",       4, 1, false },
+    { 0xAB, "PLB s",       4, 1, true  },
     { 0xAC, "LDY a",       4, 3, true  },
     { 0xAD, "LDA a",       4, 3, true  },
     { 0xAE, "LDX a",       4, 3, true  },
@@ -277,8 +277,9 @@ initializer_list<instr_data> INSTR_MATRIX = {
 
 // Skip failing tests for unimplemented instructions.
 const int UNIMPL_skip[] = {
-    0x04, 0x0C, 0x14, 0x1C, 0xCB,  //
-    0x92, 0xB2,
+    0xCB,  //
+    0x92,
+    0xB2,
 };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \
@@ -374,5 +375,8 @@ TEST_CASE("testing instruction matrix") {
         CAPTURE(mem_run);
 
         CHECK(mem_run == instr_mem);
+
+        // CHECK((pins & W65816_VPA));
+        // CHECK((pins & W65816_VDA));
     }
 }

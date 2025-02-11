@@ -92,13 +92,13 @@ ops = [
     [
         # ---         BIT          JMP          JMP()        STY          LDY          CPY          CPX
         [[A_STS,M___],[A_JSR,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_DIR,M_R_],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
+        [[A_DIR,M_RW],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
-        [[A_ABS,M_R_],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
+        [[A_ABS,M_RW],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
-        [[A_DIR,M_R_],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
-        [[A_ABS,M_R_],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
+        [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
     ],
     # cc = 01
     [
@@ -121,18 +121,18 @@ ops = [
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
         [[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M__W],[A_DID,M_R_],[A_DID,M_RW],[A_DID,M_RW]],
         [[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIY,M__W],[A_DIY,M_R_],[A_DIX,M_RW],[A_DIX,M_RW]],
-        [[A_ACC,M_R_],[A_ACC,M_R_],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_STC,M__W],[A_STC,M___]],
+        [[A_ACC,M___],[A_ACC,M_R_],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_STC,M__W],[A_STC,M___]],
         [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
     ],
     # cc = 03
     [
         [[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_RW],[A_STR,M_RW]],
         [[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_RW],[A_DIL,M_RW]],
-        [[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
+        [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_RW],[A_ALN,M_RW]],
         [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
         [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
-        [[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
+        [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
         [[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_RW],[A_ALX,M_RW]]
     ]
 ]
@@ -397,33 +397,35 @@ def i_tsx(o):
 
 #-------------------------------------------------------------------------------
 def i_tsc(o):
-    u_cmt(o,'TSC')
-    o.t('')
+    cmt(o,'TSC')
+    o.t('c->C=c->S;_NZ(c->C);')
 
 #-------------------------------------------------------------------------------
 def i_tcs(o):
-    u_cmt(o,'TCS')
-    o.t('')
+    cmt(o,'TCS')
+    o.t('c->S=c->C;')
 
 #-------------------------------------------------------------------------------
 def i_tsb(o):
-    u_cmt(o,'TSB')
-    o.t('')
+    cmt(o,'TSB')
+    o.t('c->AD=_GD();if(_E(c)){_WR();}')
+    o.t('_VDA();_SD(_A(c)|c->AD);_WR();_Z(_A(c)&c->AD);')
 
 #-------------------------------------------------------------------------------
 def i_trb(o):
-    u_cmt(o,'TRB')
-    o.t('')
+    cmt(o,'TRB')
+    o.t('c->AD=_GD();if(_E(c)){_WR();}')
+    o.t('_VDA();_SD(~_A(c)&c->AD);_WR();_Z(_A(c)&c->AD);')
 
 #-------------------------------------------------------------------------------
 def i_tcd(o):
-    u_cmt(o,'TCD')
-    o.t('')
+    cmt(o,'TCD')
+    o.t('c->D=c->C;_NZ(c->C);')
 
 #-------------------------------------------------------------------------------
 def i_tdc(o):
-    u_cmt(o,'TDC')
-    o.t('')
+    cmt(o,'TDC')
+    o.t('c->C=c->D;_NZ(c->C);')
 
 #-------------------------------------------------------------------------------
 def i_xba(o):
@@ -486,28 +488,39 @@ def i_ply(o):
 
 #-------------------------------------------------------------------------------
 def i_phb(o):
-    u_cmt(o,'PHB')
-    o.t('')
+    cmt(o,'PHB')
+    o.t('_VDA();_SAD(0x0100|_S(c)--,c->DBR);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_plb(o):
-    u_cmt(o,'PLB')
-    o.t('')
-
-#-------------------------------------------------------------------------------
-def i_phd(o):
-    u_cmt(o,'PHD')
-    o.t('')
-
-#-------------------------------------------------------------------------------
-def i_pld(o):
-    u_cmt(o,'PLD')
-    o.t('')
+    cmt(o,'PLB')
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    o.t('_VDA();_SA(0x0100|++_S(c));')   # read actual byte
+    o.t('c->DBR=_GD();_NZ(c->DBR);')
 
 #-------------------------------------------------------------------------------
 def i_phk(o):
-    u_cmt(o,'PHK')
-    o.t('')
+    cmt(o,'PHK')
+    o.t('_VDA();_SAD(0x0100|_S(c)--,c->PBR);_WR();')
+
+#-------------------------------------------------------------------------------
+def i_phd(o):
+    cmt(o,'PHD')
+    # write Direct page high byte to stack
+    o.t('_VDA();_SAD(0x0100|_S(c)--,c->D>>8);_WR();')
+    # write Direct page low byte to stack
+    o.t('_VDA();_SAD(0x0100|_S(c)--,c->D);_WR();')
+
+#-------------------------------------------------------------------------------
+def i_pld(o):
+    cmt(o,'PLD')
+    o.t('_SA(c->PC);') # read junk byte from current PC
+    # load D low byte from stack
+    o.t('_VDA();_SA(0x0100|_S(c)++);')
+    # load D high byte from stack
+    o.t('_VDA();_SA(0x0100|_S(c));c->AD=_GD();')
+    # put address in D
+    o.t('c->D=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_pea(o):
@@ -707,24 +720,24 @@ def i_cpy(o):
 #-------------------------------------------------------------------------------
 def i_dec(o):
     cmt(o,'DEC')
-    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('c->AD=_GD();if(_E(c)){_WR();}')
     o.t('_VDA();c->AD--;_NZ(c->AD);_SD(c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_inc(o):
     cmt(o,'INC')
-    o.t('_VDA();c->AD=_GD();_WR();')
+    o.t('c->AD=_GD();if(_E(c)){_WR();}')
     o.t('_VDA();c->AD++;_NZ(c->AD);_SD(c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_inca(o):
-    u_cmt(o,'INC')
-    o.t('')
+    cmt(o,'INC')
+    o.t('_A(c)++;_NZ(_A(c));')
 
 #-------------------------------------------------------------------------------
 def i_deca(o):
-    u_cmt(o,'DEC')
-    o.t('')
+    cmt(o,'DEC')
+    o.t('_A(c)--;_NZ(_A(c));')
 
 #-------------------------------------------------------------------------------
 def i_dex(o):
