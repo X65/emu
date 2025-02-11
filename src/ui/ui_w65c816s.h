@@ -127,7 +127,7 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     ImGui::Text("C:  %04X  (B:%02X A:%02X)", cpu->C, cpu->C>>8, cpu->C&0xFF);
     ImGui::Text("X:  %04X", cpu->X);
     ImGui::Text("Y:  %04X", cpu->Y);
-    ImGui::Text("S:  %02X", cpu->S);
+    ImGui::Text("S:  %04X", cpu->S);
     const uint8_t f = cpu->P;
     char f_str[9] = {
         (f & W65816_NF) ? 'N':'-',
