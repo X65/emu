@@ -1419,7 +1419,7 @@ static void _ui_dbg_uistate_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     ui->stopwatch.open = ui->stopwatch.last_open = false;
     ui->init_x = (float) desc->x;
     ui->init_y = (float) desc->y;
-    ui->init_w = (float) ((desc->w == 0) ? 530 : desc->w);
+    ui->init_w = (float) ((desc->w == 0) ? 544 : desc->w);
     ui->init_h = (float) ((desc->h == 0) ? 440 : desc->h);
     ui->show_regs = true;
     ui->show_buttons = true;
@@ -1638,7 +1638,7 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 72);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             w65816_set_c(c, ui_util_input_u16("C", w65816_c(c))); ImGui::TableNextColumn();
@@ -1650,11 +1650,12 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
             w65816_set_pc(c, ui_util_input_u16("PC", w65816_pc(c))); ImGui::TableNextColumn();
             w65816_set_db(c, ui_util_input_u8("DB", w65816_db(c))); ImGui::TableNextColumn();
             const uint8_t p = w65816_p(c);
+            const uint8_t e = w65816_p(c);
             char p_str[9] = {
                 (p & W65816_NF) ? 'N':'-',
                 (p & W65816_VF) ? 'V':'-',
-                (p & W65816_UF) ? '1':'-',
-                (p & W65816_BF) ? 'B':'-',
+                e ? ((p & W65816_UF) ? '1':'-') : ((p & W65816_MF) ? 'M':'-'),
+                e ? ((p & W65816_BF) ? 'B':'-') : ((p & W65816_XF) ? 'X':'-'),
                 (p & W65816_DF) ? 'D':'-',
                 (p & W65816_IF) ? 'I':'-',
                 (p & W65816_ZF) ? 'Z':'-',

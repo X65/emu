@@ -335,6 +335,7 @@ void w65816_set_x(w65816_t* cpu, uint16_t v);
 void w65816_set_y(w65816_t* cpu, uint16_t v);
 void w65816_set_s(w65816_t* cpu, uint16_t v);
 void w65816_set_p(w65816_t* cpu, uint8_t v);
+void w65816_set_e(w65816_t* cpu, bool v);
 void w65816_set_pc(w65816_t* cpu, uint16_t v);
 void w65816_set_pb(w65816_t* cpu, uint8_t v);
 void w65816_set_db(w65816_t* cpu, uint8_t v);
@@ -345,6 +346,7 @@ uint16_t w65816_x(w65816_t* cpu);
 uint16_t w65816_y(w65816_t* cpu);
 uint16_t w65816_s(w65816_t* cpu);
 uint8_t w65816_p(w65816_t* cpu);
+bool w65816_e(w65816_t* cpu);
 uint16_t w65816_pc(w65816_t* cpu);
 uint8_t w65816_pb(w65816_t* cpu);
 uint8_t w65816_db(w65816_t* cpu);
@@ -399,6 +401,7 @@ void w65816_set_x(w65816_t* cpu, uint16_t v) { cpu->X = v; }
 void w65816_set_y(w65816_t* cpu, uint16_t v) { cpu->Y = v; }
 void w65816_set_s(w65816_t* cpu, uint16_t v) { cpu->S = v; }
 void w65816_set_p(w65816_t* cpu, uint8_t v) { cpu->P = v; }
+void w65816_set_e(w65816_t* cpu, bool v) { cpu->emulation = v; }
 void w65816_set_pc(w65816_t* cpu, uint16_t v) { cpu->PC = v; }
 void w65816_set_pb(w65816_t* cpu, uint8_t v) { cpu->PBR = v; }
 void w65816_set_db(w65816_t* cpu, uint8_t v) { cpu->DBR = v; }
@@ -409,6 +412,7 @@ uint16_t w65816_x(w65816_t* cpu) { return cpu->X; }
 uint16_t w65816_y(w65816_t* cpu) { return cpu->Y; }
 uint16_t w65816_s(w65816_t* cpu) { return cpu->S; }
 uint8_t w65816_p(w65816_t* cpu) { return cpu->P; }
+bool w65816_e(w65816_t* cpu) { return cpu->emulation; }
 uint16_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
 uint8_t w65816_pb(w65816_t* cpu) { return cpu->PBR; }
 uint8_t w65816_db(w65816_t* cpu) { return cpu->DBR; }
@@ -560,6 +564,10 @@ static inline void _w65816_xce(w65816_t* cpu) {
     if (e) {
         cpu->P |= W65816_CF;
     }
+
+    if (!cpu->emulation) {
+        cpu->P |= W65816_MF|W65816_XF;
+    }
 }
 
 static inline void _w65816_xba(w65816_t* cpu) {
@@ -688,7 +696,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x00<<3)|1: _VDA();if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<3)|2: _VDA();_SAD(0x0100|_S(c)--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<3)|3: _VDA();_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}break;
-        case (0x00<<3)|4: _VDA();_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x00<<3)|4: _VDA();_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x00<<3)|5: _VDA();_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x00<<3)|6: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x00<<3)|7: assert(false);break;
@@ -706,7 +714,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x02<<3)|1: _VDA();_SAD(0x0100|_S(c)--,c->PC>>8);_WR();break;
         case (0x02<<3)|2: _VDA();_SAD(0x0100|_S(c)--,c->PC);_WR();break;
         case (0x02<<3)|3: _VDA();_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=0xFFF4;break;
-        case (0x02<<3)|4: _VDA();_SA(c->AD++);c->P|=W65816_IF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x02<<3)|4: _VDA();_SA(c->AD++);c->P|=W65816_IF;c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x02<<3)|5: _VDA();_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x02<<3)|6: c->PC=(_GD()<<8)|c->AD;break;
         case (0x02<<3)|7: _FETCH();break;
@@ -2997,6 +3005,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         // CPU is in Emulation mode
         // Stack is confined to page 01
         c->S = 0x0100 | (c->S&0xFF);
+        // Unused flag is always 1
+        c->P |= W65816_UF;
     }
     if (c->emulation | (c->P & W65816_XF)) {
         // CPU is in Emulation mode or registers are in eight-bit mode (X=1)
