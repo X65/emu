@@ -561,7 +561,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
             _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR(",S),Y");
             break;
         case A_BMV: /* xyc     - Block Move */
-            _CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8); _FETCH_U8(u8); _STR(", #"); _STR_U8(u8);
+            _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _FETCH_U8(u8); _STR(", "); _STR_U8(u8);
             break;
         case A_ALX: /* al,x    - Absolute Long Indexed with X */
         case A_ALN: /* al      - Absolute Long */

@@ -277,14 +277,17 @@ extern "C" {
 #define W65816_PIN_MASK ((1ULL<<40)-1)
 
 /* status indicator flags */
-#define W65816_CF    (1<<0)  /* carry */
-#define W65816_ZF    (1<<1)  /* zero */
+#define W65816_EF    (1<<0)  /* Emulation */
+#define W65816_CF    (1<<0)  /* Carry */
+#define W65816_ZF    (1<<1)  /* Zero */
 #define W65816_IF    (1<<2)  /* IRQ disable */
-#define W65816_DF    (1<<3)  /* decimal mode */
-#define W65816_BF    (1<<4)  /* BRK command */
-#define W65816_UF    (1<<5)  /* unused */
-#define W65816_VF    (1<<6)  /* overflow */
-#define W65816_NF    (1<<7)  /* negative */
+#define W65816_DF    (1<<3)  /* Decimal mode */
+#define W65816_BF    (1<<4)  /* BRK command (Emulation) */
+#define W65816_XF    (1<<4)  /* Index Register Select (Native) */
+#define W65816_UF    (1<<5)  /* Unused (Emulated) */
+#define W65816_MF    (1<<5)  /* Memory Select (Native) */
+#define W65816_VF    (1<<6)  /* Overflow */
+#define W65816_NF    (1<<7)  /* Negative */
 
 /* internal BRK state flags */
 #define W65816_BRK_IRQ   (1<<0)  /* IRQ was triggered */
@@ -303,7 +306,7 @@ typedef struct {
     uint16_t AD;        /* ADL/ADH internal register */
     uint16_t C;         /* BA=C accumulator */
     uint16_t X,Y;       /* index registers */
-    uint8_t DBR,PBR;    /* Bank registers */
+    uint8_t DBR,PBR;    /* Bank registers (Data, Program) */
     uint16_t D;         /* Direct register */
     uint8_t P;          /* Processor status register */
     uint16_t S;         /* Stack pointer */
@@ -332,7 +335,9 @@ void w65816_set_x(w65816_t* cpu, uint16_t v);
 void w65816_set_y(w65816_t* cpu, uint16_t v);
 void w65816_set_s(w65816_t* cpu, uint16_t v);
 void w65816_set_p(w65816_t* cpu, uint8_t v);
-void w65816_set_pc(w65816_t* cpu, uint32_t v);
+void w65816_set_pc(w65816_t* cpu, uint16_t v);
+void w65816_set_pb(w65816_t* cpu, uint8_t v);
+void w65816_set_db(w65816_t* cpu, uint8_t v);
 uint8_t w65816_a(w65816_t* cpu);
 uint8_t w65816_b(w65816_t* cpu);
 uint16_t w65816_c(w65816_t* cpu);
@@ -340,7 +345,9 @@ uint16_t w65816_x(w65816_t* cpu);
 uint16_t w65816_y(w65816_t* cpu);
 uint16_t w65816_s(w65816_t* cpu);
 uint8_t w65816_p(w65816_t* cpu);
-uint32_t w65816_pc(w65816_t* cpu);
+uint16_t w65816_pc(w65816_t* cpu);
+uint8_t w65816_pb(w65816_t* cpu);
+uint8_t w65816_db(w65816_t* cpu);
 
 /* extract 24-bit address bus from 64-bit pins */
 #define W65816_GET_ADDR(p) ((uint32_t)((p)&0xFFFFULL)|(uint32_t)((p>>16)&0xFF0000ULL))
@@ -392,7 +399,9 @@ void w65816_set_x(w65816_t* cpu, uint16_t v) { cpu->X = v; }
 void w65816_set_y(w65816_t* cpu, uint16_t v) { cpu->Y = v; }
 void w65816_set_s(w65816_t* cpu, uint16_t v) { cpu->S = v; }
 void w65816_set_p(w65816_t* cpu, uint8_t v) { cpu->P = v; }
-void w65816_set_pc(w65816_t* cpu, uint32_t v) { cpu->PC = v; }
+void w65816_set_pc(w65816_t* cpu, uint16_t v) { cpu->PC = v; }
+void w65816_set_pb(w65816_t* cpu, uint8_t v) { cpu->PBR = v; }
+void w65816_set_db(w65816_t* cpu, uint8_t v) { cpu->DBR = v; }
 uint8_t w65816_a(w65816_t* cpu) { return _A(cpu); }
 uint8_t w65816_b(w65816_t* cpu) { return _B(cpu); }
 uint16_t w65816_c(w65816_t* cpu) { return cpu->C; }
@@ -400,7 +409,9 @@ uint16_t w65816_x(w65816_t* cpu) { return cpu->X; }
 uint16_t w65816_y(w65816_t* cpu) { return cpu->Y; }
 uint16_t w65816_s(w65816_t* cpu) { return cpu->S; }
 uint8_t w65816_p(w65816_t* cpu) { return cpu->P; }
-uint32_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
+uint16_t w65816_pc(w65816_t* cpu) { return cpu->PC; }
+uint8_t w65816_pb(w65816_t* cpu) { return cpu->PBR; }
+uint8_t w65816_db(w65816_t* cpu) { return cpu->DBR; }
 
 /* helper macros and functions for code-generated instruction decoder */
 #define _W65816_NZ(p,v) ((p&~(W65816_NF|W65816_ZF))|((v&0xFF)?(v&W65816_NF):W65816_ZF))
@@ -578,6 +589,8 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 
 /* set 16-bit address in 64-bit pin mask */
 #define _SA(addr) pins=(pins&~0xFFFF)|((addr)&0xFFFFULL)
+/* set 8-bit bank address in 64-bit pin mask */
+#define _SB(addr) pins=(pins&~0xFF00000000)|(((addr)&0xFFULL)<<32)
 /* extract 16-bit addess from pin mask */
 #define _GA() ((uint16_t)(pins&0xFFFFULL))
 /* set 16-bit address and 8-bit data in 64-bit pin mask */
@@ -1282,14 +1295,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x43<<3)|5: assert(false);break;
         case (0x43<<3)|6: assert(false);break;
         case (0x43<<3)|7: assert(false);break;
-    /* MVP xyc (unimpl) */
-        case (0x44<<3)|0: _FETCH();break;
-        case (0x44<<3)|1: assert(false);break;
-        case (0x44<<3)|2: assert(false);break;
-        case (0x44<<3)|3: assert(false);break;
-        case (0x44<<3)|4: assert(false);break;
-        case (0x44<<3)|5: assert(false);break;
-        case (0x44<<3)|6: assert(false);break;
+    /* MVP xyc */
+        case (0x44<<3)|0: _VPA();_SA(c->PC++);break;
+        case (0x44<<3)|1: _VPA();c->DBR=_GD();_SA(c->PC);break;
+        case (0x44<<3)|2: _VDA();_SB(_GD());_SA(c->X--);break;
+        case (0x44<<3)|3: _VDA();_SB(c->DBR);_SA(c->Y--);_WR();break;
+        case (0x44<<3)|4: if(c->C){c->PC--;}break;
+        case (0x44<<3)|5: c->C--?c->PC--:c->PC++;break;
+        case (0x44<<3)|6: _FETCH();break;
         case (0x44<<3)|7: assert(false);break;
     /* EOR d */
         case (0x45<<3)|0: _VPA();_SA(c->PC++);break;
@@ -1426,14 +1439,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x53<<3)|5: assert(false);break;
         case (0x53<<3)|6: assert(false);break;
         case (0x53<<3)|7: assert(false);break;
-    /* MVN xyc (unimpl) */
-        case (0x54<<3)|0: _FETCH();break;
-        case (0x54<<3)|1: assert(false);break;
-        case (0x54<<3)|2: assert(false);break;
-        case (0x54<<3)|3: assert(false);break;
-        case (0x54<<3)|4: assert(false);break;
-        case (0x54<<3)|5: assert(false);break;
-        case (0x54<<3)|6: assert(false);break;
+    /* MVN xyc */
+        case (0x54<<3)|0: _VPA();_SA(c->PC++);break;
+        case (0x54<<3)|1: _VPA();c->DBR=_GD();_SA(c->PC);break;
+        case (0x54<<3)|2: _VDA();_SB(_GD());_SA(c->X++);break;
+        case (0x54<<3)|3: _VDA();_SB(c->DBR);_SA(c->Y++);_WR();break;
+        case (0x54<<3)|4: if(c->C){c->PC--;}break;
+        case (0x54<<3)|5: c->C--?c->PC--:c->PC++;break;
+        case (0x54<<3)|6: _FETCH();break;
         case (0x54<<3)|7: assert(false);break;
     /* EOR d,x */
         case (0x55<<3)|0: _VPA();_SA(c->PC++);break;
@@ -2981,7 +2994,15 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     c->irq_pip <<= 1;
     c->nmi_pip <<= 1;
     if (c->emulation) {
+        // CPU is in Emulation mode
+        // Stack is confined to page 01
         c->S = 0x0100 | (c->S&0xFF);
+    }
+    if (c->emulation | (c->P & W65816_XF)) {
+        // CPU is in Emulation mode or registers are in eight-bit mode (X=1)
+        // the index registers high byte are zero
+        c->X = c->X & 0xFF;
+        c->Y = c->Y & 0xFF;
     }
     return pins;
 }

@@ -92,11 +92,11 @@ ops = [
     [
         # ---         BIT          JMP          JMP()        STY          LDY          CPY          CPX
         [[A_STS,M___],[A_JSR,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
-        [[A_DIR,M_RW],[A_DIR,M_R_],[A_BMV,M_R_],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
+        [[A_DIR,M_RW],[A_DIR,M_R_],[A_BMV,M_RW],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
-        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_R_],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
+        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
     ],
@@ -810,13 +810,35 @@ def i_bit(o):
 
 #-------------------------------------------------------------------------------
 def i_mvp(o):
-    u_cmt(o,'MVP')
-    o.t('')
+    cmt(o,'MVP')
+    # read destination bank address
+    o.t('_VPA();_SA(c->PC++);')
+    # read source bank address
+    o.t('_VPA();c->DBR=_GD();_SA(c->PC);')
+    # read source data
+    o.t('_VDA();_SB(_GD());_SA(c->X--);')
+    # write destination data
+    o.t('_VDA();_SB(c->DBR);_SA(c->Y--);_WR();')
+    # move back PC, still addressing destination
+    o.t('if(c->C){c->PC--;}')
+    # move to next, still addressing destination
+    o.t('c->C--?c->PC--:c->PC++;')
 
 #-------------------------------------------------------------------------------
 def i_mvn(o):
-    u_cmt(o,'MVN')
-    o.t('')
+    cmt(o,'MVN')
+    # read destination bank address
+    o.t('_VPA();_SA(c->PC++);')
+    # read source bank address
+    o.t('_VPA();c->DBR=_GD();_SA(c->PC);')
+    # read source data
+    o.t('_VDA();_SB(_GD());_SA(c->X++);')
+    # write destination data
+    o.t('_VDA();_SB(c->DBR);_SA(c->Y++);_WR();')
+    # move back PC, still addressing destination
+    o.t('if(c->C){c->PC--;}')
+    # move to next, still addressing destination
+    o.t('c->C--?c->PC--:c->PC++;')
 
 #-------------------------------------------------------------------------------
 def enc_op(op):
