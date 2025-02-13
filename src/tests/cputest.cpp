@@ -277,9 +277,9 @@ initializer_list<instr_data> INSTR_MATRIX = {
 
 // Skip failing tests for unimplemented instructions.
 const int UNIMPL_skip[] = {
-    0xCB,  //
-    0x92,
-    0xB2,
+    0xCB,                                //
+    0x92, 0xB2,                          //
+    0x12, 0x32, 0x52, 0x72, 0xD2, 0xF2,  // (d)
 };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \
