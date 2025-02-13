@@ -355,6 +355,10 @@ uint8_t w65816_db(w65816_t* cpu);
 #define W65816_GET_ADDR(p) ((uint32_t)((p)&0xFFFFULL)|(uint32_t)((p>>16)&0xFF0000ULL))
 /* merge 24-bit address bus value into 64-bit pins */
 #define W65816_SET_ADDR(p,a) {p=(((p)&~0xFF0000FFFFULL)|((a)&0xFFFFULL)|((a<<16)&0xFF00000000ULL));}
+/* extract 8-bit bank value from 64-bit pins */
+#define W65816_GET_BANK(p) ((uint8_t)(((p)&0xFF00000000ULL)>>32))
+/* merge 8-bit bank value into 64-bit pins */
+#define W65816_SET_BANK(p,a) {p=(((p)&~0xFF00000000ULL)|((a<<32)&0xFF00000000ULL));}
 /* extract 8-bit data bus from 64-bit pins */
 #define W65816_GET_DATA(p) ((uint8_t)(((p)&0xFF0000ULL)>>16))
 /* merge 8-bit data bus value into 64-bit pins */
