@@ -110,7 +110,7 @@ void ui_w65816_init(ui_w65816_t* win, const ui_w65816_desc_t* desc) {
     win->cpu = desc->cpu;
     win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
-    win->init_w = (float) ((desc->w == 0) ? 360 : desc->w);
+    win->init_w = (float) ((desc->w == 0) ? 380 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 440 : desc->h);
     win->open = win->last_open = desc->open;
     win->valid = true;
@@ -140,7 +140,7 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
         (f & W65816_CF) ? 'C':'-',
         0
     };
-    ImGui::Text("P:  %02X %s", f, f_str);
+    ImGui::Text("P:  %02X %s %s %s", f, f_str, (f & W65816_MF) ? "a8" : "a16", (f & W65816_XF) ? "i8" : "i16");
     ImGui::Text("PC: %04X", cpu->PC);
     ImGui::Text("PB: %02X", cpu->PBR);
     ImGui::Text("DB: %02X", cpu->DBR);

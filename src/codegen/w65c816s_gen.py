@@ -204,6 +204,7 @@ def enc_addr(op, addr_mode, mem_access):
     elif addr_mode == A_IMM or addr_mode == A_PCR:
         # immediate mode
         op.t('_VPA();_SA(c->PC++);')
+        return True
     elif addr_mode == A_DIR:
         # direct page
         op.t('_VPA();_SA(c->PC++);')
@@ -212,12 +213,12 @@ def enc_addr(op, addr_mode, mem_access):
         # direct page + X
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA();_SA((c->AD+_X(c))&0x00FF);')
+        op.t('_VDA();if(_E(c)){_SA((c->AD+_X(c))&0x00FF);}else{_SA(c->AD+_X(c));}')
     elif addr_mode == A_DIY:
         # direct page + Y
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA();_SA((c->AD+_Y(c))&0x00FF);')
+        op.t('_VDA();if(_E(c)){_SA((c->AD+_Y(c))&0x00FF);}else{_SA(c->AD+_Y(c));}')
     elif addr_mode == A_ABS:
         # absolute
         op.t('_VPA();_SA(c->PC++);')
@@ -321,39 +322,46 @@ def i_wdm(o):
     o.t('')
 
 #-------------------------------------------------------------------------------
-def i_lda(o):
+def i_lda(o, imm):
     cmt(o,'LDA')
-    o.t('_A(c)=_GD();_NZ(_A(c));')
+    o.t('_A(c)=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA();_SAL(_GAL()+1);') + '}')
+    o.t('_B(c)=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_ldx(o):
+def i_ldx(o, imm):
     cmt(o,'LDX')
-    o.t('_X(c)=_GD();_NZ(_X(c));')
+    o.t('_X(c)=_GD();if(_i8(c)){_NZ(_X(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA();_SAL(_GAL()+1);') + '}')
+    o.t('_XH(c)=_GD();_NZ16(_X(c));')
 
 #-------------------------------------------------------------------------------
-def i_ldy(o):
+def i_ldy(o, imm):
     cmt(o,'LDY')
-    o.t('_Y(c)=_GD();_NZ(_Y(c));')
+    o.t('_Y(c)=_GD();if(_i8(c)){_NZ(_Y(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA();_SAL(_GAL()+1);') + '}')
+    o.t('_YH(c)=_GD();_NZ16(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_stz(o):
     cmt(o,'STZ')
     o.ta('_VDA();_SD(0);_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA();_SALD(_GAL()+1,0);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
     cmt(o,'STA')
     o.ta('_VDA();_SD(_A(c));_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA();_SALD(_GAL()+1,_B(c));_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
     o.ta('_VDA();_SD(_X(c));_WR();')
+    o.t('if(_i8(c)){_FETCH();}else{_VDA();_SALD(_GAL()+1,_XH(c));_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
     o.ta('_VDA();_SD(_Y(c));_WR();')
+    o.t('if(_i8(c)){_FETCH();}else{_VDA();_SALD(_GAL()+1,_YH(c));_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_tax(o):
@@ -854,7 +862,7 @@ def enc_op(op):
     addr_mode = ops[cc][bbb][aaa][0]
     mem_access = ops[cc][bbb][aaa][1]
     # addressing mode
-    enc_addr(o, addr_mode, mem_access);
+    imm = enc_addr(o, addr_mode, mem_access);
     # actual instruction
     if cc == 0:
         if aaa == 0:
@@ -902,7 +910,7 @@ def enc_op(op):
             if bbb == 2:        i_tay(o)
             elif bbb == 4:      i_br(o, CF, CF) # BCS
             elif bbb == 6:      i_cl(o, VF)
-            else:               i_ldy(o)
+            else:               i_ldy(o, imm)
         elif aaa == 6:
             if bbb == 2:        i_iny(o)
             elif bbb == 4:      i_br(o, ZF, 0)  # BNE
@@ -925,7 +933,7 @@ def enc_op(op):
         elif aaa == 4:
             if bbb == 2:    i_bit(o)
             else:           i_sta(o)
-        elif aaa == 5:  i_lda(o)
+        elif aaa == 5:  i_lda(o, imm)
         elif aaa == 6:  i_cmp(o)
         else:           i_sbc(o)
     elif cc == 2:
@@ -962,9 +970,9 @@ def enc_op(op):
             else:           i_stx(o)
         elif aaa == 5:
             if bbb == 2:    i_tax(o)
-            elif bbb == 4:  i_lda(o)
+            elif bbb == 4:  i_lda(o, imm)
             elif bbb == 6:  i_tsx(o)
-            else:           i_ldx(o)
+            else:           i_ldx(o, imm)
         elif aaa == 6:
             if bbb == 0:        i_rep(o)
             elif bbb == 2:      i_dex(o)
@@ -1001,7 +1009,7 @@ def enc_op(op):
         elif aaa == 5:
             if bbb == 2:    i_plb(o)
             elif bbb == 6:  i_tyx(o)
-            else:           i_lda(o)
+            else:           i_lda(o, imm)
         elif aaa == 6:
             if bbb == 2:    i_wai(o)
             elif bbb == 6:  i_stp(o)
