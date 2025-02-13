@@ -14,9 +14,14 @@
 #include "util/w65c816sdasm.h"
 
 #include <argp.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // 16 MBytes of memory
 uint8_t mem[1 << 24] = { 0 };
@@ -28,15 +33,18 @@ static struct argp_option options[] = {
     { "addr", 'a', "HEX", 0, "Load binary file at address" },
     { "reset", 'r', "HEX", 0, "Set reset vector" },
     { "dump", 'd', "HEX", 0, "Print memory value before exit" },
-    { "verbose", 'v', 0, 0, "Produce verbose output" },
-    { "quiet", 'q', 0, 0, "Don't produce any output" },
+    { "quiet", 'q', 0, 0, "Don't produce output" },
     { "silent", 's', 0, OPTION_ALIAS },
+    { "verbose", 'v', 0, 0, "Produce output" },
+    { "input", 'i', "HEX", 0, "Serial input port" },
+    { "output", 'o', "HEX", 0, "Serial output port" },
+    { "crlf", 'l', 0, 0, "Convert input LF to CRLF" },
     { 0 }
 };
 
 struct arguments {
-    int silent, verbose, dump;
-} arguments = { 0, 0, -1 };
+    int silent, dump, input, output, crlf;
+} arguments = { 0, -1, -1, -1, 0 };
 
 uint16_t load_addr = 0;
 
@@ -63,7 +71,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
     switch (key) {
         case 'q':
         case 's': args->silent = 1; break;
-        case 'v': args->verbose = 1; break;
+        case 'v': args->silent = 0; break;
 
         case 'a': load_addr = (uint16_t)strtoul(arg, NULL, 16); break;
         case 'r':
@@ -71,9 +79,19 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
             mem[0xFFFC] = reset_addr & 0xFF;
             mem[0xFFFD] = (reset_addr >> 8) & 0xFF;
             break;
+        case ARGP_KEY_ARG: load_bin(arg, load_addr); break;
+
         case 'd': args->dump = (uint16_t)strtoul(arg, NULL, 16); break;
 
-        case ARGP_KEY_ARG: load_bin(arg, load_addr); break;
+        case 'i':
+            args->input = (uint16_t)strtoul(arg, NULL, 16);
+            args->silent = true;
+            break;
+        case 'o':
+            args->output = (uint16_t)strtoul(arg, NULL, 16);
+            args->silent = true;
+            break;
+        case 'l': args->crlf = 1; break;
 
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -105,6 +123,32 @@ static void dasm_out_cb(char c, void* user_data) {
     *ctx->buffer++ = c;
 }
 
+static struct termios ttysave;
+
+static char pending_char = 0;
+
+void cli_init() {
+    tcgetattr(STDIN_FILENO, &ttysave);
+    // do not wait for ENTER
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty);
+    tty.c_lflag &= ~(ICANON | ECHO);
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 0;
+    tcsetattr(0, TCSANOW, &tty);
+
+    // set STDIN to non-blocking I/O
+    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
+}
+
+void cli_cleanup(int _status, void* _arg) {
+    (void)_status;
+    (void)_arg;
+    // restore terminal settings
+    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) & ~O_NONBLOCK);
+    tcsetattr(STDIN_FILENO, TCSANOW, &ttysave);
+}
+
 void __attribute__((__noreturn__)) exit_with_message(const char* message) {
     fprintf(stderr, "%s\n", message);
     if (arguments.dump >= 0 && arguments.dump < sizeof(mem)) {
@@ -116,6 +160,14 @@ void __attribute__((__noreturn__)) exit_with_message(const char* message) {
 int main(int argc, char* argv[]) {
     args_parse(argc, argv);
 
+    FILE* output = stdout;
+
+    if (arguments.input >= 0) {
+        cli_init();
+        on_exit(cli_cleanup, NULL);
+        output = stderr;
+    }
+
     // initialize the CPU
     w65816_t cpu;
     uint64_t pins = w65816_init(&cpu, &(w65816_desc_t){});
@@ -126,20 +178,50 @@ int main(int argc, char* argv[]) {
         // extract 24-bit address from pin mask
         const uint32_t addr = W65816_GET_ADDR(pins);
         // is this a read?
-        const bool read = pins & W65816_RW;
+        const bool cpu_read = pins & W65816_RW;
         // perform memory access
-        if (read) {
+        if (cpu_read) {
             // a memory read
-            W65816_SET_DATA(pins, mem[addr]);
+            uint8_t data = mem[addr];
+
+            if (arguments.input >= 0 && addr == arguments.input) {
+                data = 0x00;  // by default read "nothing"
+
+                if (pending_char) {
+                    data = pending_char;
+                    pending_char = 0;
+                }
+                else {
+                    static char c;
+                    ssize_t n = read(STDIN_FILENO, &c, 1);
+                    if (n > 0) {
+                        if (arguments.crlf && c == 0x0A) {
+                            // convert LF to CRLF
+                            pending_char = c;  // put away LF for later
+                            c = 0x0D;          // insert CR
+                        }
+                        data = c;
+                    }
+                }
+            }
+
+            W65816_SET_DATA(pins, data);
         }
         else {
             // a memory write
-            mem[addr] = W65816_GET_DATA(pins);
+            uint8_t data = W65816_GET_DATA(pins);
+            if (arguments.output >= 0 && addr == arguments.output) {
+                putc(data, stdout);
+                fflush(stdout);
+            }
+            else {
+                mem[addr] = data;
+            }
         }
 
         uint8_t data = W65816_GET_DATA(pins);
         // reading a new instruction
-        if (read && (pins & W65816_VPA) && (pins & W65816_VDA)) {
+        if (cpu_read && (pins & W65816_VPA) && (pins & W65816_VDA)) {
             // handle special cases
             switch (data) {
                 case 0x00:  // BRK
@@ -151,10 +233,12 @@ int main(int argc, char* argv[]) {
             }
             // exit on infinite loop
             static uint32_t last_addr = 0;
-            if (last_addr == addr) {
+            static uint8_t last_instr = 0;
+            if (last_addr == addr && last_instr != 0x60 /* RTS */) {
                 exit_with_message("Infinite loop detected");
             }
             last_addr = addr;
+            last_instr = data;
 
             // disassemble the instruction
             dasm_context.mem = mem + addr;
@@ -168,9 +252,10 @@ int main(int argc, char* argv[]) {
 
         if (!arguments.silent) {
             // print the current state
-            printf(
+            fprintf(
+                output,
                 "%s%s%s  ADDR: %02X %04X  DATA: %02X\t\tPC: %02X %04X  C: %04X  X: %04X  Y: %04X  SP: %04X  DB: %02X",
-                read ? "R" : "w",
+                cpu_read ? "R" : "w",
                 (pins & W65816_VPA) ? "P" : " ",
                 (pins & W65816_VDA) ? "D" : " ",
                 W65816_GET_BANK(pins),
@@ -184,10 +269,10 @@ int main(int argc, char* argv[]) {
                 w65816_s(&cpu),
                 w65816_db(&cpu));
             if (dasm_buffer[0] != '\0') {
-                printf("\t%s\n", dasm_buffer);
+                fprintf(output, "\t%s\n", dasm_buffer);
             }
             else {
-                printf("\n");
+                fprintf(output, "\n");
             }
         }
     }
