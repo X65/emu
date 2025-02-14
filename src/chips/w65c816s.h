@@ -851,7 +851,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             // if interrupt or reset was requested, force a BRK instruction
             if (c->brk_flags) {
                 c->IR = 0;
-                c->P &= ~W65816_BF;
+                if (c->emulation) c->P &= ~W65816_BF;
                 pins &= ~W65816_RES;
             }
             else {
@@ -870,8 +870,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x00<<4)|1: _VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}else{c->emulation=true;}break;
         case (0x00<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
-        case (0x00<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}break;
-        case (0x00<<4)|5: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x00<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,(_E(c)?c->P|W65816_UF:c->P));if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}break;
+        case (0x00<<4)|5: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF);if(_E(c)&&(c->brk_flags&W65816_BRK_IRQ)){c->P|=(W65816_BF);}c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x00<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x00<<4)|7: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x00<<4)|8: assert(false);break;
@@ -890,8 +890,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x02<<4)|1: _VDA(0);if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}_WR();break;
         case (0x02<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();break;
         case (0x02<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();break;
-        case (0x02<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=_E(c)?0xFFF4:0xFFE4;break;
-        case (0x02<<4)|5: _VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x02<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,(_E(c)?c->P|W65816_UF:c->P));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;break;
+        case (0x02<<4)|5: _VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x02<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x02<<4)|7: c->PC=(_GD()<<8)|c->AD;break;
         case (0x02<<4)|8: _FETCH();break;
@@ -947,7 +947,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x07<<4)|8: assert(false);break;
     /* PHP s */
         case (0x08<<4)|0: _SA(c->PC);break;
-        case (0x08<<4)|1: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();break;
+        case (0x08<<4)|1: _VDA(0);_SAD(0x0100|_S(c)--,(_E(c)?c->P|W65816_UF:c->P));_WR();break;
         case (0x08<<4)|2: _FETCH();break;
         case (0x08<<4)|3: assert(false);break;
         case (0x08<<4)|4: assert(false);break;
@@ -957,7 +957,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x08<<4)|8: assert(false);break;
     /* ORA # */
         case (0x09<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0x09<<4)|1: _A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
+        case (0x09<<4)|1: _A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VPA();_SA(c->PC++);}break;
         case (0x09<<4)|2: _B(c)|=_GD();_NZ16(_C(c));_FETCH();break;
         case (0x09<<4)|3: assert(false);break;
         case (0x09<<4)|4: assert(false);break;
@@ -1269,7 +1269,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x28<<4)|0: _SA(c->PC);break;
         case (0x28<<4)|1: _SA(c->PC);break;
         case (0x28<<4)|2: _VDA(0);_SA(0x0100|++_S(c));break;
-        case (0x28<<4)|3: c->P=(_GD()|W65816_BF)&~W65816_UF;_FETCH();break;
+        case (0x28<<4)|3: c->P=_GD();if(_E(c))c->P=(c->P|W65816_BF)&~W65816_UF;_FETCH();break;
         case (0x28<<4)|4: assert(false);break;
         case (0x28<<4)|5: assert(false);break;
         case (0x28<<4)|6: assert(false);break;
@@ -1510,7 +1510,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x40<<4)|1: _SA(0x0100|++c->PC);break;
         case (0x40<<4)|2: _SA(0x0100|++c->PC);break;
         case (0x40<<4)|3: _VDA(0);_SA(0x0100|++_S(c));break;
-        case (0x40<<4)|4: _VDA(0);_SA(0x0100|++_S(c));c->P=(_GD()|W65816_BF)&~W65816_UF;break;
+        case (0x40<<4)|4: _VDA(0);_SA(0x0100|++_S(c));c->P=_GD();if(_E(c))c->P=(c->P|W65816_BF)&~W65816_UF;break;
         case (0x40<<4)|5: _VDA(0);_SA(0x0100|++_S(c));c->AD=_GD();break;
         case (0x40<<4)|6: c->PC=(_GD()<<8)|c->AD;if(_E(c)){_FETCH();}else{_VDA(0);_SA(0x0100|++_S(c));}break;
         case (0x40<<4)|7: _VDA(0);c->PBR=_GD();break;
