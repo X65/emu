@@ -128,6 +128,13 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
 
     pwm_tick(&vpu->pwm[0]);
     pwm_tick(&vpu->pwm[1]);
+    pins &= ~(CGIA_PWM0 | CGIA_PWM0);
+    if (pwm_get_state(&vpu->pwm[0])) {
+        pins |= CGIA_PWM0;
+    }
+    if (pwm_get_state(&vpu->pwm[1])) {
+        pins |= CGIA_PWM1;
+    }
 
     if (cgia_reg_read(CGIA_REG_INT_STATUS)) {
         pins |= CGIA_INT;

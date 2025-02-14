@@ -105,8 +105,10 @@ extern "C" {
 #define CGIA_PIN_RW (24) /* same as M6502_RW */
 
 // chip-specific pins
-#define CGIA_PIN_CS  (40) /* chip-select */
-#define CGIA_PIN_INT (41) /* INTerrupt */
+#define CGIA_PIN_CS   (40) /* chip-select */
+#define CGIA_PIN_INT  (41) /* INTerrupt */
+#define CGIA_PIN_PWM0 (46) /* PWM Output 0 */
+#define CGIA_PIN_PWM1 (47) /* PWM Output 1 */
 
 // pin bit masks
 #define CGIA_A0      (1ULL << CGIA_PIN_A0)
@@ -137,6 +139,8 @@ extern "C" {
 #define CGIA_RW      (1ULL << CGIA_PIN_RW)
 #define CGIA_CS      (1ULL << CGIA_PIN_CS)
 #define CGIA_INT     (1ULL << CGIA_PIN_INT)
+#define CGIA_PWM0    (1ULL << CGIA_PIN_PWM0)
+#define CGIA_PWM1    (1ULL << CGIA_PIN_PWM1)
 
 // helper macros to set and extract address and data to/from pin mask
 
