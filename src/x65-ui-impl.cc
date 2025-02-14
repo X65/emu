@@ -9,8 +9,8 @@
 #include "chips/mem.h"
 #include "chips/clk.h"
 #include "systems/x65.h"
-#define UI_DASM_USE_W65C816S
 #define UI_DBG_USE_W65C816S
+#define UI_DASM_USE_W65C816S
 #define CHIPS_UTIL_IMPL
 #include "util/w65c816sdasm.h"
 #define CHIPS_UI_IMPL

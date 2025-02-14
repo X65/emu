@@ -59,6 +59,7 @@
 #*/
 #include "systems/x65.h"
 #define UI_DBG_USE_W65C816S
+#define UI_DASM_USE_W65C816S
 #include "ui/ui_settings.h"
 #include "ui/ui_util.h"
 #include "ui/ui_audio.h"

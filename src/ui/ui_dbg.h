@@ -674,7 +674,7 @@ static void _ui_dbg_history_draw(ui_dbg_t* win) {
             /* disassembled instruction */
             x += glyph_width * 4;
             ImGui::SameLine(x);
-            ImGui::Text("%s", win->dasm_line.bytes);
+            ImGui::Text("%s", win->dasm_line.chars);
 
             /* tick count */
             x += glyph_width * 17;

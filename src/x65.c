@@ -13,6 +13,7 @@
 #include "systems/x65.h"
 #if defined(CHIPS_USE_UI)
     #define UI_DBG_USE_W65C816S
+    #define UI_DASM_USE_W65C816S
     #include "ui.h"
     #include "ui/ui_settings.h"
     #include "ui/ui_chip.h"

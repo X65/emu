@@ -6,6 +6,7 @@ CompileFlags:
     - -DCHIPS_UTIL_IMPL
     - -DCHIPS_UI_IMPL
     - -DUI_DBG_USE_W65C816S
+    - -DUI_DASM_USE_W65C816S
     - -Wall
     - -Wextra
     - -Wpedantic
