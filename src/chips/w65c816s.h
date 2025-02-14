@@ -390,8 +390,8 @@ uint8_t w65816_db(w65816_t* cpu);
 
 /* register access macros */
 #define _E(c) ((bool)c->emulation)
-#define _a8(c) ((_E(c)||(bool)(c->P&W65816_MF)))
-#define _i8(c) ((_E(c)||(bool)(c->P&W65816_XF)))
+#define _a8(c) (_E(c)||(bool)(c->P&W65816_MF))
+#define _i8(c) (_E(c)||(bool)(c->P&W65816_XF))
 #define _A(c) (*(((uint8_t*)(void*)&c->C)))
 #define _B(c) (*(((uint8_t*)((void*)&c->C))+1))
 #define _C(c) (*((uint16_t*)(&c->C)))
@@ -867,13 +867,13 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     // <% decoder
     /* BRK s */
         case (0x00<<4)|0: if(0==c->brk_flags){_VPA();}_SA(c->PC);break;
-        case (0x00<<4)|1: _VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}c->PBR=0;break;
-        case (0x00<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
-        case (0x00<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}break;
-        case (0x00<<4)|4: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
-        case (0x00<<4)|5: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
-        case (0x00<<4)|6: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
-        case (0x00<<4)|7: assert(false);break;
+        case (0x00<<4)|1: _VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}else{c->emulation=true;}break;
+        case (0x00<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
+        case (0x00<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
+        case (0x00<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}break;
+        case (0x00<<4)|5: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x00<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
+        case (0x00<<4)|7: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x00<<4)|8: assert(false);break;
     /* ORA (d,x) */
         case (0x01<<4)|0: _VPA();_SA(c->PC++);break;
@@ -887,14 +887,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x01<<4)|8: assert(false);break;
     /* COP s */
         case (0x02<<4)|0: if(0==c->brk_flags){_VPA();}_SA(c->PC);break;
-        case (0x02<<4)|1: _VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();c->PBR=0;break;
-        case (0x02<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();break;
-        case (0x02<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=0xFFF4;break;
-        case (0x02<<4)|4: _VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
-        case (0x02<<4)|5: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
-        case (0x02<<4)|6: c->PC=(_GD()<<8)|c->AD;break;
-        case (0x02<<4)|7: _FETCH();break;
-        case (0x02<<4)|8: assert(false);break;
+        case (0x02<<4)|1: _VDA(0);if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}_WR();break;
+        case (0x02<<4)|2: _VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();break;
+        case (0x02<<4)|3: _VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();break;
+        case (0x02<<4)|4: _VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=_E(c)?0xFFF4:0xFFE4;break;
+        case (0x02<<4)|5: _VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x02<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
+        case (0x02<<4)|7: c->PC=(_GD()<<8)|c->AD;break;
+        case (0x02<<4)|8: _FETCH();break;
     /* ORA d,s */
         case (0x03<<4)|0: /* (unimpl) */;break;
         case (0x03<<4)|1: _A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
@@ -1507,14 +1507,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x3F<<4)|8: assert(false);break;
     /* RTI s */
         case (0x40<<4)|0: _SA(c->PC);break;
-        case (0x40<<4)|1: _SA(0x0100|_S(c)++);break;
-        case (0x40<<4)|2: _VDA(0);_SA(0x0100|_S(c)++);break;
-        case (0x40<<4)|3: _VDA(0);_SA(0x0100|_S(c)++);c->P=(_GD()|W65816_BF)&~W65816_UF;break;
-        case (0x40<<4)|4: _VDA(0);_SA(0x0100|_S(c));c->AD=_GD();break;
-        case (0x40<<4)|5: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
-        case (0x40<<4)|6: assert(false);break;
-        case (0x40<<4)|7: assert(false);break;
-        case (0x40<<4)|8: assert(false);break;
+        case (0x40<<4)|1: _SA(0x0100|++c->PC);break;
+        case (0x40<<4)|2: _SA(0x0100|++c->PC);break;
+        case (0x40<<4)|3: _VDA(0);_SA(0x0100|++_S(c));break;
+        case (0x40<<4)|4: _VDA(0);_SA(0x0100|++_S(c));c->P=(_GD()|W65816_BF)&~W65816_UF;break;
+        case (0x40<<4)|5: _VDA(0);_SA(0x0100|++_S(c));c->AD=_GD();break;
+        case (0x40<<4)|6: c->PC=(_GD()<<8)|c->AD;if(_E(c)){_FETCH();}else{_VDA(0);_SA(0x0100|++_S(c));}break;
+        case (0x40<<4)|7: _VDA(0);c->PBR=_GD();break;
+        case (0x40<<4)|8: _FETCH();break;
     /* EOR (d,x) */
         case (0x41<<4)|0: _VPA();_SA(c->PC++);break;
         case (0x41<<4)|1: c->AD=_GD();_SA(c->AD);break;

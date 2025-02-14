@@ -279,9 +279,10 @@ def enc_addr(op, addr_mode, mem_access):
 #-------------------------------------------------------------------------------
 def i_brk(o):
     cmt(o, 'BRK')
-    o.t('_VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}c->PBR=0;')
+    o.t('_VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}else{c->emulation=true;}')
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
     o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
-    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=0xFFFA;}else{c->AD=0xFFFE;}}')
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}')
     o.t('_VDA(0);_SA(c->AD++);c->P|=(W65816_IF|W65816_BF);c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
     o.t('_VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
     o.t('c->PC=(_GD()<<8)|c->AD;')
@@ -289,9 +290,10 @@ def i_brk(o):
 #-------------------------------------------------------------------------------
 def i_cop(o):
     cmt(o,'COP')
-    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();c->PBR=0;')
+    o.t('_VDA(0);if(_E(c)){_SAD(0x0100|_S(c)--,c->PC>>8);c->IR++;}else{_SAD(0x0100|_S(c)--,c->PBR);c->PBR=0;}_WR();')
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();')
     o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();')
-    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=0xFFF4;')
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->P|W65816_UF);_WR();c->AD=_E(c)?0xFFF4:0xFFE4;')
     o.t('_VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
     o.t('_VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
     o.t('c->PC=(_GD()<<8)|c->AD;')
@@ -678,16 +680,23 @@ def i_rtl(o):
 #-------------------------------------------------------------------------------
 def i_rti(o):
     cmt(o,'RTI')
-    # put SP on stack and do a junk read
-    o.t('_SA(0x0100|_S(c)++);')
+    # put PC+1 on stack and do a junk read
+    o.t('_SA(0x0100|++c->PC);')
+    # and again
+    o.t('_SA(0x0100|++c->PC);')
     # load processor status flag from stack
-    o.t('_VDA(0);_SA(0x0100|_S(c)++);')
+    o.t('_VDA(0);_SA(0x0100|++_S(c));')
     # load return address low byte from stack
-    o.t('_VDA(0);_SA(0x0100|_S(c)++);c->P=(_GD()|W65816_BF)&~W65816_UF;')
+    o.t('_VDA(0);_SA(0x0100|++_S(c));c->P=(_GD()|W65816_BF)&~W65816_UF;')
     # load return address high byte from stack
-    o.t('_VDA(0);_SA(0x0100|_S(c));c->AD=_GD();')
+    o.t('_VDA(0);_SA(0x0100|++_S(c));c->AD=_GD();')
     # update PC (which is already placed on the right return-to instruction)
-    o.t('c->PC=(_GD()<<8)|c->AD;')
+    # and possibly load program bank register byte from stack
+    o.t('c->PC=(_GD()<<8)|c->AD;if(_E(c)){_FETCH();}else{_VDA(0);_SA(0x0100|++_S(c));}')
+    # load program bank register byte from stack
+    o.t('_VDA(0);c->PBR=_GD();')
+    # next tick is opcode fetch
+    o.t('');
 
 #-------------------------------------------------------------------------------
 def i_ora(o):
