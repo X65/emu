@@ -689,7 +689,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .enable_clipboard = true,
         .enable_dragndrop = true,
         .html5_bubble_mouse_events = true,
-        .html5_bubble_wheel_events = true,
+        // .html5_bubble_wheel_events = true,
         .html5_update_document_title = true,
         .logger.func = slog_func,
     };
