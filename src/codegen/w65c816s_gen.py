@@ -699,57 +699,57 @@ def i_rti(o):
     o.t('');
 
 #-------------------------------------------------------------------------------
-def i_ora(o):
+def i_ora(o, imm):
     cmt(o,'ORA')
-    o.t('_A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('_A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_B(c)|=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_and(o):
+def i_and(o, imm):
     cmt(o,'AND')
-    o.t('_A(c)&=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('_A(c)&=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_B(c)&=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_eor(o):
+def i_eor(o, imm):
     cmt(o,'EOR')
-    o.t('_A(c)^=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('_A(c)^=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_B(c)^=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_adc(o):
+def i_adc(o, imm):
     cmt(o,'ADC')
-    o.t('if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_adc16(c,c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_sbc(o):
+def i_sbc(o, imm):
     cmt(o,'SBC')
-    o.t('if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_sbc16(c,c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cmp(o):
+def i_cmp(o, imm):
     cmt(o,'CMP')
-    o.t('if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_cmp16(c, _C(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cpx(o):
+def i_cpx(o, imm):
     cmt(o,'CPX')
-    o.t('if(_a8(c)){_w65816_cmp(c, _X(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_cmp(c, _X(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_cmp16(c, _X16(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cpy(o):
+def i_cpy(o, imm):
     cmt(o,'CPY')
-    o.t('if(_a8(c)){_w65816_cmp(c, _Y(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_cmp(c, _Y(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_cmp16(c, _Y16(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_bit(o):
+def i_bit(o, imm):
     cmt(o,'BIT')
-    o.t('if(_a8(c)){_w65816_bit(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('if(_a8(c)){_w65816_bit(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_bit16(c,c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
@@ -914,7 +914,7 @@ def enc_op(op):
             elif bbb == 2:      i_plp(o)
             elif bbb == 4:      i_br(o, NF, NF) # BMI
             elif bbb == 6:      i_se(o, CF)
-            else:               i_bit(o)
+            else:               i_bit(o, imm)
         elif aaa == 2:
             if bbb == 0:        i_rti(o)
             elif bbb == 1:      i_mvp(o)
@@ -951,48 +951,48 @@ def enc_op(op):
             elif bbb == 5:      i_pei(o)
             elif bbb == 6:      i_cl(o, DF)
             elif bbb == 7:      i_jml(o)
-            else:               i_cpy(o)
+            else:               i_cpy(o, imm)
         elif aaa == 7:
             if bbb == 2:        i_inx(o)
             elif bbb == 4:      i_br(o, ZF, ZF) # BEQ
             elif bbb == 5:      i_pea(o)
             elif bbb == 6:      i_se(o, DF)
             elif bbb == 7:      i_jsrx(o)
-            else:               i_cpx(o)
+            else:               i_cpx(o, imm)
     elif cc == 1:
-        if aaa == 0:    i_ora(o)
-        elif aaa == 1:  i_and(o)
-        elif aaa == 2:  i_eor(o)
-        elif aaa == 3:  i_adc(o)
+        if aaa == 0:    i_ora(o, imm)
+        elif aaa == 1:  i_and(o, imm)
+        elif aaa == 2:  i_eor(o, imm)
+        elif aaa == 3:  i_adc(o, imm)
         elif aaa == 4:
-            if bbb == 2:    i_bit(o)
+            if bbb == 2:    i_bit(o, imm)
             else:           i_sta(o)
         elif aaa == 5:  i_lda(o, imm)
-        elif aaa == 6:  i_cmp(o)
-        else:           i_sbc(o)
+        elif aaa == 6:  i_cmp(o, imm)
+        else:           i_sbc(o, imm)
     elif cc == 2:
         if aaa == 0:
             if bbb == 0:    i_cop(o)
             elif bbb == 2:  i_asla(o)
-            elif bbb == 4:  i_ora(o)
+            elif bbb == 4:  i_ora(o, imm)
             elif bbb == 6:  i_inca(o)
             else:           i_asl(o)
         elif aaa == 1:
             if bbb == 0:    i_jsl(o)
             elif bbb == 2:  i_rola(o)
-            elif bbb == 4:  i_and(o)
+            elif bbb == 4:  i_and(o, imm)
             elif bbb == 6:  i_deca(o)
             else:           i_rol(o)
         elif aaa == 2:
             if bbb == 0:    i_wdm(o)
             elif bbb == 2:  i_lsra(o)
-            elif bbb == 4:  i_eor(o)
+            elif bbb == 4:  i_eor(o, imm)
             elif bbb == 6:  i_phy(o)
             else:           i_lsr(o)
         elif aaa == 3:
             if bbb == 0:    i_per(o)
             elif bbb == 2:  i_rora(o)
-            elif bbb == 4:  i_adc(o)
+            elif bbb == 4:  i_adc(o, imm)
             elif bbb == 6:  i_ply(o)
             else:           i_ror(o)
         elif aaa == 4:
@@ -1010,32 +1010,32 @@ def enc_op(op):
         elif aaa == 6:
             if bbb == 0:        i_rep(o)
             elif bbb == 2:      i_dex(o)
-            elif bbb == 4:      i_cmp(o)
+            elif bbb == 4:      i_cmp(o, imm)
             elif bbb == 6:      i_phx(o)
             else:               i_dec(o)
         elif aaa == 7:
             if bbb == 0:        i_sep(o)
             elif bbb == 2:      i_nop(o)
-            elif bbb == 4:      i_sbc(o)
+            elif bbb == 4:      i_sbc(o, imm)
             elif bbb == 6:      i_plx(o)
             else:               i_inc(o)
     elif cc == 3:
         if aaa == 0:
             if bbb == 2:    i_phd(o)
             elif bbb == 6:  i_tcs(o)
-            else:           i_ora(o)
+            else:           i_ora(o, imm)
         elif aaa == 1:
             if bbb == 2:    i_pld(o)
             elif bbb == 6:  i_tsc(o)
-            else:           i_and(o)
+            else:           i_and(o, imm)
         elif aaa == 2:
             if bbb == 2:    i_phk(o)
             elif bbb == 6:  i_tcd(o)
-            else:           i_eor(o)
+            else:           i_eor(o, imm)
         elif aaa == 3:
             if bbb == 2:    i_rtl(o)
             elif bbb == 6:  i_tdc(o)
-            else:           i_adc(o)
+            else:           i_adc(o, imm)
         elif aaa == 4:
             if bbb == 2:    i_phb(o)
             elif bbb == 6:  i_txy(o)
@@ -1047,11 +1047,11 @@ def enc_op(op):
         elif aaa == 6:
             if bbb == 2:    i_wai(o)
             elif bbb == 6:  i_stp(o)
-            else:           i_cmp(o)
+            else:           i_cmp(o, imm)
         elif aaa == 7:
             if bbb == 2:    i_xba(o)
             elif bbb == 6:  i_xce(o)
-            else:           i_sbc(o)
+            else:           i_sbc(o, imm)
     # fetch next opcode byte
     if mem_access in [M_R_,M___]:
         o.ta('_FETCH();')
