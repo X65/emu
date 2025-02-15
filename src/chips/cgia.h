@@ -74,22 +74,13 @@ extern "C" {
 */
 
 // address bus pins
-#define CGIA_PIN_A0  (0)
-#define CGIA_PIN_A1  (1)
-#define CGIA_PIN_A2  (2)
-#define CGIA_PIN_A3  (3)
-#define CGIA_PIN_A4  (4)
-#define CGIA_PIN_A5  (5)
-#define CGIA_PIN_A6  (6)
-#define CGIA_PIN_A7  (7)
-#define CGIA_PIN_A8  (8)
-#define CGIA_PIN_A9  (9)
-#define CGIA_PIN_A10 (10)
-#define CGIA_PIN_A11 (11)
-#define CGIA_PIN_A12 (12)
-#define CGIA_PIN_A13 (13)
-#define CGIA_PIN_A14 (14)
-#define CGIA_PIN_A15 (15)
+#define CGIA_PIN_A0 (0)
+#define CGIA_PIN_A1 (1)
+#define CGIA_PIN_A2 (2)
+#define CGIA_PIN_A3 (3)
+#define CGIA_PIN_A4 (4)
+#define CGIA_PIN_A5 (5)
+#define CGIA_PIN_A6 (6)
 
 // data bus pins
 #define CGIA_PIN_D0 (16)
@@ -118,15 +109,6 @@ extern "C" {
 #define CGIA_A4      (1ULL << CGIA_PIN_A4)
 #define CGIA_A5      (1ULL << CGIA_PIN_A5)
 #define CGIA_A6      (1ULL << CGIA_PIN_A6)
-#define CGIA_A7      (1ULL << CGIA_PIN_A7)
-#define CGIA_A8      (1ULL << CGIA_PIN_A8)
-#define CGIA_A9      (1ULL << CGIA_PIN_A9)
-#define CGIA_A10     (1ULL << CGIA_PIN_A10)
-#define CGIA_A11     (1ULL << CGIA_PIN_A11)
-#define CGIA_A12     (1ULL << CGIA_PIN_A12)
-#define CGIA_A13     (1ULL << CGIA_PIN_A13)
-#define CGIA_A14     (1ULL << CGIA_PIN_A14)
-#define CGIA_A15     (1ULL << CGIA_PIN_A15)
 #define CGIA_D0      (1ULL << CGIA_PIN_D0)
 #define CGIA_D1      (1ULL << CGIA_PIN_D1)
 #define CGIA_D2      (1ULL << CGIA_PIN_D2)
@@ -146,11 +128,6 @@ extern "C" {
 
 // extract 7-bit register address from 64-bit pins
 #define CGIA_GET_REG_ADDR(p) ((uint8_t)(p & 0x7FULL))
-// extract 16-bit address bus from 64-bit pins
-#define CGIA_GET_ADDR(p) ((uint16_t)(p & 0xFFFFULL))
-// merge 16-bit address bus value into 64-bit pins
-#define CGIA_SET_ADDR(p, a) \
-    { p = ((p & ~0xFFFFULL) | ((a) & 0xFFFFULL)); }
 // extract 8-bit data bus from 64-bit pins
 #define CGIA_GET_DATA(p) ((uint8_t)(((p) & 0xFF0000ULL) >> 16))
 // merge 8-bit data bus value into 64-bit pins
@@ -187,7 +164,7 @@ extern "C" {
 #define CGIA_FIXEDPOINT_SCALE (100)
 
 // a memory-fetch callback, used to read video memory bytes into the CGIA
-typedef uint64_t (*cgia_fetch_t)(uint64_t pins, void* user_data);
+typedef uint8_t (*cgia_fetch_t)(uint32_t data, void* user_data);
 
 // CGIA has 7 address lines
 #define CGIA_NUM_REGS (1U << 7)
@@ -229,6 +206,7 @@ typedef struct {
         uint8_t row_line_count;
         bool wait_vbl;
         bool sprites_need_update;
+        uint16_t sprite_dsc_offsets[8];
     } internal[4];
 
     // VRAM cache information

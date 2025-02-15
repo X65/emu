@@ -758,14 +758,15 @@ void aud_pwm_set_channel_duty(size_t channel, uint8_t duty) {
 
 static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
     for (size_t i = 0; i < 256 * 256; ++i) {
-        uint64_t pins = vpu->fetch_cb((vram_wanted_bank_mask[bank] | i), vpu->user_data);
-        vram_cache[bank][i] = CGIA_GET_DATA(pins);
+        vram_cache[bank][i] = vpu->fetch_cb((vram_wanted_bank_mask[bank] | i), vpu->user_data);
     }
 }
 static void _cgia_transfer_vcache_bank(uint8_t bank) {
     assert(CGIA_vpu);
     if (vram_wanted_bank_mask[bank] != vram_cache_bank_mask[bank]) {
         _cgia_copy_vcache_bank(CGIA_vpu, bank);
+        vram_cache_bank_mask[bank] = vram_wanted_bank_mask[bank];
+        vram_cache_ptr[bank] = vram_cache[bank];
     }
 }
 void cgia_mirror_vram(cgia_t* vpu) {
@@ -786,6 +787,9 @@ static void _copy_internal_regs(cgia_t* vpu) {
         vpu->internal[i].row_line_count = plane_int[i].row_line_count;
         vpu->internal[i].wait_vbl = plane_int[i].wait_vbl;
         vpu->internal[i].sprites_need_update = plane_int[i].sprites_need_update;
+        for (int s = 0; s < CGIA_SPRITES; ++s) {
+            vpu->internal[i].sprite_dsc_offsets[s] = sprite_dsc_offsets[i][s];
+        }
     }
     for (int i = 0; i < CGIA_VRAM_BANKS; ++i) {
         vpu->vram_cache[i].bank_mask = vram_cache_bank_mask[i];

@@ -195,17 +195,16 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 
 /* keep disassembler layer at the start */
 #define _UI_X65_MEMLAYER_CPU   (0) /* CPU visible mapping */
-#define _UI_X65_MEMLAYER_RAM   (1) /* RAM blocks */
-#define _UI_X65_MEMLAYER_VRAM0 (2) /* CGIA VRAM bank 0 */
-#define _UI_X65_MEMLAYER_VRAM1 (3) /* CGIA VRAM bank 1 */
-#define _UI_X65_CODELAYER_NUM  (4) /* number of valid layers for disassembler */
-#define _UI_X65_MEMLAYER_NUM   (4)
+#define _UI_X65_MEMLAYER_RAM00 (1) /* RAM blocks */
+#define _UI_X65_MEMLAYER_RAM01 (2) /* RAM blocks */
+#define _UI_X65_MEMLAYER_RAMFF (3) /* RAM blocks */
+#define _UI_X65_MEMLAYER_VRAM0 (4) /* CGIA VRAM bank 0 */
+#define _UI_X65_MEMLAYER_VRAM1 (5) /* CGIA VRAM bank 1 */
+#define _UI_X65_CODELAYER_NUM  (3) /* number of valid layers for disassembler */
+#define _UI_X65_MEMLAYER_NUM   (6)
 
 static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
-    "CPU Mapped",
-    "RAM Banks",
-    "VRAM0",
-    "VRAM1",
+    "CPU Mapped", "RAM Bank 00", "RAM Bank 01", "RAM Bank FF", "VRAM0", "VRAM1",
 };
 
 static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
@@ -214,7 +213,9 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     x65_t* x65 = ui->x65;
     switch (layer) {
         case _UI_X65_MEMLAYER_CPU: return mem_rd(x65->ram, 0, addr);
-        case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
+        case _UI_X65_MEMLAYER_RAM00: return x65->ram[(0x00 << 16) + addr];
+        case _UI_X65_MEMLAYER_RAM01: return x65->ram[(0x01 << 16) + addr];
+        case _UI_X65_MEMLAYER_RAMFF: return x65->ram[(0xFF << 16) + addr];
         case _UI_X65_MEMLAYER_VRAM0: return x65->cgia.vram[0][addr];
         case _UI_X65_MEMLAYER_VRAM1: return x65->cgia.vram[1][addr];
         default: return 0xFF;
@@ -227,7 +228,9 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
     x65_t* x65 = ui->x65;
     switch (layer) {
         case _UI_X65_MEMLAYER_CPU: mem_wr(x65->ram, 0, addr, data); break;
-        case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
+        case _UI_X65_MEMLAYER_RAM00: x65->ram[(0x00 << 16) + addr] = data; break;
+        case _UI_X65_MEMLAYER_RAM01: x65->ram[(0x01 << 16) + addr] = data; break;
+        case _UI_X65_MEMLAYER_RAMFF: x65->ram[(0xFF << 16) + addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM0: x65->cgia.vram[0][addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM1: x65->cgia.vram[1][addr] = data; break;
     }

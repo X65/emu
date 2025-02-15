@@ -74,6 +74,7 @@ static void _ui_cgia_draw_rgb(const char* label, uint32_t val) {
 static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
     if (ImGui::CollapsingHeader("Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
         const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+        ui_util_b8("mode  : ", chip->mode);
         ui_util_b8("planes: ", chip->planes);
 
         ImGui::Text(
@@ -84,7 +85,7 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
             win->cgia->vram_cache[0].wanted_bank_mask);
         ImGui::Text(
             "sprite_bank: %02X (VRAM%d: %06X/%06X)",
-            chip->bckgnd_bank,
+            chip->sprite_bank,
             win->cgia->vram_cache[1].cache_ptr_idx,
             win->cgia->vram_cache[1].bank_mask,
             win->cgia->vram_cache[1].wanted_bank_mask);
@@ -189,9 +190,127 @@ static void _ui_cgia_decode_BG_flags(uint8_t flags) {
     if (flags & 0b00010000) ImGui::Text("  DOUBLE_WIDTH");
 }
 
+static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+    ImGui::Text(
+        "MS:%04x CS:%04x BS:%04x CG:%04x",
+        win->cgia->internal[p].memory_scan,
+        win->cgia->internal[p].colour_scan,
+        win->cgia->internal[p].backgr_scan,
+        win->cgia->internal[p].chargen_offset);
+    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->bckgnd_bank << 16) | chip->offset[p]);
+
+    ImGui::SameLine();
+    _ui_cgia_decode_DL(win->cgia, chip->offset[p]);
+    ui_util_b8("flags: ", chip->plane[p].bckgnd.flags);
+    _ui_cgia_decode_BG_flags(chip->plane[p].bckgnd.flags);
+    ImGui::Text("border: %03d columns", chip->plane[p].bckgnd.border_columns);
+    ImGui::Text("row_height: %03d", chip->plane[p].bckgnd.row_height + 1);
+    ImGui::Text("row_line  : %03d", win->cgia->internal[p].row_line_count);
+    ImGui::Separator();
+    ImGui::Text("stride: %03d columns", chip->plane[p].bckgnd.stride);
+    ImGui::Text("colors:");
+    for (int c = 0; c < 2; ++c) {
+        ImGui::SameLine();
+        ImGui::PushID(c);
+        _ui_cgia_draw_color(win, "", chip->plane[p].bckgnd.shared_color[c]);
+        ImGui::PopID();
+    }
+    ImGui::SameLine();
+    ImGui::Text("|");
+    for (int c = 2; c < 8; ++c) {
+        ImGui::SameLine();
+        ImGui::PushID(c);
+        _ui_cgia_draw_color(win, "", chip->plane[p].ham.base_color[c]);
+        ImGui::PopID();
+    }
+    ImGui::Text("scroll_x: %03d", chip->plane[p].bckgnd.scroll_x);
+    ImGui::Text("offset_x: %03d", chip->plane[p].bckgnd.offset_x);
+    ImGui::Text("scroll_y: %03d", chip->plane[p].bckgnd.scroll_y);
+    ImGui::Text("offset_y: %03d", chip->plane[p].bckgnd.offset_y);
+    ImGui::Separator();
+    // ui_util_b8("flags: ", chip->plane[i].affine.flags);
+    // ImGui::Text("border: %03d columns", chip->plane[i].affine.border_columns);
+    // ImGui::Text("row_height: %03d", chip->plane[i].affine.row_height);
+    ui_util_b8("texture_bits: ", chip->plane[p].affine.texture_bits);
+    ImGui::SameLine();
+    ImGui::Text("w: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits & 0x0F)));
+    ImGui::SameLine();
+    ImGui::Text("h: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits >> 4)));
+    ImGui::Text(" u: %d", chip->plane[p].affine.u);
+    ImGui::SameLine();
+    ImGui::Text(" v: %d", chip->plane[p].affine.v);
+    ImGui::Text("du: %d", chip->plane[p].affine.du);
+    ImGui::SameLine();
+    ImGui::Text("dv: %d", chip->plane[p].affine.dv);
+    ImGui::Text("dx: %d", chip->plane[p].affine.dx);
+    ImGui::SameLine();
+    ImGui::Text("dy: %d", chip->plane[p].affine.dy);
+}
+
+static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+    if (win->cgia->internal[p].sprites_need_update) {
+        ImGui::SameLine();
+        ImGui::Text(" Need update");
+    }
+    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->sprite_bank << 16) | chip->offset[p]);
+
+    ui_util_b8("sprites active: ", chip->plane[p].sprite.active);
+    ImGui::Text("border: %03d columns", chip->plane[p].sprite.border_columns);
+    ImGui::Text("start_y: %03d", chip->plane[p].sprite.start_y);
+    ImGui::SameLine();
+    ImGui::Text("stop_y : %03d", chip->plane[p].sprite.stop_y);
+    ImGui::Separator();
+    const float cw0 = 10.0f;
+    const float cw = 42.0f;
+    uint8_t* vram = win->cgia->vram[win->cgia->vram_cache[1].cache_ptr_idx];
+    if (ImGui::BeginTable("##sprite_descriptors", 11)) {
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
+        ImGui::TableSetupColumn("Offs", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("H", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Fl", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Cl0", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Cl1", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Cl2", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Next", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < CGIA_SPRITES; i++) {
+            uint16_t sprite_offset = win->cgia->internal[p].sprite_dsc_offsets[i];
+            struct cgia_sprite_t* sprite = (struct cgia_sprite_t*)(vram + sprite_offset);
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", i);
+            ImGui::TableNextColumn();  // Offset
+            ImGui::Text("%04X", sprite_offset);
+            ImGui::TableNextColumn();  // X
+            ImGui::Text("%6d", sprite->pos_x);
+            ImGui::TableNextColumn();  // Y
+            ImGui::Text("%6d", sprite->pos_y);
+            ImGui::TableNextColumn();  // H
+            ImGui::Text("%6d", sprite->lines_y);
+            ImGui::TableNextColumn();  // Fl
+            ImGui::Text("%02X", sprite->flags);
+            for (int c = 0; c < 3; c++) {
+                ImGui::TableNextColumn();  // Cl
+                ImGui::PushID(i * 10 + c);
+                _ui_cgia_draw_color(win, "", sprite->color[c]);
+                ImGui::PopID();
+            }
+            ImGui::TableNextColumn();  // Data
+            ImGui::Text("%04X", sprite->data_offset);
+            ImGui::TableNextColumn();  // Next
+            ImGui::Text("%04X", sprite->next_dsc_offset);
+        }
+        ImGui::EndTable();
+    }
+}
+
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
-    for (int i = 0; i < CGIA_PLANES; i++) {
+    for (size_t i = 0; i < CGIA_PLANES; i++) {
         ImGui::PushID(i);
         bool plane_active = chip->planes & (1u << i);
         const bool plane_type_sprite = chip->planes & (0x10u << i);
@@ -210,73 +329,10 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
                 ImGui::Text(" Wait VBL");
             }
             if (plane_type_sprite) {
-                if (win->cgia->internal[i].sprites_need_update) {
-                    ImGui::SameLine();
-                    ImGui::Text(" Need update");
-                }
-                ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->sprite_bank << 16) | chip->offset[i]);
-
-                ui_util_b8("sprites active: ", chip->plane[i].sprite.active);
-                ImGui::Text("border: %03d columns", chip->plane[i].sprite.border_columns);
-                ImGui::Text("start_y: %03d", chip->plane[i].sprite.start_y);
-                ImGui::SameLine();
-                ImGui::Text("stop_y : %03d", chip->plane[i].sprite.stop_y);
+                _ui_cgia_draw_sprite_plane(win, i);
             }
             else {
-                ImGui::Text(
-                    "MS:%04x CS:%04x BS:%04x CG:%04x",
-                    win->cgia->internal[i].memory_scan,
-                    win->cgia->internal[i].colour_scan,
-                    win->cgia->internal[i].backgr_scan,
-                    win->cgia->internal[i].chargen_offset);
-                ImGui::Text("offset:%04X (mem:%06X)", chip->offset[i], (chip->bckgnd_bank << 16) | chip->offset[i]);
-
-                ImGui::SameLine();
-                _ui_cgia_decode_DL(win->cgia, chip->offset[i]);
-                ui_util_b8("flags: ", chip->plane[i].bckgnd.flags);
-                _ui_cgia_decode_BG_flags(chip->plane[i].bckgnd.flags);
-                ImGui::Text("border: %03d columns", chip->plane[i].bckgnd.border_columns);
-                ImGui::Text("row_height: %03d", chip->plane[i].bckgnd.row_height + 1);
-                ImGui::Text("row_line  : %03d", win->cgia->internal[i].row_line_count);
-                ImGui::Separator();
-                ImGui::Text("stride: %03d columns", chip->plane[i].bckgnd.stride);
-                ImGui::Text("colors:");
-                for (int c = 0; c < 2; ++c) {
-                    ImGui::SameLine();
-                    ImGui::PushID(c);
-                    _ui_cgia_draw_color(win, "", chip->plane[i].bckgnd.shared_color[c]);
-                    ImGui::PopID();
-                }
-                ImGui::SameLine();
-                ImGui::Text("|");
-                for (int c = 2; c < 8; ++c) {
-                    ImGui::SameLine();
-                    ImGui::PushID(c);
-                    _ui_cgia_draw_color(win, "", chip->plane[i].ham.base_color[c]);
-                    ImGui::PopID();
-                }
-                ImGui::Text("scroll_x: %03d", chip->plane[i].bckgnd.scroll_x);
-                ImGui::Text("offset_x: %03d", chip->plane[i].bckgnd.offset_x);
-                ImGui::Text("scroll_y: %03d", chip->plane[i].bckgnd.scroll_y);
-                ImGui::Text("offset_y: %03d", chip->plane[i].bckgnd.offset_y);
-                ImGui::Separator();
-                // ui_util_b8("flags: ", chip->plane[i].affine.flags);
-                // ImGui::Text("border: %03d columns", chip->plane[i].affine.border_columns);
-                // ImGui::Text("row_height: %03d", chip->plane[i].affine.row_height);
-                ui_util_b8("texture_bits: ", chip->plane[i].affine.texture_bits);
-                ImGui::SameLine();
-                ImGui::Text("w: %03d", (int)pow(2, (chip->plane[i].affine.texture_bits & 0x0F)));
-                ImGui::SameLine();
-                ImGui::Text("h: %03d", (int)pow(2, (chip->plane[i].affine.texture_bits >> 4)));
-                ImGui::Text(" u: %d", chip->plane[i].affine.u);
-                ImGui::SameLine();
-                ImGui::Text(" v: %d", chip->plane[i].affine.v);
-                ImGui::Text("du: %d", chip->plane[i].affine.du);
-                ImGui::SameLine();
-                ImGui::Text("dv: %d", chip->plane[i].affine.dv);
-                ImGui::Text("dx: %d", chip->plane[i].affine.dx);
-                ImGui::SameLine();
-                ImGui::Text("dy: %d", chip->plane[i].affine.dy);
+                _ui_cgia_draw_bg_plane(win, i);
             }
         }
         ImGui::PopID();

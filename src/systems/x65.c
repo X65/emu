@@ -9,7 +9,7 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
-static uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data);
+static uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data);
 static void _x65_init_key_map(x65_t* sys);
 
 #define _X65_DEFAULT(val, def) (((val) != 0) ? (val) : (def))
@@ -271,12 +271,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     return pins;
 }
 
-uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
+uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
     x65_t* sys = (x65_t*)user_data;
-    const uint16_t addr = CGIA_GET_ADDR(pins);
-    uint8_t data = sys->ram[addr];
-    CGIA_SET_DATA(pins, data);
-    return pins;
+    return sys->ram[addr & 0xFFFFFF];
 }
 
 static void _x65_init_key_map(x65_t* sys) {
