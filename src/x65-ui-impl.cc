@@ -6,7 +6,6 @@
 #include "chips/m6526.h"
 #include "chips/m6581.h"
 #include "chips/kbd.h"
-#include "chips/mem.h"
 #include "chips/clk.h"
 #include "systems/x65.h"
 #define UI_DBG_USE_W65C816S
@@ -20,7 +19,6 @@
 #include "ui/ui_settings.h"
 #include "ui/ui_chip.h"
 #include "ui/ui_memedit.h"
-#include "ui/ui_memmap.h"
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
 #include "ui/ui_w65c816s.h"

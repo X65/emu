@@ -9,7 +9,6 @@
 #include "chips/m6581.h"
 #include "chips/kbd.h"
 #include "chips/clk.h"
-#include "chips/mem.h"
 #include "systems/x65.h"
 #if defined(CHIPS_USE_UI)
     #define UI_DBG_USE_W65C816S
@@ -18,7 +17,6 @@
     #include "ui/ui_settings.h"
     #include "ui/ui_chip.h"
     #include "ui/ui_memedit.h"
-    #include "ui/ui_memmap.h"
     #include "ui/ui_dasm.h"
     #include "ui/ui_dbg.h"
     #include "ui/ui_w65c816s.h"
@@ -351,10 +349,6 @@ static void handle_file_loading(void) {
             load_success = true;
             keybuf_put((const char*)fs_data(FS_CHANNEL_IMAGES).ptr);
         }
-        else if (
-            fs_ext(FS_CHANNEL_IMAGES, "bin") || fs_ext(FS_CHANNEL_IMAGES, "prg") || fs_ext(FS_CHANNEL_IMAGES, "")) {
-            load_success = x65_quickload(&state.x65, fs_data(FS_CHANNEL_IMAGES));
-        }
         else if (fs_ext(FS_CHANNEL_IMAGES, "xex")) {
             load_success = x65_quickload_xex(&state.x65, fs_data(FS_CHANNEL_IMAGES));
         }
@@ -365,12 +359,6 @@ static void handle_file_loading(void) {
             if (!sargs_exists("debug")) {
                 if (sargs_exists("input")) {
                     keybuf_put(sargs_value("input"));
-                }
-                else if (fs_ext(FS_CHANNEL_IMAGES, "tap")) {
-                    x65_basic_load(&state.x65);
-                }
-                else if (fs_ext(FS_CHANNEL_IMAGES, "prg")) {
-                    x65_basic_run(&state.x65);
                 }
             }
         }
@@ -517,18 +505,14 @@ static bool web_load(chips_range_t data) {
         .ptr = (void*)&hdr->payload,
         .size = data.size - sizeof(webapi_fileheader_t),
     };
-    bool loaded = x65_quickload(&state.x65, prg);
+    bool loaded = x65_quickload_xex(&state.x65, prg);
     if (loaded) {
         state.dbg.entry_addr = start_addr;
-        state.dbg.exit_addr = x65_syscall_return_addr();
         ui_dbg_add_breakpoint(&state.ui.dbg, state.dbg.entry_addr);
-        ui_dbg_add_breakpoint(&state.ui.dbg, state.dbg.exit_addr);
         // if debugger is stopped, unstuck it
         if (ui_dbg_stopped(&state.ui.dbg)) {
             ui_dbg_continue(&state.ui.dbg, false);
         }
-        // execute a SYS start_addr
-        x65_basic_syscall(&state.x65, start_addr);
     }
     return loaded;
 }
@@ -635,7 +619,7 @@ static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_
 
 static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) {
     for (int i = 0; i < num_bytes; i++) {
-        *dst_ptr++ = mem_rd(&state.x65.mem, addr++);
+        *dst_ptr++ = mem_rd(state.x65.ram, 0, addr++);
     }
 }
 #endif

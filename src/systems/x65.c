@@ -11,7 +11,6 @@
 
 static uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data);
 static void _x65_init_key_map(x65_t* sys);
-static void _x65_init_memory_map(x65_t* sys);
 
 #define _X65_DEFAULT(val, def) (((val) != 0) ? (val) : (def))
 
@@ -65,7 +64,6 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
         });
     _x65_init_key_map(sys);
-    _x65_init_memory_map(sys);
 }
 
 void x65_discard(x65_t* sys) {
@@ -93,26 +91,26 @@ void x65_set_running(x65_t* sys, bool running) {
     sys->running = running;
     if (sys->running) {
         // copy CPU vectors from RAM to RIA (in case it were fastloaded)
-        sys->ria.reg[RIA816_CPU_N_COP] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_COP);
-        sys->ria.reg[RIA816_CPU_N_COP + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_COP + 1);
-        sys->ria.reg[RIA816_CPU_N_BRK] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_BRK);
-        sys->ria.reg[RIA816_CPU_N_BRK + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_BRK + 1);
-        sys->ria.reg[RIA816_CPU_N_ABORTB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB);
-        sys->ria.reg[RIA816_CPU_N_ABORTB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB + 1);
-        sys->ria.reg[RIA816_CPU_N_NMIB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB);
-        sys->ria.reg[RIA816_CPU_N_NMIB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB + 1);
-        sys->ria.reg[RIA816_CPU_N_IRQB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB);
-        sys->ria.reg[RIA816_CPU_N_IRQB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB + 1);
-        sys->ria.reg[RIA816_CPU_E_COP] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_COP);
-        sys->ria.reg[RIA816_CPU_E_COP + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_COP + 1);
-        sys->ria.reg[RIA816_CPU_E_ABORTB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB);
-        sys->ria.reg[RIA816_CPU_E_ABORTB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB + 1);
-        sys->ria.reg[RIA816_CPU_E_NMIB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB);
-        sys->ria.reg[RIA816_CPU_E_NMIB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB + 1);
-        sys->ria.reg[RIA816_CPU_E_RESETB] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB);
-        sys->ria.reg[RIA816_CPU_E_RESETB + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB + 1);
-        sys->ria.reg[RIA816_CPU_E_IRQB_BRK] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK);
-        sys->ria.reg[RIA816_CPU_E_IRQB_BRK + 1] = mem_rd(&sys->mem, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK + 1);
+        sys->ria.reg[RIA816_CPU_N_COP] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_COP);
+        sys->ria.reg[RIA816_CPU_N_COP + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_COP + 1);
+        sys->ria.reg[RIA816_CPU_N_BRK] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_BRK);
+        sys->ria.reg[RIA816_CPU_N_BRK + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_BRK + 1);
+        sys->ria.reg[RIA816_CPU_N_ABORTB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB);
+        sys->ria.reg[RIA816_CPU_N_ABORTB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB + 1);
+        sys->ria.reg[RIA816_CPU_N_NMIB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB);
+        sys->ria.reg[RIA816_CPU_N_NMIB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB + 1);
+        sys->ria.reg[RIA816_CPU_N_IRQB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB);
+        sys->ria.reg[RIA816_CPU_N_IRQB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB + 1);
+        sys->ria.reg[RIA816_CPU_E_COP] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_COP);
+        sys->ria.reg[RIA816_CPU_E_COP + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_COP + 1);
+        sys->ria.reg[RIA816_CPU_E_ABORTB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB);
+        sys->ria.reg[RIA816_CPU_E_ABORTB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB + 1);
+        sys->ria.reg[RIA816_CPU_E_NMIB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB);
+        sys->ria.reg[RIA816_CPU_E_NMIB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB + 1);
+        sys->ria.reg[RIA816_CPU_E_RESETB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB);
+        sys->ria.reg[RIA816_CPU_E_RESETB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB + 1);
+        sys->ria.reg[RIA816_CPU_E_IRQB_BRK] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK);
+        sys->ria.reg[RIA816_CPU_E_IRQB_BRK + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK + 1);
         // and CGIA VRAM
         cgia_mirror_vram(&sys->cgia);
     }
@@ -258,14 +256,15 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
        "universal tick model" (yet?)
     */
     if (mem_access) {
+        const uint8_t bank = W65816_GET_BANK(pins);
         if (pins & W65816_RW) {
             // memory read
-            W65816_SET_DATA(pins, mem_rd(&sys->mem, addr));
+            W65816_SET_DATA(pins, mem_rd(sys->ram, bank, addr));
         }
         else {
             // memory write
             uint8_t data = W65816_GET_DATA(pins);
-            mem_wr(&sys->mem, addr, data);
+            mem_wr(sys->ram, bank, addr, data);
             cgia_mem_wr(&sys->cgia, addr, data);
         }
     }
@@ -278,13 +277,6 @@ uint64_t _x65_vpu_fetch(uint64_t pins, void* user_data) {
     uint8_t data = sys->ram[addr];
     CGIA_SET_DATA(pins, data);
     return pins;
-}
-
-static void _x65_init_memory_map(x65_t* sys) {
-    mem_init(&sys->mem);
-
-    /* setup the CPU memory map */
-    mem_map_ram(&sys->mem, 0, 0x0000, 0x10000, sys->ram);
 }
 
 static void _x65_init_key_map(x65_t* sys) {
@@ -453,30 +445,6 @@ void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask) {
     sys->joy_joy2_mask = joy2_mask;
 }
 
-bool x65_quickload(x65_t* sys, chips_range_t data) {
-    CHIPS_ASSERT(sys && sys->valid && data.ptr);
-    if (data.size < 2) {
-        return false;
-    }
-    const uint8_t* ptr = (uint8_t*)data.ptr;
-    const uint16_t start_addr = ptr[1] << 8 | ptr[0];
-    ptr += 2;
-    const uint16_t end_addr = start_addr + (data.size - 2);
-    uint16_t addr = start_addr;
-    while (addr < end_addr) {
-        mem_wr(&sys->mem, addr++, *ptr++);
-    }
-
-    // update the BASIC pointers
-    mem_wr16(&sys->mem, 0x2d, end_addr);
-    mem_wr16(&sys->mem, 0x2f, end_addr);
-    mem_wr16(&sys->mem, 0x31, end_addr);
-    mem_wr16(&sys->mem, 0x33, end_addr);
-    mem_wr16(&sys->mem, 0xae, end_addr);
-
-    return true;
-}
-
 bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     CHIPS_ASSERT(sys && sys->valid && data.ptr);
     if (data.size < 2) {
@@ -486,6 +454,8 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
 
     bool reset_lo_loaded = false;
     bool reset_hi_loaded = false;
+
+    bool load_bank = 0x00;
 
     // $FFFF is required in first block
     if (ptr[0] != 0xff || ptr[1] != 0xff) {
@@ -515,11 +485,16 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         if (data_left < (end_addr - start_addr + 1) || start_addr > end_addr) {
             return false;
         }
-        uint16_t addr = start_addr;
-        while (addr <= end_addr && addr >= start_addr) {
-            if (addr == 0xfffc) reset_lo_loaded = true;
-            if (addr == 0xfffd) reset_hi_loaded = true;
-            mem_wr(&sys->mem, addr++, *ptr++);
+        if (start_addr == end_addr && start_addr == 0xFFFE) {
+            load_bank = *ptr++;
+        }
+        else {
+            uint16_t addr = start_addr;
+            while (addr <= end_addr && addr >= start_addr) {
+                if (addr == 0xfffc) reset_lo_loaded = true;
+                if (addr == 0xfffd) reset_hi_loaded = true;
+                mem_wr(sys->ram, load_bank, addr++, *ptr++);
+            }
         }
     }
 
@@ -562,7 +537,6 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     w65816_snapshot_onsave(&dst->cpu);
     cgia_snapshot_onsave(&dst->cgia);
     ymf262_snapshot_onsave(&dst->opl3);
-    mem_snapshot_onsave(&dst->mem, sys);
     return X65_SNAPSHOT_VERSION;
 }
 
@@ -578,53 +552,6 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     w65816_snapshot_onload(&im.cpu, &sys->cpu);
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
     ymf262_snapshot_onload(&im.opl3, &sys->opl3);
-    mem_snapshot_onload(&im.mem, sys);
     *sys = im;
     return true;
-}
-
-void x65_basic_run(x65_t* sys) {
-    CHIPS_ASSERT(sys);
-    // write RUN into the keyboard buffer
-    uint16_t keybuf = 0x277;
-    mem_wr(&sys->mem, keybuf++, 'R');
-    mem_wr(&sys->mem, keybuf++, 'U');
-    mem_wr(&sys->mem, keybuf++, 'N');
-    mem_wr(&sys->mem, keybuf++, 0x0D);
-    // write number of characters, this kicks off evaluation
-    mem_wr(&sys->mem, 0xC6, 4);
-}
-
-void x65_basic_load(x65_t* sys) {
-    CHIPS_ASSERT(sys);
-    // write LOAD
-    uint16_t keybuf = 0x277;
-    mem_wr(&sys->mem, keybuf++, 'L');
-    mem_wr(&sys->mem, keybuf++, 'O');
-    mem_wr(&sys->mem, keybuf++, 'A');
-    mem_wr(&sys->mem, keybuf++, 'D');
-    mem_wr(&sys->mem, keybuf++, 0x0D);
-    // write number of characters, this kicks off evaluation
-    mem_wr(&sys->mem, 0xC6, 5);
-}
-
-void x65_basic_syscall(x65_t* sys, uint16_t addr) {
-    CHIPS_ASSERT(sys);
-    // write SYS xxxx[Return] into the keyboard buffer (up to 10 chars)
-    uint16_t keybuf = 0x277;
-    mem_wr(&sys->mem, keybuf++, 'S');
-    mem_wr(&sys->mem, keybuf++, 'Y');
-    mem_wr(&sys->mem, keybuf++, 'S');
-    mem_wr(&sys->mem, keybuf++, ((addr / 10000) % 10) + '0');
-    mem_wr(&sys->mem, keybuf++, ((addr / 1000) % 10) + '0');
-    mem_wr(&sys->mem, keybuf++, ((addr / 100) % 10) + '0');
-    mem_wr(&sys->mem, keybuf++, ((addr / 10) % 10) + '0');
-    mem_wr(&sys->mem, keybuf++, ((addr / 1) % 10) + '0');
-    mem_wr(&sys->mem, keybuf++, 0x0D);
-    // write number of characters, this kicks off evaluation
-    mem_wr(&sys->mem, 0xC6, 9);
-}
-
-uint16_t x65_syscall_return_addr(void) {
-    return 0xA7EA;
 }

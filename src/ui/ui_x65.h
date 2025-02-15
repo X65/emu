@@ -22,7 +22,6 @@
     ui_x65.h both for the declaration and implementation.
 
     - x65.h
-    - mem.h
     - ui_chip.h
     - ui_util.h
     - ui_settings.h
@@ -35,7 +34,6 @@
     - ui_dasm.h
     - ui_dbg.h
     - ui_memedit.h
-    - ui_memmap.h
     - ui_kbd.h
     - ui_snapshot.h
 
@@ -76,7 +74,6 @@
 #include "ui/ui_ymf262.h"
 #include "ui/ui_m6581.h"
 #include "ui/ui_memedit.h"
-#include "ui/ui_memmap.h"
 #include "ui/ui_snapshot.h"
 
 #include <stdint.h>
@@ -113,7 +110,6 @@ typedef struct {
     ui_audio_t audio;
     ui_display_t display;
     ui_kbd_t kbd;
-    ui_memmap_t memmap;
     ui_memedit_t memedit[4];
     ui_dasm_t dasm[4];
     ui_dbg_t dbg;

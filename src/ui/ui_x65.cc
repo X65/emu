@@ -51,7 +51,6 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Hardware")) {
-            ImGui::MenuItem("Memory Map", 0, &ui->memmap.open);
 #ifndef USE_WEB
             ImGui::MenuItem("Keyboard Matrix", 0, &ui->kbd.open);
 #endif
@@ -214,7 +213,7 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: return mem_rd(&x65->mem, addr);
+        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65->ram, 0, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[addr];
         case _UI_X65_MEMLAYER_VRAM0: return x65->cgia.vram[0][addr];
         case _UI_X65_MEMLAYER_VRAM1: return x65->cgia.vram[1][addr];
@@ -227,22 +226,11 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: mem_wr(&x65->mem, addr, data); break;
+        case _UI_X65_MEMLAYER_CPU: mem_wr(x65->ram, 0, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM0: x65->cgia.vram[0][addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM1: x65->cgia.vram[1][addr] = data; break;
     }
-}
-
-static void _ui_x65_update_memmap(ui_x65_t* ui) {
-    CHIPS_ASSERT(ui && ui->x65);
-    const x65_t* x65 = ui->x65;
-    ui_memmap_reset(&ui->memmap);
-    ui_memmap_layer(&ui->memmap, "IO");
-    ui_memmap_region(&ui->memmap, "DEVICES", X65_IO_BASE, 0x10000 - X65_IO_BASE, true);
-    ui_memmap_region(&ui->memmap, "EXTENSION", X65_EXT_BASE, X65_EXT_LEN, x65->ria.reg[RIA816_EXT_IO]);
-    ui_memmap_layer(&ui->memmap, "RAM");
-    ui_memmap_region(&ui->memmap, "RAM", 0x0000, 0x10000, true);
 }
 
 static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* user_data) {
@@ -622,21 +610,12 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
-        ui_memmap_desc_t desc = { 0 };
-        desc.title = "Memory Map";
-        desc.x = x;
-        desc.y = y;
-        ui_memmap_init(&ui->memmap, &desc);
-    }
-    x += dx;
-    y += dy;
-    {
         ui_dasm_desc_t desc = { 0 };
         for (int i = 0; i < _UI_X65_CODELAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
         }
         desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
-        desc.start_addr = mem_rd16(&ui->x65->mem, 0xFFFC);
+        desc.start_addr = mem_rd16(ui->x65->ram, 0, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
         static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };
@@ -664,7 +643,6 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_kbd_discard(&ui->kbd);
     ui_audio_discard(&ui->audio);
     ui_display_discard(&ui->display);
-    ui_memmap_discard(&ui->memmap);
     for (int i = 0; i < 4; i++) {
         ui_memedit_discard(&ui->memedit[i]);
         ui_dasm_discard(&ui->dasm[i]);
@@ -677,9 +655,6 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     CHIPS_ASSERT(ui && ui->x65 && frame);
     _ui_x65_draw_menu(ui);
     _ui_x65_draw_about(ui);
-    if (ui->memmap.open) {
-        _ui_x65_update_memmap(ui);
-    }
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);
     ui_display_draw(&ui->display, &frame->display);
     ui_kbd_draw(&ui->kbd);
@@ -691,7 +666,6 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_ymf262_draw(&ui->opl3);
     ui_cgia_draw(&ui->cgia);
     ui_console_draw(&ui->ria_uart);
-    ui_memmap_draw(&ui->memmap);
     for (int i = 0; i < 4; i++) {
         ui_memedit_draw(&ui->memedit[i]);
         ui_dasm_draw(&ui->dasm[i]);
@@ -722,7 +696,6 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     ui_audio_save_settings(&ui->audio, settings);
     ui_display_save_settings(&ui->display, settings);
     ui_kbd_save_settings(&ui->kbd, settings);
-    ui_memmap_save_settings(&ui->memmap, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_save_settings(&ui->memedit[i], settings);
     }
@@ -746,7 +719,6 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     ui_audio_load_settings(&ui->audio, settings);
     ui_display_load_settings(&ui->display, settings);
     ui_kbd_load_settings(&ui->kbd, settings);
-    ui_memmap_load_settings(&ui->memmap, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_load_settings(&ui->memedit[i], settings);
     }

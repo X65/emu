@@ -35,7 +35,6 @@
 #include "chips/m6526.h"
 #include "chips/m6581.h"
 #include "chips/ria816.h"
-#include "chips/mem.h"
 #include "chips/ymf262.h"
 
 #include <stdint.h>
@@ -139,7 +138,6 @@ typedef struct {
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
     kbd_t kbd;  // keyboard matrix state
-    mem_t mem;  // CPU-visible memory mapping
     bool valid;
     chips_debug_t debug;
 
@@ -151,7 +149,7 @@ typedef struct {
         float sample_buffer[X65_MAX_AUDIO_SAMPLES];
     } audio;
 
-    uint8_t ram[1 << 16];  // general ram
+    uint8_t ram[1 << 24];  // 16 MBytes of general RAM
     alignas(64) uint32_t fb[CGIA_FRAMEBUFFER_SIZE_BYTES / 4];
 } x65_t;
 
@@ -177,8 +175,6 @@ void x65_set_joystick_type(x65_t* sys, x65_joystick_type_t type);
 x65_joystick_type_t x65_joystick_type(x65_t* sys);
 // set joystick mask (combination of X65_JOYSTICK_*)
 void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask);
-// quickload a .bin/.prg file
-bool x65_quickload(x65_t* sys, chips_range_t data);
 // quickload a .xex file
 bool x65_quickload_xex(x65_t* sys, chips_range_t data);
 // insert tape as .TAP file (c1530 must be enabled)
@@ -197,14 +193,27 @@ bool x65_is_tape_motor_on(x65_t* sys);
 uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst);
 // load a snapshot, returns false if snapshot versions don't match
 bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src);
-// perform a RUN BASIC call
-void x65_basic_run(x65_t* sys);
-// perform a LOAD BASIC call
-void x65_basic_load(x65_t* sys);
-// perform a SYS xxxx BASIC call via the BASIC input buffer
-void x65_basic_syscall(x65_t* sys, uint16_t addr);
-// returns the SYS call return address (can be used to set a breakpoint)
-uint16_t x65_syscall_return_addr(void);
+
+// ---- memory access functions ----------------------------------------------
+/* read a byte at 16-bit address */
+static inline uint8_t mem_rd(uint8_t* mem, uint8_t bank, uint16_t addr) {
+    return mem[(bank << 16) | addr];
+}
+/* write a byte to 16-bit address */
+static inline void mem_wr(uint8_t* mem, uint8_t bank, uint16_t addr, uint8_t data) {
+    mem[(bank << 16) | addr] = data;
+}
+/* helper method to write a 16-bit value, does 2 mem_wr() */
+static inline void mem_wr16(uint8_t* mem, uint8_t bank, uint16_t addr, uint16_t data) {
+    mem_wr(mem, bank, addr, (uint8_t)data);
+    mem_wr(mem, bank, addr + 1, (uint8_t)(data >> 8));
+}
+/* helper method to read a 16-bit value, does 2 mem_rd() */
+static inline uint16_t mem_rd16(uint8_t* mem, uint8_t bank, uint16_t addr) {
+    uint8_t l = mem_rd(mem, bank, addr);
+    uint8_t h = mem_rd(mem, bank, addr + 1);
+    return (h << 8) | l;
+}
 
 #ifdef __cplusplus
 }  // extern "C"
