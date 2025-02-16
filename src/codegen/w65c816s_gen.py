@@ -67,16 +67,14 @@ A_PCR = 20      # Program Counter Relative - r
 A_STC = 21      # Stack - s
 A_STR = 22      # Stack Relative - d,s
 A_SII = 23      # Stack Relative Indirect Indexed with Y - (d,s),y
-A_JMP = 24      # special JMP abs
-A_JSR = 25      # special JSR abs
-A_STS = 26      # Stack with Signature - s
-A_INV = 27      # an invalid instruction
+A_STS = 24      # Stack with Signature - s
+A_INV = 25      # an invalid instruction
 
 # addressing mode strings
 addr_mode_str = [
     'a', '(a,x)', 'a,x', 'a,y', '(a)', 'al,x', 'al', 'A', 'xyc', '(d,x)', 'd,x', 'd,y',
-    '(d),y', '[d],y', '[d]', '(d)', 'd', '#', 'i', 'rl', 'r', 's', 'd,s', '(d,s),y',
-    'a', 'a', 's', 'INVALID'
+    '(d),y', '[d],y', '[d]', '(d)', 'd', '#', 'i', 'rl', 'r', 's', 'd,s', '(d,s),y', 's',
+    'INVALID'
 ]
 
 # memory access modes
@@ -91,14 +89,14 @@ ops = [
     # cc = 00
     [
         # ---         BIT          JMP          JMP()        STY          LDY          CPY          CPX
-        [[A_STS,M___],[A_JSR,M_R_],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
+        [[A_STS,M___],[A_ABS,M___],[A_STC,M_R_],[A_STC,M_R_],[A_PCR,M_R_],[A_IMM,M_R_],[A_IMM,M_R_],[A_IMM,M_R_]],
         [[A_DIR,M_RW],[A_DIR,M_R_],[A_BMV,M_RW],[A_DIR,M__W],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_R_],[A_DIR,M_R_]],
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
-        [[A_ABS,M_RW],[A_ABS,M_R_],[A_JMP,M_R_],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
+        [[A_ABS,M_RW],[A_ABS,M_R_],[A_ABS,M___],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
         [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
-        [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M_R_],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M_R_],[A_AXI,M_R_]]
+        [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M___],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_DIL,M___],[A_AXI,M_R_]]
     ],
     # cc = 01
     [
@@ -115,7 +113,7 @@ ops = [
     # cc = 02
     [
         # ASL         ROL          LSR          ROR          STX          LDX          DEC          INC
-        [[A_STS,M_RW],[A_ALN,M_RW],[A_IMM,M___],[A_STC,M_RW],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M___],[A_IMM,M___]],
+        [[A_STS,M_RW],[A_ABS,M___],[A_IMM,M___],[A_STC,M_RW],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M___],[A_IMM,M___]],
         [[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_RW],[A_DIR,M_RW]],
         [[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
@@ -129,11 +127,11 @@ ops = [
         [[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_RW],[A_STR,M_RW]],
         [[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_RW],[A_DIL,M_RW]],
         [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
-        [[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M_RW],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_RW],[A_ALN,M_RW]],
+        [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
         [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
         [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
         [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
-        [[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M_RW],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_RW],[A_ALX,M_RW]]
+        [[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_]]
     ]
 ]
 
@@ -148,6 +146,8 @@ class opcode:
         self.i += 1
     def ta(self, src):
         self.src[self.i-1] += src
+    def to(self, src):
+        self.src[self.i-1] = src
 
 #-------------------------------------------------------------------------------
 #   output a src line
@@ -197,13 +197,15 @@ def enc_addr(op, addr_mode, mem_access):
         # no addressing, this still puts the PC on the address bus without
         # incrementing the PC
         op.t('_SA(c->PC);')
-    if addr_mode == A_STS:
+    elif addr_mode == A_STS:
         # INT signature byte, not used but puts the PC on the address bus without
         # incrementing the PC
         op.t('if(0==c->brk_flags){_VPA();}_SA(c->PC);')
-    elif addr_mode == A_IMM or addr_mode == A_PCR:
+    elif addr_mode == A_IMM or addr_mode == A_PCR or addr_mode == A_PCL or addr_mode == A_BMV or addr_mode == A_ABI:
         # immediate mode
+        # and others pulling at least one argument byte after the instruction code
         op.t('_VPA();_SA(c->PC++);')
+        op.t('')
         return True
     elif addr_mode == A_DIR:
         # direct page
@@ -224,6 +226,12 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
+    elif addr_mode == A_ALN:
+        # absolute long
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);c->AD=(_GD()<<8)|c->AD;')
+        op.t('_VDA(_GD());_SA(c->AD);')
     elif addr_mode == A_ABX:
         # absolute + X
         # this needs to check if a page boundary is crossed, which costs
@@ -246,12 +254,22 @@ def enc_addr(op, addr_mode, mem_access):
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
         op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
+    elif addr_mode == A_ALX:
+        # absolute long + X
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+        op.t('_VPA();_SA(c->PC++);c->AD|=_GD()<<8;')
+        op.t('_VDA(_GD());_SA(c->AD+_X16(c));')
+    elif addr_mode == A_AXI:
+        # (absolute + X)
+        op.t('_VPA();_SA(c->PC++);')
     elif addr_mode == A_DXI:
         # (d,x)
         op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA(c->DBR);c->AD=(c->AD+_X(c))&0xFF;_SA(c->AD);')
-        op.t('_VDA(c->DBR);_SA((c->AD+1)&0xFF);c->AD=_GD();')
+        op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF))c->IR++;')
+        op.t('_SA(c->PC);') # add 1 cycle for direct register low not equal 0
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):c->D+c->AD+_X16(c));')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c)+1)&0xFF):c->D+c->AD+_X16(c))+1;c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DII:
         # (d),y
@@ -264,16 +282,13 @@ def enc_addr(op, addr_mode, mem_access):
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
         op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
-    elif addr_mode == A_STR or addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_ALN or addr_mode == A_ALX or addr_mode == A_DID:
+    elif addr_mode == A_STR or addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_DID:
         op.t('/* (unimpl) */;')
-    elif addr_mode == A_JMP:
-        # jmp is completely handled in instruction decoding
-        pass
-    elif addr_mode == A_JSR:
-        # jsr is completely handled in instruction decoding
-        pass
+        op.t('')
     else:
         # invalid instruction
+        op.t('/* (invalid) */;')
+        op.t('')
         pass
 
 #-------------------------------------------------------------------------------
@@ -344,25 +359,25 @@ def i_ldy(o, imm):
 #-------------------------------------------------------------------------------
 def i_stz(o):
     cmt(o,'STZ')
-    o.ta('_VDA(_GB());_SD(0);_WR();')
+    o.ta('_SD(0);_WR();')
     o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,0);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
     cmt(o,'STA')
-    o.ta('_VDA(_GB());_SD(_A(c));_WR();')
+    o.ta('_SD(_A(c));_WR();')
     o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_B(c));_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
-    o.ta('_VDA(_GB());_SD(_X(c));_WR();')
+    o.ta('_SD(_X(c));_WR();')
     o.t('if(_i8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_XH(c));_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
-    o.ta('_VDA(_GB());_SD(_Y(c));_WR();')
+    o.ta('_SD(_Y(c));_WR();')
     o.t('if(_i8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_YH(c));_WR();}')
 
 #-------------------------------------------------------------------------------
@@ -601,51 +616,53 @@ def i_bra(o):
 
 #-------------------------------------------------------------------------------
 def i_brl(o):
-    u_cmt(o,'BRL')
-    o.t('')
+    cmt(o,'BRL')
+    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+    o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
+    o.t('c->PC+=c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_jmp(o):
     cmt(o,'JMP')
-    o.t('_VPA();_SA(c->PC++);')
-    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-    o.t('c->PC=(_GD()<<8)|c->AD;')
+    o.ta('c->PC=_GA();')
 
 #-------------------------------------------------------------------------------
-def i_jml(o):
-    u_cmt(o,'JML')
-    o.t('')
+def i_jmpl(o):
+    cmt(o,'JMP')
+    o.ta('c->PBR=_GB();c->PC=_GA();')
 
 #-------------------------------------------------------------------------------
 def i_jmpi(o):
     cmt(o,'JMP')
-    o.t('_VPA();_SA(c->PC++);')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
     o.t('_VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);')
     o.t('_VDA(_GB());_SA((c->AD&0xFF00)|((c->AD+1)&0x00FF));c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
+def i_jmpx(o):
+    cmt(o,'JMP')
+    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+    o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
+    o.t('_VDA(c->DBR);c->AD|=_GD()<<8;_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));')
+    o.t('_VDA(c->DBR);_SA((c->AD&0xFF00)|((c->AD+_X(c)+1)&0xFF));c->AD=_GD();')
+    o.t('c->PC=(_GD()<<8)|c->AD;')
+
+#-------------------------------------------------------------------------------
 def i_jsr(o):
     cmt(o,'JSR')
-    # read low byte of target address
-    o.t('_VPA();_SA(c->PC++);')
-    # put SP on addr bus, next cycle is a junk read
-    o.t('_SA(0x0100|_S(c));c->AD=_GD();')
+    # put PC on stack and do a junk read
+    o.to('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     # write PC high byte to stack
     o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();')
     # write PC low byte to stack
     o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();')
-    # load target address high byte
-    o.t('_VPA();_SA(c->PC);')
-    # load PC and done
-    o.t('c->PC=(_GD()<<8)|c->AD;')
+    # load PC and do a fetch
+    o.t('c->PC=c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_jsrx(o):
     cmt(o,'JSR')
-    # read low byte of target address
-    o.t('_VPA();_SA(c->PC++);')
     # write PC high byte to stack
     o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);_WR();')
     # write PC low byte to stack
@@ -655,41 +672,59 @@ def i_jsrx(o):
     # put PC on addr bus, next cycle is a junk read
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     # load PC from pointed address
-    o.t('_VDA(_GB());_SA(c->AD+_X(c));')
-    o.t('_VDA(_GB());_SA(c->AD+_X(c)+1);c->AD=_GD();')
+    o.t('_VDA(c->DBR);_SA((c->AD&0xFF00)|((c->AD+_X(c))&0xFF));')
+    o.t('_VDA(c->DBR);_SA((c->AD&0xFF00)|((c->AD+_X(c)+1)&0xFF));c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_jsl(o):
-    u_cmt(o,'JSL')
-    o.t('')
+    cmt(o,'JSL')
+    # write Program Bank Register to stack
+    o.t('_VDA(0);_SAD(0x0100|_S(c),c->PBR);_WR();')
+    # put SP on addr bus, next cycle is a junk read
+    o.t('_SA(0x0100|_S(c)--);c->AD=(_GD()<<8)|c->AD;')
+    # read bank of target address
+    o.t('_VPA();_SA(c->PC++);')
+    # write PC high byte to stack
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC>>8);c->PBR=_GD();_WR();')
+    # write PC low byte to stack
+    o.t('_VDA(0);_SAD(0x0100|_S(c)--,c->PC);_WR();')
+    # load PC and done
+    o.t('c->PC=c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_rts(o):
     cmt(o,'RTS')
-    # put SP on stack and do a junk read
-    o.t('_SA(0x0100|_S(c)++);')
+    # put PC on stack and do a second junk read
+    o.t('_SA(c->PC);')
     # load return address low byte from stack
-    o.t('_VDA(0);_SA(0x0100|_S(c)++);')
+    o.t('_VDA(0);_SA(0x0100|++_S(c));')
     # load return address high byte from stack
-    o.t('_VDA(0);_SA(0x0100|_S(c));c->AD=_GD();')
-    # put return address in PC, this is one byte before next op, do junk read from PC
-    o.t('c->PC=(_GD()<<8)|c->AD;_SA(c->PC++);')
+    o.t('_VDA(0);_SA(0x0100|++_S(c));c->AD=_GD();')
+    # put return address in PC, this is one byte before next op, do junk read from Stack
+    o.t('c->PC=(_GD()<<8)|c->AD;_SA(0x0100|_S(c));')
     # next tick is opcode fetch
     o.t('');
 
 #-------------------------------------------------------------------------------
 def i_rtl(o):
-    u_cmt(o,'RTL')
-    o.t('_SA(0x0100|_S(c)++);')
+    cmt(o,'RTL')
+    # put PC on stack and do a second junk read
+    o.t('_SA(c->PC);')
+    # load return address low byte from stack
+    o.t('_VDA(0);_SA(0x0100|++_S(c));')
+    # load return address high byte from stack
+    o.t('_VDA(0);_SA(0x0100|++_S(c));c->AD=_GD();')
+    # put return address in PC, read PBR from stack
+    o.t('_VDA(0);_SA(0x0100|++_S(c));c->PC=(_GD()<<8)|c->AD;')
+    # next tick is opcode fetch
+    o.t('c->PBR=_GD();');
 
 #-------------------------------------------------------------------------------
 def i_rti(o):
     cmt(o,'RTI')
-    # put PC+1 on stack and do a junk read
-    o.t('_SA(0x0100|++c->PC);')
-    # and again
-    o.t('_SA(0x0100|++c->PC);')
+    # second junk read from current PC
+    o.t('_SA(c->PC);')
     # load processor status flag from stack
     o.t('_VDA(0);_SA(0x0100|++_S(c));')
     # load return address low byte from stack
@@ -859,9 +894,7 @@ def i_rora(o):
 #-------------------------------------------------------------------------------
 def i_mvp(o):
     cmt(o,'MVP')
-    # read destination bank address
-    o.t('_VPA();_SA(c->PC++);')
-    # read source bank address
+    # get destination bank address and read source bank address
     o.t('_VPA();c->DBR=_GD();_SA(c->PC);')
     # read source data
     o.t('_VDA(_GD());_SA(c->X--);')
@@ -875,9 +908,7 @@ def i_mvp(o):
 #-------------------------------------------------------------------------------
 def i_mvn(o):
     cmt(o,'MVN')
-    # read destination bank address
-    o.t('_VPA();_SA(c->PC++);')
-    # read source bank address
+    # get destination bank address and read source bank address
     o.t('_VPA();c->DBR=_GD();_SA(c->PC);')
     # read source data
     o.t('_VDA(_GD());_SA(c->X++);')
@@ -929,7 +960,7 @@ def enc_op(op):
             elif bbb == 4:      i_br(o, VF, 0)  # BVC
             elif bbb == 5:      i_mvn(o)
             elif bbb == 6:      i_cl(o, IF)
-            elif bbb == 7:      i_jmp(o)
+            elif bbb == 7:      i_jmpl(o)
             else:               u_nop(o)
         elif aaa == 3:
             if bbb == 0:        i_rts(o)
@@ -937,7 +968,7 @@ def enc_op(op):
             elif bbb == 3:      i_jmpi(o)
             elif bbb == 4:      i_br(o, VF, VF) # BVS
             elif bbb == 6:      i_se(o, IF)
-            elif bbb == 7:      i_jmpi(o)
+            elif bbb == 7:      i_jmpx(o)
             else:               i_stz(o)
         elif aaa == 4:
             if bbb == 0:        i_bra(o)
@@ -956,7 +987,7 @@ def enc_op(op):
             elif bbb == 4:      i_br(o, ZF, 0)  # BNE
             elif bbb == 5:      i_pei(o)
             elif bbb == 6:      i_cl(o, DF)
-            elif bbb == 7:      i_jml(o)
+            elif bbb == 7:      i_jmpl(o)
             else:               i_cpy(o, imm)
         elif aaa == 7:
             if bbb == 2:        i_inx(o)

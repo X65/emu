@@ -102,6 +102,11 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 #undef _FETCH_U16
 #endif
 #define _FETCH_U16(v) v=in_cb(user_data);v|=in_cb(user_data)<<8;pc+=2;
+/* fetch unsigned 24-bit value and track pc */
+#ifdef _FETCH_U24
+#undef _FETCH_U24
+#endif
+#define _FETCH_U24(v) v=in_cb(user_data);v|=in_cb(user_data)<<8;v|=in_cb(user_data)<<16;pc+=3;
 /* output character */
 #ifdef _CHR
 #undef _CHR
@@ -122,6 +127,11 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 #undef _STR_U16
 #endif
 #define _STR_U16(u16) _w65816dasm_u16((uint16_t)(u16),out_cb,user_data);
+/* output number number as unsigned 24-bit string (hex) */
+#ifdef _STR_U24
+#undef _STR_U24
+#endif
+#define _STR_U24(u32) _w65816dasm_u24((uint32_t)(u32),out_cb,user_data);
 
 /* addressing modes */
 #define A_ABS    (0)     /* a       - Absolute */
@@ -230,6 +240,16 @@ static void _w65816dasm_u16(uint16_t val, w65816dasm_output_t out_cb, void* user
     if (out_cb) {
         out_cb('$', user_data);
         for (int i = 3; i >= 0; i--) {
+            out_cb(_w65816dasm_hex[(val>>(i*4)) & 0xF], user_data);
+        }
+    }
+}
+
+/* helper function to output an unsigned 24-bit value as hex string */
+static void _w65816dasm_u24(uint32_t val, w65816dasm_output_t out_cb, void* user_data) {
+    if (out_cb) {
+        out_cb('$', user_data);
+        for (int i = 5; i >= 0; i--) {
             out_cb(_w65816dasm_hex[(val>>(i*4)) & 0xF], user_data);
         }
     }
@@ -495,7 +515,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
     }
     _STR(n);
 
-    uint8_t u8; int8_t i8; uint16_t u16;
+    uint8_t u8; int8_t i8; uint16_t u16; uint32_t u24;
     switch (_w65816dasm_ops[cc][bbb][aaa]) {
         case A_IMP: /* i       - Implied */
         case A_STC: /* s       - Stack */
@@ -564,7 +584,11 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _FETCH_U8(u8); _STR(", "); _STR_U8(u8);
             break;
         case A_ALX: /* al,x    - Absolute Long Indexed with X */
+            _CHR(' '); _FETCH_U24(u24); _STR_U24(u24); _STR(",X");
+            break;
         case A_ALN: /* al      - Absolute Long */
+            _CHR(' '); _FETCH_U24(u24); _STR_U24(u24);
+            break;
         case A_DLY: /* [d],y   - Direct Indirect Long Indexed with Y */
         case A_DIL: /* [d]     - Direct Indirect Long */
         case A_PCL: /* rl      - Program Counter Relative Long */
