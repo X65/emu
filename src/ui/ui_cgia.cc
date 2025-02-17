@@ -271,7 +271,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("H", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Fl", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 56.0f);
         ImGui::TableSetupColumn("Cl0", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl1", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl2", ImGuiTableColumnFlags_WidthFixed, cw);
@@ -292,7 +292,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
             ImGui::TableNextColumn();  // H
             ImGui::Text("%6d", sprite->lines_y);
             ImGui::TableNextColumn();  // Fl
-            ImGui::Text("%02X", sprite->flags);
+            ui_util_b8("", sprite->flags);
             for (int c = 0; c < 3; c++) {
                 ImGui::TableNextColumn();  // Cl
                 ImGui::PushID(i * 10 + c);
