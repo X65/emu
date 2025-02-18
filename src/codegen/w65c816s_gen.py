@@ -209,21 +209,21 @@ def enc_addr(op, addr_mode, mem_access):
         return True
     elif addr_mode == A_DIR:
         # direct page
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('if(_E(c)){_VDA(0);_SA(_GD());c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+_GD());c->IR++;}};')
-        op.t('_VDA(0);_SA(c->D+_GD());')
+        op.t('_VPA();_SA(c->PC++);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
+        op.t('c->AD=_GD();_SA(c->PC);')
+        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
     elif addr_mode == A_DIX:
         # direct page + X
         op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->PC);')
-        op.t('if(_E(c)){_VDA(0);_SA((c->AD+_X(c))&0xFF);c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+c->AD+_X16(c));c->IR++;}};')
-        op.t('_VDA(0);_SA(c->D+c->AD+_X16(c));')
+        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
+        op.t('_SA(c->PC);')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):(c->D+c->AD+_X16(c)));')
     elif addr_mode == A_DIY:
         # direct page + Y
         op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->PC);')
-        op.t('if(_E(c)){_VDA(0);_SA((c->AD+_Y(c))&0xFF);c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+c->AD+_Y16(c));c->IR++;}};')
-        op.t('_VDA(0);_SA(c->D+c->AD+_Y16(c));')
+        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
+        op.t('_SA(c->PC);')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+_Y(c))&0xFF):(c->D+c->AD+_Y16(c)));')
     elif addr_mode == A_ABS:
         # absolute
         op.t('_VPA();_SA(c->PC++);')
