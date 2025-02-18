@@ -210,17 +210,20 @@ def enc_addr(op, addr_mode, mem_access):
     elif addr_mode == A_DIR:
         # direct page
         op.t('_VPA();_SA(c->PC++);')
-        op.t('_VDA(0);_SA(_GD());')
+        op.t('if(_E(c)){_VDA(0);_SA(_GD());c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+_GD());c->IR++;}};')
+        op.t('_VDA(0);_SA(c->D+_GD());')
     elif addr_mode == A_DIX:
         # direct page + X
         op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA(0);if(_E(c)){_SA((c->AD+_X(c))&0x00FF);}else{_SA(c->AD+_X(c));}')
+        op.t('c->AD=_GD();_SA(c->PC);')
+        op.t('if(_E(c)){_VDA(0);_SA((c->AD+_X(c))&0xFF);c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+c->AD+_X16(c));c->IR++;}};')
+        op.t('_VDA(0);_SA(c->D+c->AD+_X16(c));')
     elif addr_mode == A_DIY:
         # direct page + Y
         op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->AD);')
-        op.t('_VDA(0);if(_E(c)){_SA((c->AD+_Y(c))&0x00FF);}else{_SA(c->AD+_Y(c));}')
+        op.t('c->AD=_GD();_SA(c->PC);')
+        op.t('if(_E(c)){_VDA(0);_SA((c->AD+_Y(c))&0xFF);c->IR++;}else{if(c->D&0xFF){_SA(c->PC);}else{_VDA(0);_SA(c->D+c->AD+_Y16(c));c->IR++;}};')
+        op.t('_VDA(0);_SA(c->D+c->AD+_Y16(c));')
     elif addr_mode == A_ABS:
         # absolute
         op.t('_VPA();_SA(c->PC++);')
@@ -449,7 +452,7 @@ def i_trb(o):
 #-------------------------------------------------------------------------------
 def i_tcd(o):
     cmt(o,'TCD')
-    o.t('c->D=c->C;_NZ(c->C);')
+    o.t('c->D=c->C;_NZ16(c->D);')
 
 #-------------------------------------------------------------------------------
 def i_tdc(o):
@@ -600,7 +603,7 @@ def i_br(o, m, v):
     # if branch not taken?
     o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();if((c->P&'+hex(m)+')!='+hex(v)+'){_FETCH();};')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0x00FF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -610,7 +613,7 @@ def i_bra(o):
     # branch is always taken - adds a cycle
     o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0x00FF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -636,7 +639,7 @@ def i_jmpi(o):
     cmt(o,'JMP')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
     o.t('_VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);')
-    o.t('_VDA(_GB());_SA((c->AD&0xFF00)|((c->AD+1)&0x00FF));c->AD=_GD();')
+    o.t('_VDA(_GB());_SA((c->AD&0xFF00)|((c->AD+1)&0xFF));c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -796,18 +799,18 @@ def i_bit(o, imm):
 #-------------------------------------------------------------------------------
 def i_dec(o):
     cmt(o,'DEC')
-    o.t('c->AD=_GD();                 if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());c->AD--;_NZ(c->AD);_SD(c->AD);_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                       }else{_VDA(_GB());c->AD--;_NZ16(c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());c->AD--;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_inc(o):
     cmt(o,'INC')
-    o.t('c->AD=_GD();                 if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());c->AD++;_NZ(c->AD);_SD(c->AD);_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                       }else{_VDA(_GB());c->AD++;_NZ16(c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());c->AD++;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_inca(o):
@@ -842,10 +845,10 @@ def i_iny(o):
 #-------------------------------------------------------------------------------
 def i_asl(o):
     cmt(o,'ASL')
-    o.t('c->AD=_GD();             if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());_SD(_w65816_asl(c,c->AD));_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                   }else{_VDA(_GB());c->AD=_w65816_asl16(c,c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_asl(c,c->AD));}else{c->AD=_w65816_asl16(c,c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_asla(o):
@@ -855,10 +858,10 @@ def i_asla(o):
 #-------------------------------------------------------------------------------
 def i_lsr(o):
     cmt(o,'LSR')
-    o.t('c->AD=_GD();             if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());_SD(_w65816_lsr(c,c->AD));_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                   }else{_VDA(_GB());c->AD=_w65816_lsr16(c,c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_lsr(c,c->AD));}else{c->AD=_w65816_lsr16(c,c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_lsra(o):
@@ -868,10 +871,10 @@ def i_lsra(o):
 #-------------------------------------------------------------------------------
 def i_rol(o):
     cmt(o,'ROL')
-    o.t('c->AD=_GD();             if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());_SD(_w65816_rol(c,c->AD));_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                   }else{_VDA(_GB());c->AD=_w65816_rol16(c,c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_rol(c,c->AD));}else{c->AD=_w65816_rol16(c,c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_rola(o):
@@ -881,10 +884,10 @@ def i_rola(o):
 #-------------------------------------------------------------------------------
 def i_ror(o):
     cmt(o,'ROR')
-    o.t('c->AD=_GD();             if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('if(_a8(c)){_VDA(_GB());_SD(_w65816_ror(c,c->AD));_WR();}else{c->AD|=_GD()<<8;}')
-    o.t('if(_a8(c)){_FETCH();                                   }else{_VDA(_GB());c->AD=_w65816_ror16(c,c->AD);_SD(c->AD>>8);_WR();}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();')
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_ror(c,c->AD));}else{c->AD=_w65816_ror16(c,c->AD);_SD(c->AD>>8);}_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
 
 #-------------------------------------------------------------------------------
 def i_rora(o):
