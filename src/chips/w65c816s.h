@@ -334,6 +334,7 @@ void w65816_set_c(w65816_t* cpu, uint16_t v);
 void w65816_set_x(w65816_t* cpu, uint16_t v);
 void w65816_set_y(w65816_t* cpu, uint16_t v);
 void w65816_set_s(w65816_t* cpu, uint16_t v);
+void w65816_set_d(w65816_t* cpu, uint16_t v);
 void w65816_set_p(w65816_t* cpu, uint8_t v);
 void w65816_set_e(w65816_t* cpu, bool v);
 void w65816_set_pc(w65816_t* cpu, uint16_t v);
@@ -345,6 +346,7 @@ uint16_t w65816_c(w65816_t* cpu);
 uint16_t w65816_x(w65816_t* cpu);
 uint16_t w65816_y(w65816_t* cpu);
 uint16_t w65816_s(w65816_t* cpu);
+uint16_t w65816_d(w65816_t* cpu);
 uint8_t w65816_p(w65816_t* cpu);
 bool w65816_e(w65816_t* cpu);
 uint16_t w65816_pc(w65816_t* cpu);
@@ -410,6 +412,7 @@ void w65816_set_c(w65816_t* cpu, uint16_t v) { cpu->C = v; }
 void w65816_set_x(w65816_t* cpu, uint16_t v) { cpu->X = v; }
 void w65816_set_y(w65816_t* cpu, uint16_t v) { cpu->Y = v; }
 void w65816_set_s(w65816_t* cpu, uint16_t v) { cpu->S = v; }
+void w65816_set_d(w65816_t* cpu, uint16_t v) { cpu->D = v; }
 void w65816_set_p(w65816_t* cpu, uint8_t v) { cpu->P = v; }
 void w65816_set_e(w65816_t* cpu, bool v) { cpu->emulation = v; }
 void w65816_set_pc(w65816_t* cpu, uint16_t v) { cpu->PC = v; }
@@ -421,6 +424,7 @@ uint16_t w65816_c(w65816_t* cpu) { return cpu->C; }
 uint16_t w65816_x(w65816_t* cpu) { return cpu->X; }
 uint16_t w65816_y(w65816_t* cpu) { return cpu->Y; }
 uint16_t w65816_s(w65816_t* cpu) { return cpu->S; }
+uint16_t w65816_d(w65816_t* cpu) { return cpu->D; }
 uint8_t w65816_p(w65816_t* cpu) { return cpu->P; }
 bool w65816_e(w65816_t* cpu) { return cpu->emulation; }
 uint16_t w65816_pc(w65816_t* cpu) { return cpu->PC; }

@@ -1419,7 +1419,7 @@ static void _ui_dbg_uistate_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     ui->stopwatch.open = ui->stopwatch.last_open = false;
     ui->init_x = (float) desc->x;
     ui->init_y = (float) desc->y;
-    ui->init_w = (float) ((desc->w == 0) ? 556 : desc->w);
+    ui->init_w = (float) ((desc->w == 0) ? 380 : desc->w);
     ui->init_h = (float) ((desc->h == 0) ? 440 : desc->h);
     ui->show_regs = true;
     ui->show_buttons = true;
@@ -1629,26 +1629,25 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
         }
     #elif defined(UI_DBG_USE_W65C816S)
         w65816_t* c = win->dbg.w65816;
-        if (ImGui::BeginTable("##reg_columns", 9)) {
+        if (ImGui::BeginTable("##reg_columns", 5)) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 58);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 36);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 72);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             w65816_set_c(c, ui_util_input_u16("C", w65816_c(c))); ImGui::TableNextColumn();
             w65816_set_x(c, ui_util_input_u16("X", w65816_x(c))); ImGui::TableNextColumn();
             w65816_set_y(c, ui_util_input_u16("Y", w65816_y(c))); ImGui::TableNextColumn();
-            w65816_set_s(c, ui_util_input_u16("S", w65816_s(c))); ImGui::TableNextColumn();
-            w65816_set_p(c, ui_util_input_u8("P", w65816_p(c))); ImGui::TableNextColumn();
-            w65816_set_pb(c, ui_util_input_u8("PB", w65816_pb(c))); ImGui::TableNextColumn();
-            w65816_set_pc(c, ui_util_input_u16("PC", w65816_pc(c))); ImGui::TableNextColumn();
             w65816_set_db(c, ui_util_input_u8("DB", w65816_db(c))); ImGui::TableNextColumn();
+            w65816_set_pb(c, ui_util_input_u8("PB", w65816_pb(c)));
+            ImGui::TableNextRow(); ImGui::TableNextColumn();
+            w65816_set_s(c, ui_util_input_u16("S", w65816_s(c))); ImGui::TableNextColumn();
+            w65816_set_d(c, ui_util_input_u16("D", w65816_d(c))); ImGui::TableNextColumn();
+            w65816_set_pc(c, ui_util_input_u16("PC", w65816_pc(c))); ImGui::TableNextColumn();
+            w65816_set_p(c, ui_util_input_u8("P", w65816_p(c))); ImGui::TableNextColumn();
+
             const uint8_t p = w65816_p(c);
             const uint8_t e = w65816_e(c);
             char p_str[11] = {
