@@ -149,6 +149,10 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     ImGui::Separator();
     ImGui::Text("Mode: %s", cpu->emulation ? "Emulation":"Native");
     ImGui::Text("BCD : %s", cpu->bcd_enabled ? "enabled":"disabled");
+    ImGui::Separator();
+    ImGui::Text("IR: %02X %d", cpu->IR >> 4, cpu->IR & 0xF);
+    ImGui::Text("AD: %04X", cpu->AD);
+    ImGui::Text("PINS: %010X", cpu->PINS);
 }
 
 void ui_w65816_draw(ui_w65816_t* win) {
