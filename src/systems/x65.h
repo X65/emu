@@ -196,22 +196,18 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src);
 
 // ---- memory access functions ----------------------------------------------
 /* read a byte at 16-bit address */
-static inline uint8_t mem_rd(uint8_t* mem, uint8_t bank, uint16_t addr) {
-    return mem[(bank << 16) | addr];
-}
+uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr);
 /* write a byte to 16-bit address */
-static inline void mem_wr(uint8_t* mem, uint8_t bank, uint16_t addr, uint8_t data) {
-    mem[(bank << 16) | addr] = data;
-}
+void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data);
 /* helper method to write a 16-bit value, does 2 mem_wr() */
-static inline void mem_wr16(uint8_t* mem, uint8_t bank, uint16_t addr, uint16_t data) {
-    mem_wr(mem, bank, addr, (uint8_t)data);
-    mem_wr(mem, bank, addr + 1, (uint8_t)(data >> 8));
+static inline void mem_wr16(x65_t* sys, uint8_t bank, uint16_t addr, uint16_t data) {
+    mem_wr(sys, bank, addr, (uint8_t)data);
+    mem_wr(sys, bank, addr + 1, (uint8_t)(data >> 8));
 }
 /* helper method to read a 16-bit value, does 2 mem_rd() */
-static inline uint16_t mem_rd16(uint8_t* mem, uint8_t bank, uint16_t addr) {
-    uint8_t l = mem_rd(mem, bank, addr);
-    uint8_t h = mem_rd(mem, bank, addr + 1);
+static inline uint16_t mem_rd16(x65_t* sys, uint8_t bank, uint16_t addr) {
+    uint8_t l = mem_rd(sys, bank, addr);
+    uint8_t h = mem_rd(sys, bank, addr + 1);
     return (h << 8) | l;
 }
 

@@ -619,7 +619,7 @@ static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_
 
 static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) {
     for (int i = 0; i < num_bytes; i++) {
-        *dst_ptr++ = mem_rd(state.x65.ram, 0, addr++);
+        *dst_ptr++ = mem_rd(&state.x65, 0, addr++);
     }
 }
 #endif

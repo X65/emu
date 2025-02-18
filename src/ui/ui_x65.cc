@@ -212,7 +212,7 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65->ram, 0, addr);
+        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, 0, addr);
         case _UI_X65_MEMLAYER_RAM00: return x65->ram[(0x00 << 16) + addr];
         case _UI_X65_MEMLAYER_RAM01: return x65->ram[(0x01 << 16) + addr];
         case _UI_X65_MEMLAYER_RAMFF: return x65->ram[(0xFF << 16) + addr];
@@ -227,7 +227,7 @@ static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: mem_wr(x65->ram, 0, addr, data); break;
+        case _UI_X65_MEMLAYER_CPU: mem_wr(x65, 0, addr, data); break;
         case _UI_X65_MEMLAYER_RAM00: x65->ram[(0x00 << 16) + addr] = data; break;
         case _UI_X65_MEMLAYER_RAM01: x65->ram[(0x01 << 16) + addr] = data; break;
         case _UI_X65_MEMLAYER_RAMFF: x65->ram[(0xFF << 16) + addr] = data; break;
@@ -618,7 +618,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
         }
         desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
-        desc.start_addr = mem_rd16(ui->x65->ram, 0, 0xFFFC);
+        desc.start_addr = mem_rd16(ui->x65, 0, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
         static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };

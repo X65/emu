@@ -89,31 +89,6 @@ void x65_reset(x65_t* sys) {
 void x65_set_running(x65_t* sys, bool running) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->running = running;
-    if (sys->running) {
-        // copy CPU vectors from RAM to RIA (in case it were fastloaded)
-        sys->ria.reg[RIA816_CPU_N_COP] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_COP);
-        sys->ria.reg[RIA816_CPU_N_COP + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_COP + 1);
-        sys->ria.reg[RIA816_CPU_N_BRK] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_BRK);
-        sys->ria.reg[RIA816_CPU_N_BRK + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_BRK + 1);
-        sys->ria.reg[RIA816_CPU_N_ABORTB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB);
-        sys->ria.reg[RIA816_CPU_N_ABORTB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_ABORTB + 1);
-        sys->ria.reg[RIA816_CPU_N_NMIB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB);
-        sys->ria.reg[RIA816_CPU_N_NMIB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_NMIB + 1);
-        sys->ria.reg[RIA816_CPU_N_IRQB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB);
-        sys->ria.reg[RIA816_CPU_N_IRQB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_N_IRQB + 1);
-        sys->ria.reg[RIA816_CPU_E_COP] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_COP);
-        sys->ria.reg[RIA816_CPU_E_COP + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_COP + 1);
-        sys->ria.reg[RIA816_CPU_E_ABORTB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB);
-        sys->ria.reg[RIA816_CPU_E_ABORTB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_ABORTB + 1);
-        sys->ria.reg[RIA816_CPU_E_NMIB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB);
-        sys->ria.reg[RIA816_CPU_E_NMIB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_NMIB + 1);
-        sys->ria.reg[RIA816_CPU_E_RESETB] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB);
-        sys->ria.reg[RIA816_CPU_E_RESETB + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_RESETB + 1);
-        sys->ria.reg[RIA816_CPU_E_IRQB_BRK] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK);
-        sys->ria.reg[RIA816_CPU_E_IRQB_BRK + 1] = mem_rd(sys->ram, 0, X65_IO_RIA_BASE + RIA816_CPU_E_IRQB_BRK + 1);
-        // and CGIA VRAM
-        cgia_mirror_vram(&sys->cgia);
-    }
 }
 
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
@@ -124,7 +99,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
 
     // tick the CPU
     pins = w65816_tick(&sys->cpu, pins);
-    const uint32_t addr = W65816_GET_ADDR(pins);
+    const uint32_t addr = W65816_GET_ADDR(pins) & 0xFFFFFF;
 
     // those pins are set each tick by the CIAs and VIC
     pins &= ~(W65816_IRQ | W65816_NMI | W65816_RDY);
@@ -256,19 +231,53 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
        "universal tick model" (yet?)
     */
     if (mem_access) {
-        const uint8_t bank = W65816_GET_BANK(pins);
         if (pins & W65816_RW) {
             // memory read
-            W65816_SET_DATA(pins, mem_rd(sys->ram, bank, addr));
+            W65816_SET_DATA(pins, sys->ram[addr]);
         }
         else {
             // memory write
             uint8_t data = W65816_GET_DATA(pins);
-            mem_wr(sys->ram, bank, addr, data);
+            sys->ram[addr] = data;
             cgia_mem_wr(&sys->cgia, addr, data);
         }
     }
     return pins;
+}
+
+uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
+    if (bank == 0) {
+        if (addr >= 0xFFC0) {
+            return sys->ria.reg[addr & 0x3F];
+        }
+        else if (addr >= 0xFF80) {
+            // SD-1
+            return 0xFF;
+        }
+        else if (addr >= 0xFF00) {
+            return sys->cgia.regs[addr & 0x7F];
+        }
+    }
+    return sys->ram[(bank << 16) | addr];
+}
+void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
+    if (bank == 0) {
+        if (addr >= 0xFFC0) {
+            sys->ria.reg[addr & 0x3F] = data;
+            return;
+        }
+        else if (addr >= 0xFF80) {
+            // SD-1
+            return;
+        }
+        else if (addr >= 0xFF00) {
+            sys->cgia.regs[addr & 0x7F] = data;
+            return;
+        }
+    }
+    const uint32_t full_addr = (bank << 16) | addr;
+    sys->ram[full_addr] = data;
+    cgia_mem_wr(&sys->cgia, full_addr, data);
 }
 
 uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
@@ -278,8 +287,8 @@ uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
 
 static void _x65_init_key_map(x65_t* sys) {
     /*
-        http://sta.x65.org/cbm64kbdlay.html
-        http://sta.x65.org/cbm64petkey.html
+        http://sta.c64.org/cbm64kbdlay.html
+        http://sta.c64.org/cbm64petkey.html
     */
     kbd_init(&sys->kbd, 1);
 
@@ -490,7 +499,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
             while (addr <= end_addr && addr >= start_addr) {
                 if (addr == 0xfffc) reset_lo_loaded = true;
                 if (addr == 0xfffd) reset_hi_loaded = true;
-                mem_wr(sys->ram, load_bank, addr++, *ptr++);
+                mem_wr(sys, load_bank, addr++, *ptr++);
             }
         }
     }
