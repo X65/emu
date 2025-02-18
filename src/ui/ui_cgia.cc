@@ -237,15 +237,15 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
     ImGui::Text("w: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits & 0x0F)));
     ImGui::SameLine();
     ImGui::Text("h: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits >> 4)));
-    ImGui::Text(" u: %d", chip->plane[p].affine.u);
+    ImGui::Text(" u: %04x/%.5f", (uint16_t)chip->plane[p].affine.u, chip->plane[p].affine.u / 256.0);
     ImGui::SameLine();
-    ImGui::Text(" v: %d", chip->plane[p].affine.v);
-    ImGui::Text("du: %d", chip->plane[p].affine.du);
+    ImGui::Text(" v: %04x/%.5f", (uint16_t)chip->plane[p].affine.v, chip->plane[p].affine.v / 256.0);
+    ImGui::Text("du: %04x/%.5f", (uint16_t)chip->plane[p].affine.du, chip->plane[p].affine.du / 256.0);
     ImGui::SameLine();
-    ImGui::Text("dv: %d", chip->plane[p].affine.dv);
-    ImGui::Text("dx: %d", chip->plane[p].affine.dx);
+    ImGui::Text("dv: %04x/%.5f", (uint16_t)chip->plane[p].affine.dv, chip->plane[p].affine.dv / 256.0);
+    ImGui::Text("dx: %04x/%.5f", (uint16_t)chip->plane[p].affine.dx, chip->plane[p].affine.dx / 256.0);
     ImGui::SameLine();
-    ImGui::Text("dy: %d", chip->plane[p].affine.dy);
+    ImGui::Text("dy: %04x/%.5f", (uint16_t)chip->plane[p].affine.dy, chip->plane[p].affine.dy / 256.0);
 }
 
 static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
