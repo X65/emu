@@ -1419,7 +1419,7 @@ static void _ui_dbg_uistate_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     ui->stopwatch.open = ui->stopwatch.last_open = false;
     ui->init_x = (float) desc->x;
     ui->init_y = (float) desc->y;
-    ui->init_w = (float) ((desc->w == 0) ? 544 : desc->w);
+    ui->init_w = (float) ((desc->w == 0) ? 556 : desc->w);
     ui->init_h = (float) ((desc->h == 0) ? 440 : desc->h);
     ui->show_regs = true;
     ui->show_buttons = true;
@@ -1650,8 +1650,8 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
             w65816_set_pc(c, ui_util_input_u16("PC", w65816_pc(c))); ImGui::TableNextColumn();
             w65816_set_db(c, ui_util_input_u8("DB", w65816_db(c))); ImGui::TableNextColumn();
             const uint8_t p = w65816_p(c);
-            const uint8_t e = w65816_p(c);
-            char p_str[9] = {
+            const uint8_t e = w65816_e(c);
+            char p_str[11] = {
                 (p & W65816_NF) ? 'N':'-',
                 (p & W65816_VF) ? 'V':'-',
                 e ? ((p & W65816_UF) ? '1':'-') : ((p & W65816_MF) ? 'M':'-'),
@@ -1660,6 +1660,8 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
                 (p & W65816_IF) ? 'I':'-',
                 (p & W65816_ZF) ? 'Z':'-',
                 (p & W65816_CF) ? 'C':'-',
+                ' ',
+                e ? 'E':' ',
                 0,
             };
             ImGui::AlignTextToFramePadding();
