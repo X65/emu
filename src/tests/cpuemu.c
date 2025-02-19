@@ -39,12 +39,14 @@ static struct argp_option options[] = {
     { "input", 'i', "HEX", 0, "Serial input port" },
     { "output", 'o', "HEX", 0, "Serial output port" },
     { "crlf", 'l', 0, 0, "Convert input LF to CRLF" },
+    { "write", 'w', "FILE", 0, "Write output to file" },
     { 0 }
 };
 
 struct arguments {
     int silent, dump, input, output, crlf;
-} arguments = { 0, -1, -1, -1, 0 };
+    char* write;
+} arguments = { 0, -1, -1, -1, 0, NULL };
 
 uint16_t load_addr = 0;
 
@@ -82,6 +84,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case ARGP_KEY_ARG: load_bin(arg, load_addr); break;
 
         case 'd': args->dump = (uint16_t)strtoul(arg, NULL, 16); break;
+        case 'w': args->write = strdup(arg); break;
 
         case 'i':
             args->input = (uint16_t)strtoul(arg, NULL, 16);
@@ -149,10 +152,12 @@ void cli_cleanup(int _status, void* _arg) {
     tcsetattr(STDIN_FILENO, TCSANOW, &ttysave);
 }
 
+FILE* output = NULL;
+
 void __attribute__((__noreturn__)) exit_with_message(const char* message) {
     fprintf(stderr, "%s\n", message);
     if (arguments.dump >= 0 && arguments.dump < sizeof(mem)) {
-        printf("%02X\n", mem[arguments.dump]);
+        fprintf(output, "%02X\n", mem[arguments.dump]);
     }
     exit(0);
 }
@@ -160,12 +165,19 @@ void __attribute__((__noreturn__)) exit_with_message(const char* message) {
 int main(int argc, char* argv[]) {
     args_parse(argc, argv);
 
-    FILE* output = stdout;
+    output = stdout;
 
     if (arguments.input >= 0) {
         cli_init();
         on_exit(cli_cleanup, NULL);
         output = stderr;
+    }
+    else if (arguments.write && arguments.write[0]) {
+        output = fopen(arguments.write, "wb");
+        if (!output) {
+            fprintf(stderr, "Error: can't open file %s for writing\n", arguments.write);
+            exit(1);
+        }
     }
 
     // initialize the CPU
