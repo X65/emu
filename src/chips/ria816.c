@@ -62,6 +62,21 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
             data = (addr == RIA816_MATH_DIVAB) ? (div & 0xFF) : (div >> 8);
         } break;
 
+        // Time Of Day
+        case RIA816_TIME_TM:
+        case RIA816_TIME_TM + 1:
+        case RIA816_TIME_TM + 2:
+        case RIA816_TIME_TM + 3:
+        case RIA816_TIME_TM + 4:
+        case RIA816_TIME_TM + 5:
+        case RIA816_TIME_TM + 6:
+        case RIA816_TIME_TM + 7: {
+            struct timespec ts;
+            clock_gettime(CLOCK_BOOTTIME, &ts);
+            uint64_t ms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+            data = ((uint8_t*)&ms)[addr & 0x07];
+        } break;
+
         case RIA816_UART_READY: {
             data = ria816_uart_status(c);
         } break;
