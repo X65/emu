@@ -213,9 +213,9 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
     elif addr_mode == A_DIX:
         # direct page + X
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
-        op.t('_SA(c->PC);')
+        op.t('_VPA();_SA(c->PC);')
+        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
+        op.t('_SA(c->PC++);')
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):(c->D+c->AD+_X(c)));')
     elif addr_mode == A_DIY:
         # direct page + Y
@@ -271,7 +271,7 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF))c->IR++;')
         op.t('_SA(c->PC);') # add 1 cycle for direct register low not equal 0
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):c->D+c->AD+_X(c));')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c)+1)&0xFF):c->D+c->AD+_X(c))+1;c->AD=_GD();')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c)+1)&0xFF):c->D+c->AD+_X(c)+1);c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DII:
         # (d),y
