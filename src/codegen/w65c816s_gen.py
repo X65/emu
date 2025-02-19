@@ -205,7 +205,6 @@ def enc_addr(op, addr_mode, mem_access):
         # immediate mode
         # and others pulling at least one argument byte after the instruction code
         op.t('_VPA();_SA(c->PC++);')
-        op.t('')
         return True
     elif addr_mode == A_DIR:
         # direct page
