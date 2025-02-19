@@ -877,7 +877,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x00<<4)|2: _VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<4)|3: _VDA(0);_SAD(_SP(_S(c)--),c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}break;
         case (0x00<<4)|4: _VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}break;
-        case (0x00<<4)|5: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF);if(_E(c)&&(c->brk_flags&W65816_BRK_IRQ)){c->P|=(W65816_BF);}c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
+        case (0x00<<4)|5: _VDA(0);_SA(c->AD++);c->P|=(W65816_IF);if(_E(c)){c->P|=(W65816_BF);}c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x00<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
         case (0x00<<4)|7: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x00<<4)|8: assert(false);break;
