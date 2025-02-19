@@ -158,6 +158,8 @@ typedef struct {
 #define RIA816_SET_DATA(p, d) \
     { p = (((p) & ~0xFF0000ULL) | (((d) << 16) & 0xFF0000ULL)); }
 
+#define RIA816_REG16(regs, ADDR) (uint16_t)((uint16_t)(regs[ADDR]) | ((uint16_t)(regs[ADDR + 1]) << 8))
+
 // initialize a new RIA816 instance
 void ria816_init(ria816_t* ria816);
 // reset an existing RIA816 instance

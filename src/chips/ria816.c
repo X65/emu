@@ -43,8 +43,6 @@ uint8_t ria816_uart_status(const ria816_t* c) {
     return data;
 }
 
-#define RIA816_REG16(ADDR) (uint16_t)((uint16_t)(c->reg[ADDR]) | ((uint16_t)(c->reg[ADDR + 1]) << 8))
-
 static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
 
@@ -52,14 +50,14 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         // multiplication accelerator
         case RIA816_MATH_MULAB:
         case RIA816_MATH_MULAB + 1: {
-            uint16_t mul = RIA816_REG16(RIA816_MATH_OPERA) * RIA816_REG16(RIA816_MATH_OPERB);
+            uint16_t mul = RIA816_REG16(c->reg, RIA816_MATH_OPERA) * RIA816_REG16(c->reg, RIA816_MATH_OPERB);
             data = (addr == RIA816_MATH_MULAB) ? (mul & 0xFF) : (mul >> 8);
         } break;
         // division accelerator
         case RIA816_MATH_DIVAB:
         case RIA816_MATH_DIVAB + 1: {
-            const int16_t oper_a = RIA816_REG16(RIA816_MATH_OPERA);
-            const uint16_t oper_b = RIA816_REG16(RIA816_MATH_OPERB);
+            const int16_t oper_a = RIA816_REG16(c->reg, RIA816_MATH_OPERA);
+            const uint16_t oper_b = RIA816_REG16(c->reg, RIA816_MATH_OPERB);
             uint16_t div = oper_b ? (oper_a / oper_b) : 0xFFFF;
             data = (addr == RIA816_MATH_DIVAB) ? (div & 0xFF) : (div >> 8);
         } break;
