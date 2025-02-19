@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
         on_exit(cli_cleanup, NULL);
         output = stderr;
     }
-    else if (arguments.write && arguments.write[0]) {
+    if (arguments.write && arguments.write[0]) {
         output = fopen(arguments.write, "wb");
         if (!output) {
             fprintf(stderr, "Error: can't open file %s for writing\n", arguments.write);
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
     while (true) {
         static char in_c = '\0';
         static ssize_t in_n = 0;
-        if (in_n == 0 && (arguments.input || arguments.uart)) {
+        if (in_n == 0 && (arguments.input >= 0 || arguments.uart)) {
             in_n = read(STDIN_FILENO, &in_c, 1);
         }
 
@@ -217,16 +217,14 @@ int main(int argc, char* argv[]) {
                     data = pending_char;
                     pending_char = 0;
                 }
-                else {
-                    if (in_n > 0) {
-                        if (arguments.crlf && in_c == 0x0A) {
-                            // convert LF to CRLF
-                            pending_char = in_c;  // put away LF for later
-                            in_c = 0x0D;          // insert CR
-                        }
-                        data = in_c;
-                        in_n = 0;
+                else if (in_n > 0) {
+                    if (arguments.crlf && in_c == 0x0A) {
+                        // convert LF to CRLF
+                        pending_char = in_c;  // put away LF for later
+                        in_c = 0x0D;          // insert CR
                     }
+                    data = in_c;
+                    in_n = 0;
                 }
             }
             if (arguments.uart) {

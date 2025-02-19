@@ -1194,7 +1194,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* JSR a */
         case (0x20<<4)|0: _VPA();_SA(c->PC++);break;
         case (0x20<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
-        case (0x20<<4)|2: _SA(c->PC);c->AD=(_GD()<<8)|c->AD;break;
+        case (0x20<<4)|2: _SA(--c->PC);c->AD=(_GD()<<8)|c->AD;break;
         case (0x20<<4)|3: _VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();break;
         case (0x20<<4)|4: _VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();break;
         case (0x20<<4)|5: c->PC=c->AD;_FETCH();break;
@@ -1836,7 +1836,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x60<<4)|1: _SA(c->PC);break;
         case (0x60<<4)|2: _VDA(0);_SA(_SP(++_S(c)));break;
         case (0x60<<4)|3: _VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();break;
-        case (0x60<<4)|4: c->PC=(_GD()<<8)|c->AD;_SA(_SP(_S(c)));break;
+        case (0x60<<4)|4: c->PC=(_GD()<<8)|c->AD;_SA(c->PC++);break;
         case (0x60<<4)|5: _FETCH();break;
         case (0x60<<4)|6: assert(false);break;
         case (0x60<<4)|7: assert(false);break;

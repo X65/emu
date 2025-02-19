@@ -653,8 +653,8 @@ def i_jmpx(o):
 #-------------------------------------------------------------------------------
 def i_jsr(o):
     cmt(o,'JSR')
-    # put PC on stack and do a junk read
-    o.to('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
+    # rewind PC (it is pointing to next instruction) and put PC on stack doing a junk read
+    o.to('_SA(--c->PC);c->AD=(_GD()<<8)|c->AD;')
     # write PC high byte to stack
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack
@@ -704,7 +704,7 @@ def i_rts(o):
     # load return address high byte from stack
     o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
     # put return address in PC, this is one byte before next op, do junk read from Stack
-    o.t('c->PC=(_GD()<<8)|c->AD;_SA(_SP(_S(c)));')
+    o.t('c->PC=(_GD()<<8)|c->AD;_SA(c->PC++);')
     # next tick is opcode fetch
     o.t('');
 
