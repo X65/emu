@@ -40,13 +40,15 @@ static struct argp_option options[] = {
     { "output", 'o', "HEX", 0, "Serial output port" },
     { "crlf", 'l', 0, 0, "Convert input LF to CRLF" },
     { "write", 'w', "FILE", 0, "Write output to file" },
+    { "uart", 'u', 0, 0, "Emulate X65 CDC-UART" },
+    { "no-brk", 'b', 0, 0, "Do not stop on BRK instruction" },
     { 0 }
 };
 
 struct arguments {
-    int silent, dump, input, output, crlf;
+    int silent, dump, input, output, crlf, uart, nbrk;
     char* write;
-} arguments = { 0, -1, -1, -1, 0, NULL };
+} arguments = { 0, -1, -1, -1, 0, 0, 0, NULL };
 
 uint16_t load_addr = 0;
 
@@ -95,6 +97,12 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
             args->silent = true;
             break;
         case 'l': args->crlf = 1; break;
+        case 'u':
+            args->uart = 1;
+            args->silent = true;
+            break;
+
+        case 'b': args->nbrk = 1; break;
 
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -167,7 +175,7 @@ int main(int argc, char* argv[]) {
 
     output = stdout;
 
-    if (arguments.input >= 0) {
+    if (arguments.input >= 0 || arguments.uart) {
         cli_init();
         on_exit(cli_cleanup, NULL);
         output = stderr;
@@ -185,6 +193,12 @@ int main(int argc, char* argv[]) {
     uint64_t pins = w65816_init(&cpu, &(w65816_desc_t){});
 
     while (true) {
+        static char in_c = '\0';
+        static ssize_t in_n = 0;
+        if (in_n == 0 && (arguments.input || arguments.uart)) {
+            in_n = read(STDIN_FILENO, &in_c, 1);
+        }
+
         // run the CPU emulation for one tick
         pins = w65816_tick(&cpu, pins);
         // extract 24-bit address from pin mask
@@ -204,16 +218,30 @@ int main(int argc, char* argv[]) {
                     pending_char = 0;
                 }
                 else {
-                    static char c;
-                    ssize_t n = read(STDIN_FILENO, &c, 1);
-                    if (n > 0) {
-                        if (arguments.crlf && c == 0x0A) {
+                    if (in_n > 0) {
+                        if (arguments.crlf && in_c == 0x0A) {
                             // convert LF to CRLF
-                            pending_char = c;  // put away LF for later
-                            c = 0x0D;          // insert CR
+                            pending_char = in_c;  // put away LF for later
+                            in_c = 0x0D;          // insert CR
                         }
-                        data = c;
+                        data = in_c;
+                        in_n = 0;
                     }
+                }
+            }
+            if (arguments.uart) {
+                if (addr == 0xffe0) {
+                    // FLOW control
+                    data = 0b10000000;
+                    if (in_n > 0) {
+                        data |= 0b01000000;
+                        in_n = 0;
+                    };
+                }
+                if (addr == 0xffe1) {
+                    // RX
+                    data = in_c;
+                    in_n = 0;
                 }
             }
 
@@ -222,7 +250,7 @@ int main(int argc, char* argv[]) {
         else {
             // a memory write
             uint8_t data = W65816_GET_DATA(pins);
-            if (arguments.output >= 0 && addr == arguments.output) {
+            if ((arguments.output >= 0 && addr == arguments.output) || (arguments.uart && addr == 0xffe1)) {
                 putc(data, stdout);
                 fflush(stdout);
             }
@@ -237,6 +265,7 @@ int main(int argc, char* argv[]) {
             // handle special cases
             switch (data) {
                 case 0x00:  // BRK
+                    if (arguments.nbrk) break;
                     exit_with_message("BRK instruction reached");
                 case 0xCB:  // WAI
                     exit_with_message("WAI instruction reached");
