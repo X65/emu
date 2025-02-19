@@ -61,6 +61,7 @@
 #*/
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #if !defined(UI_DBG_USE_Z80) && !defined(UI_DBG_USE_M6502) && !defined(UI_DBG_USE_W65C816S)
 #error "please define UI_DBG_USE_Z80 or UI_DBG_USE_M6502 or UI_DBG_USE_W65C816S"
@@ -1394,7 +1395,7 @@ static void _ui_dbg_stopwatch_draw(ui_dbg_t* win) {
             if (win->stopwatch.frame_ticks > 0) {
                 frames = (double)cycle_count / (double)win->stopwatch.frame_ticks;
             }
-            ImGui::Text("%llu ticks", cycle_count);
+            ImGui::Text("%" PRIu64 " ticks", cycle_count);
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("milliseconds: %.3f\nraster lines: %.3f\nframes:       %.3f\n", ms, raster_lines, frames);
             }

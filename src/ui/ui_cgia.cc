@@ -310,7 +310,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
 
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
-    for (size_t i = 0; i < CGIA_PLANES; i++) {
+    for (int i = 0; i < CGIA_PLANES; i++) {
         ImGui::PushID(i);
         bool plane_active = chip->planes & (1u << i);
         const bool plane_type_sprite = chip->planes & (0x10u << i);

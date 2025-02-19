@@ -52,6 +52,7 @@
 #*/
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,7 +153,7 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     ImGui::Separator();
     ImGui::Text("IR: %02X %d", cpu->IR >> 4, cpu->IR & 0xF);
     ImGui::Text("AD: %04X", cpu->AD);
-    ImGui::Text("PINS: %010X", cpu->PINS);
+    ImGui::Text("PINS: %010" PRIX64, cpu->PINS);
 }
 
 void ui_w65816_draw(ui_w65816_t* win) {
