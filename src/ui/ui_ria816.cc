@@ -4,6 +4,8 @@
 
 #include <imgui.h>
 
+#include <inttypes.h>
+
 #ifndef __cplusplus
     #error "implementation must be compiled as C++"
 #endif
@@ -84,6 +86,7 @@ static void _ui_ria816_draw_state(ui_ria816_t* win) {
         ui_util_u16("", RIA816_REG16(ria->reg, RIA816_CPU_N_COP));
         ImGui::TableNextColumn();
         ImGui::EndTable();
+        ImGui::Text("Time: %016" PRIX64, ria->us);
     }
 }
 

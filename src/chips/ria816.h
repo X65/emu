@@ -145,11 +145,20 @@ extern "C" {
 #define RIA816_CPU_E_IRQB_BRK (0x3E)  // 6502 vector.
 #define RIA816_NUM_REGS       (64)
 
+// the ria816 setup parameters
+typedef struct {
+    // the CPU tick rate in hz
+    int tick_hz;
+} ria816_desc_t;
+
 // ria816 state
 typedef struct {
     uint8_t reg[RIA816_NUM_REGS];
     ring_buffer_t uart_rx;
     ring_buffer_t uart_tx;
+    uint64_t us;  // monotonic clock
+    int ticks_per_ms;
+    int ticks_counter;
     uint64_t pins;
 } ria816_t;
 
@@ -162,7 +171,7 @@ typedef struct {
 #define RIA816_REG16(regs, ADDR) (uint16_t)((uint16_t)(regs[ADDR]) | ((uint16_t)(regs[ADDR + 1]) << 8))
 
 // initialize a new RIA816 instance
-void ria816_init(ria816_t* ria816);
+void ria816_init(ria816_t* ria816, const ria816_desc_t* desc);
 // reset an existing RIA816 instance
 void ria816_reset(ria816_t* ria816);
 // tick the RIA816

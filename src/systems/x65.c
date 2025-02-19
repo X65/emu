@@ -33,7 +33,11 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     sys->pins = w65816_init(&sys->cpu, &(w65816_desc_t){});
     m6526_init(&sys->cia_1);
     m6526_init(&sys->cia_2);
-    ria816_init(&sys->ria);
+    ria816_init(
+        &sys->ria,
+        &(ria816_desc_t){
+            .tick_hz = X65_FREQUENCY,
+        });
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
         .fetch_cb = _x65_vpu_fetch,

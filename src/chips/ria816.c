@@ -9,11 +9,16 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
-void ria816_init(ria816_t* c) {
+// fixed point precision for more precise error accumulation
+#define RIA816_FIXEDPOINT_SCALE (256)
+
+void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
     CHIPS_ASSERT(c);
     memset(c, 0, sizeof(*c));
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
+
+    c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
     // Seed the random number generator
     srand((unsigned int)time(NULL));
@@ -22,11 +27,17 @@ void ria816_init(ria816_t* c) {
 void ria816_reset(ria816_t* c) {
     CHIPS_ASSERT(c);
     c->pins = 0;
+    c->us = 0;
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
 }
 
 static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
+    c->ticks_counter += RIA816_FIXEDPOINT_SCALE;
+    if (c->ticks_counter >= c->ticks_per_ms) {
+        c->us += 1;
+        c->ticks_counter -= c->ticks_per_ms;
+    }
     return pins;
 }
 
@@ -71,15 +82,7 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         case RIA816_TIME_TM + 5:
         case RIA816_TIME_TM + 6:
         case RIA816_TIME_TM + 7: {
-            struct timespec ts;
-#ifdef _WIN32
-    #define RIA816_CLOCK_ID CLOCK_MONOTONIC
-#else
-    #define RIA816_CLOCK_ID CLOCK_BOOTTIME
-#endif
-            clock_gettime(RIA816_CLOCK_ID, &ts);
-            uint64_t us = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-            data = ((uint8_t*)&us)[addr & 0x07];
+            data = ((uint8_t*)&c->us)[addr & 0x07];
         } break;
 
         case RIA816_UART_READY: {

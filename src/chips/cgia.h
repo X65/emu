@@ -161,7 +161,7 @@ extern "C" {
 #define CGIA_ACTIVE_HEIGHT (MODE_V_ACTIVE_LINES / FB_V_REPEAT)
 
 // fixed point precision for more precise error accumulation
-#define CGIA_FIXEDPOINT_SCALE (100)
+#define CGIA_FIXEDPOINT_SCALE (256)
 
 // a memory-fetch callback, used to read video memory bytes into the CGIA
 typedef uint8_t (*cgia_fetch_t)(uint32_t data, void* user_data);
