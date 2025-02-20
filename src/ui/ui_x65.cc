@@ -1,6 +1,7 @@
 #include "./ui_x65.h"
 
 #include "imgui.h"
+#include "IconsFontAwesome6.h"
 #include "args.h"
 
 #ifdef __EMSCRIPTEN__
@@ -23,6 +24,20 @@
 static void _ui_x65_draw_menu(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65 && ui->boot_cb);
     if (ImGui::BeginMainMenuBar()) {
+        ImGui::Text("%s", ui->x65->running ? ICON_FA_PLAY : ICON_FA_STOP);
+        if (arguments.rom && ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::Text("%s", arguments.rom);
+            ImGui::EndTooltip();
+        }
+        if (ImGui::SmallButton(ICON_FA_ROTATE_LEFT)) {
+            x65_reset(ui->x65);
+            ui_dbg_reset(&ui->dbg);
+        }
+        if (ImGui::SmallButton(ICON_FA_POWER_OFF)) {
+            ui->boot_cb(ui->x65);
+            ui_dbg_reboot(&ui->dbg);
+        }
         if (ImGui::BeginMenu("System")) {
             if (ImGui::MenuItem(ui->x65->running ? "Running" : "Run", 0, ui->x65->running)) {
                 x65_set_running(ui->x65, !ui->x65->running);

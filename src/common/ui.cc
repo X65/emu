@@ -16,6 +16,9 @@
 #include "ui/ui_display.h"
 
 #include "AtariST8x16SystemFont.cpp"
+#include "fa-regular-400.cpp"
+#include "fa-solid-900.cpp"
+#include "IconsFontAwesome6.h"
 
 #define UI_DELETE_STACK_SIZE (32)
 
@@ -86,12 +89,28 @@ void ui_init(const ui_desc_t* desc) {
     ImGuiIO& io = ImGui::GetIO();
     ImFontConfig font_cfg;
     font_cfg.PixelSnapH = true;
+    float font_size = 14.0f;
     io.Fonts->AddFontFromMemoryCompressedTTF(
         AtariST8x16SystemFont_compressed_data,
         AtariST8x16SystemFont_compressed_size,
-        14,
+        font_size,
         &font_cfg,
         io.Fonts->GetGlyphRangesDefault());
+    font_cfg.MergeMode = true;
+    font_cfg.GlyphMinAdvanceX = font_size;
+    static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    io.Fonts->AddFontFromMemoryCompressedTTF(
+        fa400_compressed_data,
+        fa400_compressed_size,
+        font_size,
+        &font_cfg,
+        icon_ranges);
+    io.Fonts->AddFontFromMemoryCompressedTTF(
+        fa900_compressed_data,
+        fa900_compressed_size,
+        font_size,
+        &font_cfg,
+        icon_ranges);
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     auto& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
