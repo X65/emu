@@ -24,7 +24,7 @@
 static void _ui_x65_draw_menu(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65 && ui->boot_cb);
     if (ImGui::BeginMainMenuBar()) {
-        ImGui::Text("%s", ui->x65->running ? ICON_FA_PLAY : ICON_FA_STOP);
+        ImGui::Text("%s", ui->x65->running ? (ui->dbg.dbg.stopped ? ICON_FA_PAUSE : ICON_FA_PLAY) : ICON_FA_STOP);
         if (arguments.rom && ImGui::IsItemHovered()) {
             ImGui::BeginTooltip();
             ImGui::Text("%s", arguments.rom);
