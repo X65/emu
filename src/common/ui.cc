@@ -89,7 +89,7 @@ void ui_init(const ui_desc_t* desc) {
     ImGuiIO& io = ImGui::GetIO();
     ImFontConfig font_cfg;
     font_cfg.PixelSnapH = true;
-    float font_size = 14.0f;
+    float font_size = 16.0f;
     io.Fonts->AddFontFromMemoryCompressedTTF(
         AtariST8x16SystemFont_compressed_data,
         AtariST8x16SystemFont_compressed_size,
