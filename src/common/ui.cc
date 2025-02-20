@@ -15,6 +15,8 @@
 #include <stdio.h> // snprintf
 #include "ui/ui_display.h"
 
+#include "AtariST8x16SystemFont.cpp"
+
 #define UI_DELETE_STACK_SIZE (32)
 
 #if defined(__clang__)
@@ -76,10 +78,21 @@ void ui_init(const ui_desc_t* desc) {
     state.save_settings_cb = desc->save_settings_cb;
     snprintf(state.imgui_ini_key, sizeof(state.imgui_ini_key), "%s", desc->imgui_ini_key);
 
-    simgui_desc_t simgui_desc = { };
+    simgui_desc_t simgui_desc = {
+        .no_default_font = true,
+    };
     simgui_setup(&simgui_desc);
     register_imgui_settings_handler();
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ImGuiIO& io = ImGui::GetIO();
+    ImFontConfig font_cfg;
+    font_cfg.PixelSnapH = true;
+    io.Fonts->AddFontFromMemoryCompressedTTF(
+        AtariST8x16SystemFont_compressed_data,
+        AtariST8x16SystemFont_compressed_size,
+        14,
+        &font_cfg,
+        io.Fonts->GetGlyphRangesDefault());
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     auto& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowBorderSize = 1.0f;
