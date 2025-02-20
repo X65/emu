@@ -79,9 +79,7 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         case RIA816_TIME_TM + 2:
         case RIA816_TIME_TM + 3:
         case RIA816_TIME_TM + 4:
-        case RIA816_TIME_TM + 5:
-        case RIA816_TIME_TM + 6:
-        case RIA816_TIME_TM + 7: {
+        case RIA816_TIME_TM + 5: {
             data = ((uint8_t*)&c->us)[addr & 0x07];
         } break;
 
