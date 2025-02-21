@@ -38,6 +38,8 @@ static void _ui_ymf262_draw_state(ui_ymf262_t* win) {
     esfm_chip* opl3 = &win->opl3->chip;
     const float cw0 = 112.0f;
     const float cw = 28.0f;
+    ImGui::Text("Bank0 Addr Latch: %04X", win->opl3->addr[0]);
+    ImGui::Text("Bank1 Addr Latch: %04X", win->opl3->addr[1]);
     if (ImGui::CollapsingHeader("Wave Generator", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginTable("##opl3_channels", 19)) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
