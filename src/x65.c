@@ -5,9 +5,10 @@
 #include "chips/chips_common.h"
 #include "common.h"
 #include "chips/w65c816s.h"
-#include "chips/m6526.h"
 #include "chips/kbd.h"
 #include "chips/clk.h"
+#include "chips/beeper.h"
+#undef CHIPS_IMPL
 #include "systems/x65.h"
 #if defined(CHIPS_USE_UI)
     #define UI_DBG_USE_W65C816S
@@ -19,7 +20,6 @@
     #include "ui/ui_dasm.h"
     #include "ui/ui_dbg.h"
     #include "ui/ui_w65c816s.h"
-    #include "ui/ui_m6526.h"
     #include "ui/ui_audio.h"
     #include "ui/ui_display.h"
     #include "ui/ui_kbd.h"

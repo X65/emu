@@ -32,7 +32,6 @@
 #include "chips/beeper.h"
 #include "chips/cgia.h"
 #include "chips/w65c816s.h"
-#include "chips/m6526.h"
 #include "chips/ria816.h"
 #include "chips/ymf262.h"
 
@@ -96,18 +95,20 @@ typedef enum {
 #define X65_KEY_F8       (0xF8)  // F8
 
 // Extension bus devices
-// split in 8 slots of 32 bytes
+// split in 8 slots of 64 bytes
 #define X65_EXT_BASE     (0xFC00)
-#define X65_EXT_LEN      (0x100)
+#define X65_EXT_LEN      (0x200)
 #define X65_EXT_SLOTS    (8)
 #define X65_EXT_SLOT_LEN (X65_EXT_LEN / X65_EXT_SLOTS)
 // reserved for future use (MMU)
 // default state is visible RAM
-#define X65_EXT_MEM (0xFD00)
+#define X65_EXT_MEM (0xF800)
 // IO base addresses
 #define X65_IO_BASE        (0xFE00)
+#define X65_IO_MIXER_BASE  (0xFEB0)
+#define X65_IO_YMF825_BASE (0xFEC0)
 #define X65_IO_CGIA_BASE   (0xFF00)
-#define X65_IO_YMF825_BASE (0xFF80)
+#define X65_IO_GPIO_BASE   (0xFF80)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
 // config parameters for x65_init()
@@ -120,8 +121,6 @@ typedef struct {
 // X65 emulator state
 typedef struct {
     w65816_t cpu;
-    m6526_t cia_1;
-    m6526_t cia_2;
     ria816_t ria;
     cgia_t cgia;
     ymf262_t opl3;

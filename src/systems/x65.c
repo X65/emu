@@ -31,8 +31,6 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
 
     // initialize the hardware
     sys->pins = w65816_init(&sys->cpu, &(w65816_desc_t){});
-    m6526_init(&sys->cia_1);
-    m6526_init(&sys->cia_2);
     ria816_init(
         &sys->ria,
         &(ria816_desc_t){
@@ -73,8 +71,6 @@ void x65_reset(x65_t* sys) {
     sys->kbd_joy1_mask = sys->kbd_joy2_mask = 0;
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
     sys->pins |= W65816_RES;
-    m6526_reset(&sys->cia_1);
-    m6526_reset(&sys->cia_2);
     ria816_reset(&sys->ria);
     cgia_reset(&sys->cgia);
     beeper_reset(&sys->beeper[0]);
@@ -130,48 +126,30 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= X65_IO_YMF825_BASE) {
-                // SD-1 (FF80..FF9F)
-                sd1_pins |= 0;  // FIXME: YMF825_CS;
+            else if (addr >= 0xFFA0) {
+                // NOT_USED (FFA0..FFBF)
+            }
+            else if (addr >= X65_IO_GPIO_BASE) {
+                // GPIO (FF80..FF9F)
+                ria_pins |= RIA816_GPIO_CS;
             }
             else if (addr >= X65_IO_CGIA_BASE) {
                 // CGIA (FF00..FF7F)
                 cgia_pins |= CGIA_CS;
+            }
+            else if (addr >= X65_IO_YMF825_BASE) {
+                // SD-1 (FEC0..FEFF)
+                sd1_pins |= 0;  // FIXME: YMF825_CS;
+            }
+            else if (addr >= X65_IO_MIXER_BASE) {
+                // SD-1 (FEB0..FEBF)
+                // FIXME: MIXER_CS;
             }
         }
         else {
             mem_access = true;
         }
     }
-
-    // /* tick CIA-1:
-
-    //     In Port A:
-    //         joystick 2 input
-    //     In Port B:
-    //         combined keyboard matrix columns and joystick 1
-    //     Cas Port Read => Flag pin
-
-    //     Out Port A:
-    //         write keyboard matrix lines
-
-    //     IRQ pin is connected to the CPU IRQ pin
-    // */
-    // {
-    //     // cassette port READ pin is connected to CIA-1 FLAG pin
-    //     const uint8_t pa = ~(sys->kbd_joy2_mask | sys->joy_joy2_mask);
-    //     const uint8_t pb = ~(kbd_scan_columns(&sys->kbd) | sys->kbd_joy1_mask | sys->joy_joy1_mask);
-    //     M6526_SET_PAB(cia1_pins, pa, pb);
-    //     cia1_pins = m6526_tick(&sys->cia_1, cia1_pins);
-    //     const uint8_t kbd_lines = ~M6526_GET_PA(cia1_pins);
-    //     kbd_set_active_lines(&sys->kbd, kbd_lines);
-    //     if (cia1_pins & W65816_IRQ) {
-    //         pins |= W65816_IRQ;
-    //     }
-    //     if ((cia1_pins & (M6526_CS | M6526_RW)) == (M6526_CS | M6526_RW)) {
-    //         pins = W65816_COPY_DATA(pins, cia1_pins);
-    //     }
-    // }
 
     /* tick RIA816:
      */

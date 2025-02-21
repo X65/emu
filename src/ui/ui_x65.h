@@ -68,7 +68,6 @@
 #include "ui/ui_display.h"
 #include "ui/ui_kbd.h"
 #include "ui/ui_w65c816s.h"
-#include "ui/ui_m6526.h"
 #include "ui/ui_cgia.h"
 #include "ui/ui_ria816.h"
 #include "ui/ui_ymf262.h"
@@ -100,7 +99,6 @@ typedef struct {
     int dbg_scanline;
     ui_x65_boot_cb boot_cb;
     ui_w65816_t cpu;
-    ui_m6526_t cia[2];
     ui_ria816_t ria;
     ui_ymf262_t opl3;
     ui_cgia_t cgia;

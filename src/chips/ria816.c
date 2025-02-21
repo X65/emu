@@ -1,3 +1,7 @@
+#define CHIPS_IMPL
+#include "chips/m6526.h"
+#undef CHIPS_IMPL
+
 #include "ria816.h"
 
 #include <string.h>
@@ -18,6 +22,8 @@ void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
 
+    m6526_init(&c->cia);
+
     c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
     // Seed the random number generator
@@ -30,6 +36,7 @@ void ria816_reset(ria816_t* c) {
     c->us = 0;
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
+    m6526_reset(&c->cia);
 }
 
 static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
@@ -37,6 +44,8 @@ static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
     if (c->ticks_counter >= c->ticks_per_ms) {
         c->us += 1;
         c->ticks_counter -= c->ticks_per_ms;
+
+        c->cia.pins = _m6526_tick(&c->cia, pins);
     }
     return pins;
 }
@@ -116,6 +125,24 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
             _ria816_write(c, addr, data);
         }
     }
+    if (pins & RIA816_GPIO_CS) {
+        // MCP23017 mapping
+        // and CIA timers emulation
+        if ((pins & RIA816_GPIO_RS) >= 0x18) {
+            uint8_t addr = pins & M6526_RS;
+            if (addr < M6526_REG_ICR) addr -= 4;
+            if (pins & M6526_RW) {
+                uint8_t data = _m6526_read(&c->cia, addr);
+                M6526_SET_DATA(pins, data);
+            }
+            else {
+                uint8_t data = M6526_GET_DATA(pins);
+                _m6526_write(&c->cia, addr, data);
+            }
+        }
+    }
+    if (c->cia.pins & M6526_IRQ) pins |= RIA816_IRQ;
+
     c->pins = pins;
     return pins;
 }

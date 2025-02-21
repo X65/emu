@@ -56,6 +56,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "chips/m6526.h"
 #include "util/ringbuffer.h"
 
 #ifdef __cplusplus
@@ -84,8 +85,9 @@ extern "C" {
 #define RIA816_PIN_RW (24)  // same as M6502_RW
 
 // chip-specific control pins
-#define RIA816_PIN_CS  (40)
-#define RIA816_PIN_IRQ (41)
+#define RIA816_PIN_CS      (40)
+#define RIA816_PIN_GPIO_CS (41)
+#define RIA816_PIN_IRQ     (42)
 
 // pin bit masks
 #define RIA816_RS0     (1ULL << RIA816_PIN_RS0)
@@ -106,6 +108,8 @@ extern "C" {
 #define RIA816_DB_PINS (0xFF0000ULL)
 #define RIA816_RW      (1ULL << RIA816_PIN_RW)
 #define RIA816_CS      (1ULL << RIA816_PIN_CS)
+#define RIA816_GPIO_CS (1ULL << RIA816_PIN_GPIO_CS)
+#define RIA816_GPIO_RS (RIA816_RS4 | RIA816_RS3 | RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
 #define RIA816_IRQ     (1ULL << RIA816_PIN_IRQ)
 
 // register indices
@@ -156,6 +160,7 @@ typedef struct {
     uint8_t reg[RIA816_NUM_REGS];
     ring_buffer_t uart_rx;
     ring_buffer_t uart_tx;
+    m6526_t cia;
     uint64_t us;  // monotonic clock
     int ticks_per_ms;
     int ticks_counter;
