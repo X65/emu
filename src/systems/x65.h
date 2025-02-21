@@ -33,7 +33,6 @@
 #include "chips/cgia.h"
 #include "chips/w65c816s.h"
 #include "chips/m6526.h"
-#include "chips/m6581.h"
 #include "chips/ria816.h"
 #include "chips/ymf262.h"
 
@@ -125,7 +124,6 @@ typedef struct {
     m6526_t cia_2;
     ria816_t ria;
     cgia_t cgia;
-    m6581_t sid;
     ymf262_t opl3;
     uint64_t pins;
 

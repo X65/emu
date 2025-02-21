@@ -54,13 +54,6 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     };
     beeper_init(&sys->beeper[0], &beeper_desc);
     beeper_init(&sys->beeper[1], &beeper_desc);
-    m6581_init(
-        &sys->sid,
-        &(m6581_desc_t){
-            .tick_hz = X65_FREQUENCY,
-            .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
-            .magnitude = _X65_DEFAULT(desc->audio.volume, 1.0f),
-        });
     ymf262_init(
         &sys->opl3,
         &(ymf262_desc_t){
@@ -86,7 +79,6 @@ void x65_reset(x65_t* sys) {
     cgia_reset(&sys->cgia);
     beeper_reset(&sys->beeper[0]);
     beeper_reset(&sys->beeper[1]);
-    m6581_reset(&sys->sid);
     ymf262_reset(&sys->opl3);
 }
 

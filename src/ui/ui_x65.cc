@@ -76,7 +76,6 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
 #ifndef USE_WEB
             ImGui::MenuItem("MOS 6526 #1 (CIA)", 0, &ui->cia[0].open);
             ImGui::MenuItem("MOS 6526 #2 (CIA)", 0, &ui->cia[1].open);
-            ImGui::MenuItem("MOS 6581 (SID)", 0, &ui->sid.open);
 #endif
             ImGui::MenuItem("YMF262 (OPL3)", 0, &ui->opl3.open);
             ImGui::MenuItem("RIA816", 0, &ui->ria.open);
@@ -394,23 +393,6 @@ static const ui_chip_pin_t _ui_x65_ria_pins[] = {
     { "IRQ", 19, RIA816_IRQ }
 };
 
-static const ui_chip_pin_t _ui_x65_sid_pins[] = {
-    { "D0", 0,  M6581_D0 },
-    { "D1", 1,  M6581_D1 },
-    { "D2", 2,  M6581_D2 },
-    { "D3", 3,  M6581_D3 },
-    { "D4", 4,  M6581_D4 },
-    { "D5", 5,  M6581_D5 },
-    { "D6", 6,  M6581_D6 },
-    { "D7", 7,  M6581_D7 },
-    { "A0", 8,  M6581_A0 },
-    { "A1", 9,  M6581_A1 },
-    { "A2", 10, M6581_A2 },
-    { "A3", 11, M6581_A3 },
-    { "CS", 13, M6581_CS },
-    { "RW", 14, M6581_RW }
-};
-
 static const ui_chip_pin_t _ui_x65_ymf262_pins[] = {
     { "D0",  0,  YMF262_D0  },
     { "D1",  1,  YMF262_D1  },
@@ -511,17 +493,6 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.x = x;
         desc.y = y;
         ui_m6526_init(&ui->cia[1], &desc);
-    }
-    x += dx;
-    y += dy;
-    {
-        ui_m6581_desc_t desc = { 0 };
-        desc.title = "MOS 6581 (SID)";
-        desc.sid = &ui->x65->sid;
-        desc.x = x;
-        desc.y = y;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "6581", 16, _ui_x65_sid_pins);
-        ui_m6581_init(&ui->sid, &desc);
     }
     x += dx;
     y += dy;
@@ -654,7 +625,6 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_m6526_discard(&ui->cia[0]);
     ui_m6526_discard(&ui->cia[1]);
     ui_ria816_discard(&ui->ria);
-    ui_m6581_discard(&ui->sid);
     ui_ymf262_discard(&ui->opl3);
     ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
@@ -680,7 +650,6 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_m6526_draw(&ui->cia[0]);
     ui_m6526_draw(&ui->cia[1]);
     ui_ria816_draw(&ui->ria);
-    ui_m6581_draw(&ui->sid);
     ui_ymf262_draw(&ui->opl3);
     ui_cgia_draw(&ui->cgia);
     ui_console_draw(&ui->ria_uart);
@@ -707,7 +676,6 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
         ui_m6526_save_settings(&ui->cia[i], settings);
     }
     ui_ria816_save_settings(&ui->ria, settings);
-    ui_m6581_save_settings(&ui->sid, settings);
     ui_ymf262_save_settings(&ui->opl3, settings);
     ui_cgia_save_settings(&ui->cgia, settings);
     ui_console_save_settings(&ui->ria_uart, settings);
@@ -730,7 +698,6 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
         ui_m6526_load_settings(&ui->cia[i], settings);
     }
     ui_ria816_load_settings(&ui->ria, settings);
-    ui_m6581_load_settings(&ui->sid, settings);
     ui_ymf262_load_settings(&ui->opl3, settings);
     ui_cgia_load_settings(&ui->cgia, settings);
     ui_console_load_settings(&ui->ria_uart, settings);
