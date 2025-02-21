@@ -90,6 +90,7 @@ void ui_init(const ui_desc_t* desc) {
     ImFontConfig font_cfg;
     font_cfg.PixelSnapH = true;
     float font_size = 16.0f;
+    font_cfg.EllipsisChar = 0xf141;
     io.Fonts->AddFontFromMemoryCompressedTTF(
         AtariST8x16SystemFont_compressed_data,
         AtariST8x16SystemFont_compressed_size,
