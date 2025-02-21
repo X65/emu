@@ -201,6 +201,15 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
+    /* Merge interrupts
+       FIXME: implement PCF8574A interrupts controller
+    */
+    {
+        if (ria_pins & RIA816_IRQ) pins |= W65816_IRQ;
+        // if (sd1_pins & YMF825_IRQ) pins |= W65816_IRQ;
+        if (opl3_pins & YMF262_IRQ) pins |= W65816_IRQ;
+    }
+
     /* remaining CPU IO and memory accesses, those don't fit into the
        "universal tick model" (yet?)
     */
