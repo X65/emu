@@ -35,6 +35,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &(ria816_desc_t){
             .tick_hz = X65_FREQUENCY,
         });
+    tca6416a_init(&sys->gpio);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
         .fetch_cb = _x65_vpu_fetch,
@@ -70,6 +71,7 @@ void x65_reset(x65_t* sys) {
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
     sys->pins |= W65816_RES;
     ria816_reset(&sys->ria);
+    tca6416a_reset(&sys->gpio);
     cgia_reset(&sys->cgia);
     beeper_reset(&sys->beeper[0]);
     beeper_reset(&sys->beeper[1]);
@@ -102,6 +104,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     bool mem_access = false;
     uint64_t cgia_pins = pins & W65816_PIN_MASK;
     uint64_t ria_pins = pins & W65816_PIN_MASK;
+    uint64_t gpio_pins = pins & W65816_PIN_MASK;
     uint64_t sd1_pins = pins & W65816_PIN_MASK;
     uint64_t opl3_pins = pins & W65816_PIN_MASK;
     if ((pins & (W65816_RDY | W65816_RW)) != (W65816_RDY | W65816_RW)) {
@@ -124,12 +127,16 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= 0xFFA0) {
-                // NOT_USED (FFA0..FFBF)
+            else if (addr >= 0xFF90) {
+                // NOT_USED (FF90..FFBF)
+            }
+            else if (addr >= X65_IO_TIMERS_BASE) {
+                // GPIO (FF88..FF8F)
+                ria_pins |= RIA816_TIMERS_CS;
             }
             else if (addr >= X65_IO_GPIO_BASE) {
-                // GPIO (FF80..FF9F)
-                ria_pins |= RIA816_GPIO_CS;
+                // GPIO (FF80..FF87)
+                gpio_pins |= TCA6416A_CS;
             }
             else if (addr >= X65_IO_CGIA_BASE) {
                 // CGIA (FF00..FF7F)
@@ -155,6 +162,27 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         ria_pins = ria816_tick(&sys->ria, ria_pins);
         if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
             pins = W65816_COPY_DATA(pins, ria_pins);
+        }
+    }
+
+    /* tick GPIO extender chip:
+        In Port 0:
+            joystick 1 input
+        In Port 1:
+            joystick 2 input
+
+        INT pin is connected to the Interrupt Controller pin 1
+    */
+    {
+        const uint8_t p0 = ~(sys->kbd_joy1_mask | sys->joy_joy1_mask);
+        const uint8_t p1 = ~(sys->kbd_joy2_mask | sys->joy_joy2_mask);
+        TCA6416A_SET_P01(gpio_pins, p0, p1);
+        gpio_pins = tca6416a_tick(&sys->gpio, gpio_pins);
+        if (gpio_pins & TCA6416A_INT) {
+            pins |= W65816_IRQ;  // FIXME: connect to interrupt controller
+        }
+        if ((gpio_pins & (TCA6416A_CS | TCA6416A_RW)) == (TCA6416A_CS | TCA6416A_RW)) {
+            pins = W65816_COPY_DATA(pins, gpio_pins);
         }
     }
 
@@ -291,11 +319,11 @@ void x65_key_down(x65_t* sys, int key_code) {
     CHIPS_ASSERT(sys && sys->valid);
     uint8_t m = 0;
     switch (key_code) {
-        case 0x20: m = X65_JOYSTICK_BTN; break;
-        case 0x08: m = X65_JOYSTICK_LEFT; break;
-        case 0x09: m = X65_JOYSTICK_RIGHT; break;
-        case 0x0A: m = X65_JOYSTICK_DOWN; break;
-        case 0x0B: m = X65_JOYSTICK_UP; break;
+        case 0x20: m = X65_JOYSTICK_BTN; break;    // SPACE
+        case 0x08: m = X65_JOYSTICK_LEFT; break;   // CURSOR_LEFT
+        case 0x09: m = X65_JOYSTICK_RIGHT; break;  // CURSOR_RIGHT
+        case 0x0A: m = X65_JOYSTICK_DOWN; break;   // CURSOR_DOWN
+        case 0x0B: m = X65_JOYSTICK_UP; break;     // CURSOR_UP
         default: break;
     }
     if (m != 0) {

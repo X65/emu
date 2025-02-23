@@ -34,6 +34,7 @@ add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c
     src/chips/ria816.c
+    src/chips/tca6416a.c
     src/chips/ymf262.c
     src/systems/x65.c
     src/x65.c
@@ -42,6 +43,7 @@ add_executable(emu
     src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
+    src/ui/ui_tca6416a.cc
     src/ui/ui_ymf262.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c

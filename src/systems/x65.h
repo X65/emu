@@ -30,6 +30,7 @@
 #include "chips/chips_common.h"
 #include "chips/beeper.h"
 #include "chips/cgia.h"
+#include "chips/tca6416a.h"
 #include "chips/w65c816s.h"
 #include "chips/ria816.h"
 #include "chips/ymf262.h"
@@ -63,7 +64,7 @@ typedef enum {
 #define X65_JOYSTICK_DOWN  (1 << 1)
 #define X65_JOYSTICK_LEFT  (1 << 2)
 #define X65_JOYSTICK_RIGHT (1 << 3)
-#define X65_JOYSTICK_BTN   (1 << 4)
+#define X65_JOYSTICK_BTN   (1 << 5)
 
 // special keyboard keys
 #define X65_KEY_SPACE    (0x20)  // space
@@ -106,6 +107,7 @@ typedef enum {
 #define X65_IO_YMF825_BASE (0xFEC0)
 #define X65_IO_CGIA_BASE   (0xFF00)
 #define X65_IO_GPIO_BASE   (0xFF80)
+#define X65_IO_TIMERS_BASE (0xFF88)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
 // config parameters for x65_init()
@@ -119,6 +121,7 @@ typedef struct {
 typedef struct {
     w65816_t cpu;
     ria816_t ria;
+    tca6416a_t gpio;
     cgia_t cgia;
     ymf262_t opl3;
     uint64_t pins;

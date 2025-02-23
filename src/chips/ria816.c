@@ -125,20 +125,17 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
             _ria816_write(c, addr, data);
         }
     }
-    if (pins & RIA816_GPIO_CS) {
-        // MCP23017 mapping
-        // and CIA timers emulation
-        if ((pins & RIA816_GPIO_RS) >= 0x18) {
-            uint8_t addr = pins & M6526_RS;
-            if (addr < M6526_REG_ICR) addr -= 4;
-            if (pins & M6526_RW) {
-                uint8_t data = _m6526_read(&c->cia, addr);
-                M6526_SET_DATA(pins, data);
-            }
-            else {
-                uint8_t data = M6526_GET_DATA(pins);
-                _m6526_write(&c->cia, addr, data);
-            }
+    if (pins & RIA816_TIMERS_CS) {
+        // CIA timers emulation
+        uint8_t addr = pins & M6526_RS;
+        if (addr < M6526_REG_ICR) addr -= 4;
+        if (pins & M6526_RW) {
+            uint8_t data = _m6526_read(&c->cia, addr);
+            M6526_SET_DATA(pins, data);
+        }
+        else {
+            uint8_t data = M6526_GET_DATA(pins);
+            _m6526_write(&c->cia, addr, data);
         }
     }
     if (c->cia.pins & M6526_IRQ) pins |= RIA816_IRQ;

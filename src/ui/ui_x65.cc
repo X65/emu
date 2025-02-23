@@ -73,6 +73,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem("YMF262 (OPL3)", 0, &ui->opl3.open);
             ImGui::MenuItem("RIA816", 0, &ui->ria.open);
             ImGui::MenuItem("RIA UART", 0, &ui->ria_uart.open);
+            ImGui::MenuItem("TI TCA6416A (GPIO)", 0, &ui->gpio.open);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debug")) {
@@ -327,45 +328,6 @@ static const ui_chip_pin_t _ui_x65_cpu65816_pins[] = {
     { "A23",   47, W65816_A23   },
 };
 
-static const ui_chip_pin_t _ui_x65_cia_pins[] = {
-    { "D0",   0,  M6526_D0   },
-    { "D1",   1,  M6526_D1   },
-    { "D2",   2,  M6526_D2   },
-    { "D3",   3,  M6526_D3   },
-    { "D4",   4,  M6526_D4   },
-    { "D5",   5,  M6526_D5   },
-    { "D6",   6,  M6526_D6   },
-    { "D7",   7,  M6526_D7   },
-    { "RS0",  9,  M6526_RS0  },
-    { "RS1",  10, M6526_RS1  },
-    { "RS2",  11, M6526_RS2  },
-    { "RS3",  12, M6526_RS3  },
-    { "RW",   14, M6526_RW   },
-    { "CS",   15, M6526_CS   },
-    { "PC",   16, M6526_PC   },
-    { "TOD",  17, M6526_TOD  },
-    { "IRQ",  18, M6526_IRQ  },
-    { "FLAG", 19, M6526_FLAG },
-    { "PA0",  20, M6526_PA0  },
-    { "PA1",  21, M6526_PA1  },
-    { "PA2",  22, M6526_PA2  },
-    { "PA3",  23, M6526_PA3  },
-    { "PA4",  24, M6526_PA4  },
-    { "PA5",  25, M6526_PA5  },
-    { "PA6",  26, M6526_PA6  },
-    { "PA7",  27, M6526_PA7  },
-    { "PB0",  29, M6526_PB0  },
-    { "PB1",  30, M6526_PB1  },
-    { "PB2",  31, M6526_PB2  },
-    { "PB3",  32, M6526_PB3  },
-    { "PB4",  33, M6526_PB4  },
-    { "PB5",  34, M6526_PB5  },
-    { "PB6",  35, M6526_PB6  },
-    { "PB7",  36, M6526_PB7  },
-    { "SP",   38, M6526_SP   },
-    { "CNT",  39, M6526_CNT  }
-};
-
 static const ui_chip_pin_t _ui_x65_ria_pins[] = {
     { "D0",  0,  RIA816_D0  },
     { "D1",  1,  RIA816_D1  },
@@ -384,6 +346,40 @@ static const ui_chip_pin_t _ui_x65_ria_pins[] = {
     { "RW",  17, RIA816_RW  },
     { "CS",  18, RIA816_CS  },
     { "IRQ", 19, RIA816_IRQ }
+};
+
+static const ui_chip_pin_t _ui_x65_gpio_pins[] = {
+    { "D0",    0,  TCA6416A_D0    },
+    { "D1",    1,  TCA6416A_D1    },
+    { "D2",    2,  TCA6416A_D2    },
+    { "D3",    3,  TCA6416A_D3    },
+    { "D4",    4,  TCA6416A_D4    },
+    { "D5",    5,  TCA6416A_D5    },
+    { "D6",    6,  TCA6416A_D6    },
+    { "D7",    7,  TCA6416A_D7    },
+    { "RS0",   9,  TCA6416A_RS0   },
+    { "RS1",   10, TCA6416A_RS1   },
+    { "RS2",   11, TCA6416A_RS2   },
+    { "RW",    13, TCA6416A_RW    },
+    { "CS",    14, TCA6416A_CS    },
+    { "RESET", 15, TCA6416A_RESET },
+    { "INT",   16, TCA6416A_INT   },
+    { "P00",   17, TCA6416A_P00   },
+    { "P01",   18, TCA6416A_P01   },
+    { "P02",   19, TCA6416A_P02   },
+    { "P03",   20, TCA6416A_P03   },
+    { "P04",   21, TCA6416A_P04   },
+    { "P05",   22, TCA6416A_P05   },
+    { "P06",   23, TCA6416A_P06   },
+    { "P07",   24, TCA6416A_P07   },
+    { "P10",   26, TCA6416A_P10   },
+    { "P11",   27, TCA6416A_P11   },
+    { "P12",   28, TCA6416A_P12   },
+    { "P13",   29, TCA6416A_P13   },
+    { "P14",   30, TCA6416A_P14   },
+    { "P15",   31, TCA6416A_P15   },
+    { "P16",   32, TCA6416A_P16   },
+    { "P17",   33, TCA6416A_P17   },
 };
 
 static const ui_chip_pin_t _ui_x65_ymf262_pins[] = {
@@ -505,6 +501,18 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
+        ui_tca6416a_desc_t desc = { 0 };
+        desc.title = "TCA6416A (GPIO)";
+        desc.gpio = &ui->x65->gpio;
+        desc.x = x;
+        desc.y = y;
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "TCA6416A", 34, _ui_x65_gpio_pins);
+        desc.chip_desc.chip_width = 80;
+        ui_tca6416a_init(&ui->gpio, &desc);
+    }
+    x += dx;
+    y += dy;
+    {
         ui_cgia_desc_t desc = { 0 };
         desc.title = "CGIA - Color Graphic Interface Adaptor";
         desc.cgia = &ui->x65->cgia;
@@ -585,6 +593,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65);
     ui_w65816_discard(&ui->cpu);
     ui_ria816_discard(&ui->ria);
+    ui_tca6416a_discard(&ui->gpio);
     ui_ymf262_discard(&ui->opl3);
     ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
@@ -606,6 +615,7 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_display_draw(&ui->display, &frame->display);
     ui_w65816_draw(&ui->cpu);
     ui_ria816_draw(&ui->ria);
+    ui_tca6416a_draw(&ui->gpio);
     ui_ymf262_draw(&ui->opl3);
     ui_cgia_draw(&ui->cgia);
     ui_console_draw(&ui->ria_uart);
@@ -629,6 +639,7 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     CHIPS_ASSERT(ui && settings);
     ui_w65816_save_settings(&ui->cpu, settings);
     ui_ria816_save_settings(&ui->ria, settings);
+    ui_tca6416a_save_settings(&ui->gpio, settings);
     ui_ymf262_save_settings(&ui->opl3, settings);
     ui_cgia_save_settings(&ui->cgia, settings);
     ui_console_save_settings(&ui->ria_uart, settings);
@@ -647,6 +658,7 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     CHIPS_ASSERT(ui && settings);
     ui_w65816_load_settings(&ui->cpu, settings);
     ui_ria816_load_settings(&ui->ria, settings);
+    ui_tca6416a_load_settings(&ui->gpio, settings);
     ui_ymf262_load_settings(&ui->opl3, settings);
     ui_cgia_load_settings(&ui->cgia, settings);
     ui_console_load_settings(&ui->ria_uart, settings);
