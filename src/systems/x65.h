@@ -28,7 +28,6 @@
 #*/
 
 #include "chips/chips_common.h"
-#include "chips/kbd.h"
 #include "chips/beeper.h"
 #include "chips/cgia.h"
 #include "chips/w65c816s.h"
@@ -57,8 +56,6 @@ typedef enum {
     X65_JOYSTICKTYPE_DIGITAL_1,
     X65_JOYSTICKTYPE_DIGITAL_2,
     X65_JOYSTICKTYPE_DIGITAL_12,  // input routed to both joysticks
-    X65_JOYSTICKTYPE_PADDLE_1,    // FIXME: not emulated
-    X65_JOYSTICKTYPE_PADDLE_2,    // FIXME: not emulated
 } x65_joystick_type_t;
 
 // joystick mask bits
@@ -134,7 +131,6 @@ typedef struct {
     uint8_t joy_joy1_mask;  // current joystick-1 state from x65_joystick()
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
-    kbd_t kbd;  // keyboard matrix state
     bool valid;
     chips_debug_t debug;
 

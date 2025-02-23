@@ -5,7 +5,6 @@
 #include "chips/chips_common.h"
 #include "common.h"
 #include "chips/w65c816s.h"
-#include "chips/kbd.h"
 #include "chips/clk.h"
 #include "chips/beeper.h"
 #undef CHIPS_IMPL
@@ -22,7 +21,6 @@
     #include "ui/ui_w65c816s.h"
     #include "ui/ui_audio.h"
     #include "ui/ui_display.h"
-    #include "ui/ui_kbd.h"
     #include "ui/ui_snapshot.h"
     #include "ui/ui_x65.h"
 #endif

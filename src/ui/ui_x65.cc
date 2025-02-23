@@ -66,9 +66,6 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Hardware")) {
-#ifndef USE_WEB
-            ImGui::MenuItem("Keyboard Matrix", 0, &ui->kbd.open);
-#endif
             ImGui::MenuItem("Audio Output", 0, &ui->audio.open);
             ImGui::MenuItem("Display", 0, &ui->display.open);
             ImGui::MenuItem("WDC 65C816 (CPU)", 0, &ui->cpu.open);
@@ -541,19 +538,6 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
-        ui_kbd_desc_t desc = { 0 };
-        desc.title = "Keyboard Matrix";
-        desc.kbd = &ui->x65->kbd;
-        desc.layers[0] = "None";
-        desc.layers[1] = "Shift";
-        desc.layers[2] = "Ctrl";
-        desc.x = x;
-        desc.y = y;
-        ui_kbd_init(&ui->kbd, &desc);
-    }
-    x += dx;
-    y += dy;
-    {
         ui_memedit_desc_t desc = { 0 };
         for (int i = 0; i < _UI_X65_MEMLAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
@@ -604,7 +588,6 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_ymf262_discard(&ui->opl3);
     ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
-    ui_kbd_discard(&ui->kbd);
     ui_audio_discard(&ui->audio);
     ui_display_discard(&ui->display);
     for (int i = 0; i < 4; i++) {
@@ -621,7 +604,6 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     _ui_x65_draw_about(ui);
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);
     ui_display_draw(&ui->display, &frame->display);
-    ui_kbd_draw(&ui->kbd);
     ui_w65816_draw(&ui->cpu);
     ui_ria816_draw(&ui->ria);
     ui_ymf262_draw(&ui->opl3);
@@ -652,7 +634,6 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     ui_console_save_settings(&ui->ria_uart, settings);
     ui_audio_save_settings(&ui->audio, settings);
     ui_display_save_settings(&ui->display, settings);
-    ui_kbd_save_settings(&ui->kbd, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_save_settings(&ui->memedit[i], settings);
     }
@@ -671,7 +652,6 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     ui_console_load_settings(&ui->ria_uart, settings);
     ui_audio_load_settings(&ui->audio, settings);
     ui_display_load_settings(&ui->display, settings);
-    ui_kbd_load_settings(&ui->kbd, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_load_settings(&ui->memedit[i], settings);
     }

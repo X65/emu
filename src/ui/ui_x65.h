@@ -66,7 +66,6 @@
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
 #include "ui/ui_display.h"
-#include "ui/ui_kbd.h"
 #include "ui/ui_w65c816s.h"
 #include "ui/ui_cgia.h"
 #include "ui/ui_ria816.h"
@@ -105,7 +104,6 @@ typedef struct {
     ui_console_t ria_uart;
     ui_audio_t audio;
     ui_display_t display;
-    ui_kbd_t kbd;
     ui_memedit_t memedit[4];
     ui_dasm_t dasm[4];
     ui_dbg_t dbg;
