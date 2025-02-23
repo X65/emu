@@ -207,9 +207,9 @@ typedef struct {
     { p = ((p) & 0x0000FFFFFFFFFFFFULL) | (((a) & 0xFFULL) << 48) | (((b) & 0xFFULL) << 56); }
 
 // initialize a new tca6416a_t instance
-void tca6416a_init(tca6416a_t* c);
+void tca6416a_init(tca6416a_t* c, uint8_t p0, uint8_t p1);
 // reset an existing tca6416a_t instance
-void tca6416a_reset(tca6416a_t* c);
+void tca6416a_reset(tca6416a_t* c, uint8_t p0, uint8_t p1);
 // tick the tca6416a_t instance
 uint64_t tca6416a_tick(tca6416a_t* c, uint64_t pins);
 

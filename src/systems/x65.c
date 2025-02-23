@@ -35,7 +35,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &(ria816_desc_t){
             .tick_hz = X65_FREQUENCY,
         });
-    tca6416a_init(&sys->gpio);
+    tca6416a_init(&sys->gpio, 0xff, 0xff);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
         .fetch_cb = _x65_vpu_fetch,
@@ -71,7 +71,7 @@ void x65_reset(x65_t* sys) {
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
     sys->pins |= W65816_RES;
     ria816_reset(&sys->ria);
-    tca6416a_reset(&sys->gpio);
+    tca6416a_reset(&sys->gpio, 0xff, 0xff);
     cgia_reset(&sys->cgia);
     beeper_reset(&sys->beeper[0]);
     beeper_reset(&sys->beeper[1]);

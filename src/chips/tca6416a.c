@@ -6,24 +6,24 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
-static void _tca6416a_init_port(tca6416a_port_t* p) {
+static void _tca6416a_init_port(tca6416a_port_t* p, uint8_t in) {
     p->cfg = 0xff;  // default inputs
     p->pol = 0;
-    p->in = 0;
+    p->in = in;
     p->out = 0;
 }
 
-void tca6416a_init(tca6416a_t* c) {
+void tca6416a_init(tca6416a_t* c, uint8_t p0, uint8_t p1) {
     CHIPS_ASSERT(c);
     memset(c, 0, sizeof(*c));
-    _tca6416a_init_port(&c->p0);
-    _tca6416a_init_port(&c->p1);
+    _tca6416a_init_port(&c->p0, p0);
+    _tca6416a_init_port(&c->p1, p1);
 }
 
-void tca6416a_reset(tca6416a_t* c) {
+void tca6416a_reset(tca6416a_t* c, uint8_t p0, uint8_t p1) {
     CHIPS_ASSERT(c);
-    _tca6416a_init_port(&c->p0);
-    _tca6416a_init_port(&c->p1);
+    _tca6416a_init_port(&c->p0, p0);
+    _tca6416a_init_port(&c->p1, p1);
     c->pins = 0;
 }
 
