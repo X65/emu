@@ -25,7 +25,7 @@ void ui_ria816_init(ui_ria816_t* win, const ui_ria816_desc_t* desc) {
     win->init_x = (float)desc->x;
     win->init_y = (float)desc->y;
     win->init_w = (float)((desc->w == 0) ? 470 : desc->w);
-    win->init_h = (float)((desc->h == 0) ? 616 : desc->h);
+    win->init_h = (float)((desc->h == 0) ? 520 : desc->h);
     win->open = win->last_open = desc->open;
     win->valid = true;
     ui_chip_init(&win->chip, &desc->chip_desc);
@@ -135,29 +135,23 @@ static void _ui_ria816_m6526_draw_state(ui_ria816_t* win) {
         ImGui::TableNextColumn();
         ImGui::EndTable();
     }
-    if (ImGui::BeginTable("##cia_interrupt", 2)) {
-        ImGui::TableSetupColumn("Interrupt", ImGuiTableColumnFlags_WidthFixed, 72);
-        ImGui::TableHeadersRow();
-        ImGui::TableNextColumn();
-        ImGui::Text("Mask");
-        ImGui::TableNextColumn();
-        ui_util_b8("", cia->intr.imr);
-        ImGui::TableNextColumn();
-        ImGui::Text("Control");
-        ImGui::TableNextColumn();
-        ui_util_b8("", cia->intr.icr);
-        ImGui::TableNextColumn();
-        ImGui::EndTable();
-    }
+    ImGui::SeparatorText("Timer Interrupt");
+    ui_util_b8("Mask:   ", cia->intr.imr);
+    ui_util_b8("Control:", cia->intr.icr);
 }
 
 static void _ui_ria816_draw_state(ui_ria816_t* win) {
     const ria816_t* ria = win->ria;
     ui_util_b8("EXTIO: ", ria->reg[RIA816_EXT_IO]);
     uint8_t ria_status = ria816_uart_status(ria);
-    ui_util_b8("UART: ", ria_status);
+    ui_util_b8("UART : ", ria_status);
     ImGui::SameLine();
     ImGui::Text("%s%s", ria_status & 0b10000000 ? "CTS " : "", ria_status & 0b01000000 ? "DRD " : "");
+    ImGui::SeparatorText("Interrupt Controller");
+    ui_util_b8("Enable: ", ria->irq.enable);
+    ui_util_b8("Status: ", ria->irq.status);
+    ImGui::SameLine();
+    ImGui::Text("%s", ria->irq.interrupt ? "Active" : "");
     if (ImGui::BeginTable("##cpu_vectors", 3)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
         ImGui::TableSetupColumn("Emulated", ImGuiTableColumnFlags_WidthFixed, 72);

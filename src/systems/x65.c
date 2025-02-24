@@ -156,15 +156,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    /* tick RIA816:
-     */
-    {
-        ria_pins = ria816_tick(&sys->ria, ria_pins);
-        if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
-            pins = W65816_COPY_DATA(pins, ria_pins);
-        }
-    }
-
     /* tick GPIO extender chip:
         In Port 0:
             joystick 1 input
@@ -179,10 +170,19 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         TCA6416A_SET_P01(gpio_pins, p0, p1);
         gpio_pins = tca6416a_tick(&sys->gpio, gpio_pins);
         if (gpio_pins & TCA6416A_INT) {
-            pins |= W65816_IRQ;  // FIXME: connect to interrupt controller
+            ria_pins |= RIA816_INT1;
         }
         if ((gpio_pins & (TCA6416A_CS | TCA6416A_RW)) == (TCA6416A_CS | TCA6416A_RW)) {
             pins = W65816_COPY_DATA(pins, gpio_pins);
+        }
+    }
+
+    /* tick RIA816:
+     */
+    {
+        ria_pins = ria816_tick(&sys->ria, ria_pins);
+        if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
+            pins = W65816_COPY_DATA(pins, ria_pins);
         }
     }
 
