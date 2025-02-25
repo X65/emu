@@ -1304,8 +1304,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     /* PLD s */
         case (0x2B<<4)|0: _SA(c->PC);break;
         case (0x2B<<4)|1: _SA(c->PC);break;
-        case (0x2B<<4)|2: _VDA(0);_SA(_SP(_S(c)++));break;
-        case (0x2B<<4)|3: _VDA(0);_SA(_SP(_S(c)));c->AD=_GD();break;
+        case (0x2B<<4)|2: _VDA(0);_SA(_SP(++_S(c)));break;
+        case (0x2B<<4)|3: _VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();break;
         case (0x2B<<4)|4: c->D=(_GD()<<8)|c->AD;_FETCH();break;
         case (0x2B<<4)|5: assert(false);break;
         case (0x2B<<4)|6: assert(false);break;

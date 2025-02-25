@@ -553,9 +553,9 @@ def i_pld(o):
     cmt(o,'PLD')
     o.t('_SA(c->PC);') # second junk read from current PC
     # load D low byte from stack
-    o.t('_VDA(0);_SA(_SP(_S(c)++));')
+    o.t('_VDA(0);_SA(_SP(++_S(c)));')
     # load D high byte from stack
-    o.t('_VDA(0);_SA(_SP(_S(c)));c->AD=_GD();')
+    o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
     # put address in D
     o.t('c->D=(_GD()<<8)|c->AD;')
 
