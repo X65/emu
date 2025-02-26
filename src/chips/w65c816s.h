@@ -893,7 +893,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x01<<4)|8: assert(false);break;
     /* COP s */
         case (0x02<<4)|0: if(0==c->brk_flags){_VPA();}_SA(c->PC);break;
-        case (0x02<<4)|1: _VDA(0);if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}_WR();break;
+        case (0x02<<4)|1: _VDA(0);c->PC++;if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}_WR();break;
         case (0x02<<4)|2: _VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();break;
         case (0x02<<4)|3: _VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();break;
         case (0x02<<4)|4: _VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;break;

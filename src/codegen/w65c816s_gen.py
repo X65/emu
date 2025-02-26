@@ -307,7 +307,7 @@ def i_brk(o):
 #-------------------------------------------------------------------------------
 def i_cop(o):
     cmt(o,'COP')
-    o.t('_VDA(0);if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}_WR();')
+    o.t('_VDA(0);c->PC++;if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;')
