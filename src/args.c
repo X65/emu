@@ -1,5 +1,7 @@
 #include "./args.h"
 
+extern void app_load_labels(const char* file);
+
 #ifdef USE_ARGP
     #include <argp.h>
 #endif
@@ -20,6 +22,7 @@ static struct argp_option options[] = {
     { "quiet", 'q', 0, 0, "Don't produce any output" },
     { "silent", 's', 0, OPTION_ALIAS },
     { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
+    { "labels", 'l', "LABELS_FILE", 0, "Load VICE compatible global labels file" },
     { 0 }
 };
 
@@ -31,6 +34,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 's': args->silent = 1; break;
         case 'v': args->verbose = 1; break;
         case 'o': args->output_file = arg; break;
+
+        case 'l': app_load_labels(arg); break;
 
         case ARGP_KEY_ARG:
             if (argp_state->arg_num >= 2) /* Too many arguments. */

@@ -584,6 +584,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.start_addr = mem_rd16(ui->x65, 0, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
+        desc.labels = ui_desc->labels;
         static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };
         for (int i = 0; i < 4; i++) {
             desc.title = titles[i];

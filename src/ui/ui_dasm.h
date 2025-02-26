@@ -90,6 +90,7 @@ typedef struct {
     uint16_t start_addr;
     ui_dasm_read_t read_cb;
     void* user_data;
+    void* labels;
     int x, y;           /* initial window pos */
     int w, h;           /* initial window size or 0 for default size */
     bool open;          /* initial open state */
@@ -119,6 +120,7 @@ typedef struct {
     uint16_t stack[UI_DASM_MAX_STACK];
     uint16_t highlight_addr;
     uint32_t highlight_color;
+    void* labels;
 } ui_dasm_t;
 
 void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc);
@@ -126,6 +128,7 @@ void ui_dasm_discard(ui_dasm_t* win);
 void ui_dasm_draw(ui_dasm_t* win);
 void ui_dasm_save_settings(ui_dasm_t* win, ui_settings_t* settings);
 void ui_dasm_load_settings(ui_dasm_t* ui, const ui_settings_t* settings);
+void* ui_dasm_load_labels(ui_dasm_t* win, const char* file);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -145,6 +148,11 @@ void ui_dasm_load_settings(ui_dasm_t* ui, const ui_settings_t* settings);
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)
 #endif
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <map>
 
 void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
     CHIPS_ASSERT(win && desc);
@@ -155,9 +163,10 @@ void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
     win->read_cb = desc->read_cb;
     win->start_addr = desc->start_addr;
     win->user_data = desc->user_data;
+    win->labels = desc->labels;
     win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
-    win->init_w = (float) ((desc->w == 0) ? 400 : desc->w);
+    win->init_w = (float) ((desc->w == 0) ? 660 : desc->w);
     win->init_h = (float) ((desc->h == 0) ? 256 : desc->h);
     win->open = win->last_open = desc->open;
     win->highlight_color = 0xFF30FF30;
@@ -356,6 +365,16 @@ static void _ui_dasm_goto(ui_dasm_t* win, uint16_t addr) {
     win->start_addr = addr;
 }
 
+/* get label for address if any*/
+static const char* _ui_dasm_get_label(ui_dasm_t* win, uint32_t addr) {
+    if (!win->labels) {
+        return NULL;
+    }
+
+    std::map<unsigned int, std::string>* labels = static_cast<std::map<unsigned int, std::string>*>(win->labels);
+    return labels->contains(addr) ? labels->at(addr).c_str() : NULL;
+}
+
 /* draw the address entry field and layer combo */
 static void _ui_dasm_draw_controls(ui_dasm_t* win) {
     win->start_addr = ui_util_input_u16("##addr", win->start_addr);
@@ -440,10 +459,17 @@ static void _ui_dasm_draw_disasm(ui_dasm_t* win) {
                 _ui_dasm_stack_push(win, op_addr);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Goto %04X", jump_addr);
+                const char* label = _ui_dasm_get_label(win, jump_addr);
+                ImGui::SetTooltip(label ? "Goto %04X %s" : "Goto %04X", jump_addr, label);
                 win->highlight_addr = jump_addr;
             }
             ImGui::PopID();
+        }
+
+        const char* label = _ui_dasm_get_label(win, op_addr);
+        if (label) {
+            ImGui::SameLine(line_start_x + cell_width*4 + glyph_width*2 + glyph_width*24);
+            ImGui::Text("%s", label);
         }
     }
     clipper.End();
@@ -468,7 +494,8 @@ static void _ui_dasm_draw_stack(ui_dasm_t* win) {
                 _ui_dasm_goto(win, win->stack[i]);
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Goto %04X", win->stack[i]);
+                const char* label = _ui_dasm_get_label(win, win->stack[i]);
+                ImGui::SetTooltip(label ? "Goto %04X %s" : "Goto %04X", win->stack[i], label);
                 win->highlight_addr = win->stack[i];
             }
             ImGui::PopID();
@@ -502,5 +529,38 @@ void ui_dasm_save_settings(ui_dasm_t* win, ui_settings_t* settings) {
 void ui_dasm_load_settings(ui_dasm_t* win, const ui_settings_t* settings) {
     CHIPS_ASSERT(win && settings);
     win->open = ui_settings_isopen(settings, win->title);
+}
+
+void* ui_dasm_load_labels(ui_dasm_t* win, const char* filename) {
+    auto labels = new std::map<unsigned int, std::string>();
+
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error opening label file\n";
+        return NULL;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string cmd, addr_str, label;
+
+        ss >> cmd >> addr_str >> label;
+        if (cmd == "al" && !addr_str.empty() && !label.empty()) {
+            unsigned int address;
+            std::stringstream hex;
+            hex << std::hex << addr_str;
+            hex >> address;
+
+            labels->insert_or_assign(address, label);
+        }
+        else {
+            std::cerr << "Invalid label line format: " << line << std::endl;
+        }
+    }
+
+    file.close();
+
+    return labels;
 }
 #endif /* CHIPS_UI_IMPL */

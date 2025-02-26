@@ -89,6 +89,7 @@ static void web_dbg_on_reset(void);
 static webapi_cpu_state_t web_dbg_cpu_state(void);
 static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result);
 static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr);
+static void* labels = NULL;
     #define BORDER_TOP (24)
 #else
     #define BORDER_TOP (8)
@@ -187,7 +188,8 @@ void app_init(void) {
             .step_into = { .keycode = simgui_map_keycode(SAPP_KEYCODE_F7), .name = "F7" },
             .step_tick = { .keycode = simgui_map_keycode(SAPP_KEYCODE_F8), .name = "F8" },
             .toggle_breakpoint = { .keycode = simgui_map_keycode(SAPP_KEYCODE_F9), .name = "F9" }
-        }
+        },
+        .labels = labels,
     });
     ui_x65_load_settings(&state.ui, ui_settings());
     ui_load_snapshots_from_storage();
@@ -619,6 +621,12 @@ static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) 
     }
 }
 #endif
+
+void app_load_labels(const char* file) {
+#ifdef CHIPS_USE_UI
+    labels = ui_dasm_load_labels(&state.ui.dasm[0], file);
+#endif
+}
 
 char app_version[256];
 char program_version[256];

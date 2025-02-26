@@ -10,7 +10,11 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["roms/sprites.xex"],
+      "args": [
+        "../../os-816/build/os-816.xex",
+        "-l",
+        "../../os-816/build/os-816.lbl"
+      ],
       "preLaunchTask": "CMake: build"
     },
     {

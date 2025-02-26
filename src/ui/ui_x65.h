@@ -91,6 +91,7 @@ typedef struct {
     ui_dbg_debug_callbacks_t dbg_debug;
     ui_dbg_keys_desc_t dbg_keys;  // user-defined hotkeys for ui_dbg_t
     ui_snapshot_desc_t snapshot;  // snapshot UI setup params
+    void* labels;                 // global labels for disasm
 } ui_x65_desc_t;
 
 typedef struct {
