@@ -3311,12 +3311,12 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xF3<<4)|6: if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xF3<<4)|7: _w65816_sbc16(c,c->AD|(_GD()<<8));_FETCH();break;
         case (0xF3<<4)|8: assert(false);break;
-    /* PEA s (unimpl) */
-        case (0xF4<<4)|0: _SA(c->PC);break;
-        case (0xF4<<4)|1: _FETCH();break;
-        case (0xF4<<4)|2: assert(false);break;
-        case (0xF4<<4)|3: assert(false);break;
-        case (0xF4<<4)|4: assert(false);break;
+    /* PEA # */
+        case (0xF4<<4)|0: _VPA();_SA(c->PC++);break;
+        case (0xF4<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
+        case (0xF4<<4)|2: _VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();break;
+        case (0xF4<<4)|3: _VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();break;
+        case (0xF4<<4)|4: _FETCH();break;
         case (0xF4<<4)|5: assert(false);break;
         case (0xF4<<4)|6: assert(false);break;
         case (0xF4<<4)|7: assert(false);break;

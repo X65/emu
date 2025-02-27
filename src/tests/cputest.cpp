@@ -261,7 +261,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xF1, "SBC (d),y",   5, 2, true  },
     { 0xF2, "SBC (d)",     5, 2, true  },
     { 0xF3, "SBC (d,s),y", 7, 2, true  },
-    { 0xF4, "PEA s",       5, 3, false },
+    { 0xF4, "PEA s",       5, 3, true  },
     { 0xF5, "SBC d,x",     4, 2, true  },
     { 0xF6, "INC d,x",     6, 2, true  },
     { 0xF7, "SBC [d],y",   6, 2, true  },
