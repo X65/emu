@@ -229,7 +229,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xD1, "CMP (d),y",   5, 2, true  },
     { 0xD2, "CMP (d)",     5, 2, true  },
     { 0xD3, "CMP (d,s),y", 7, 2, true  },
-    { 0xD4, "PEI s",       6, 2, false },
+    { 0xD4, "PEI s",       6, 2, true  },
     { 0xD5, "CMP d,x",     4, 2, true  },
     { 0xD6, "DEC d,x",     6, 2, true  },
     { 0xD7, "CMP [d],y",   6, 2, true  },

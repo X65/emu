@@ -94,7 +94,7 @@ ops = [
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_R_],[A_ABS,M___],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
-        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_IMM,M__W]],
+        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_DID,M_RW],[A_IMM,M__W]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M___],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M___],[A_AXI,M_R_]]
     ],
@@ -606,8 +606,9 @@ def i_pea(o):
 
 #-------------------------------------------------------------------------------
 def i_pei(o):
-    u_cmt(o,'PEI')
-    o.t('')
+    cmt(o,'PEI')
+    o.ta('_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();')
+    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_per(o):

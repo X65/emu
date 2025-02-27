@@ -2991,14 +2991,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xD3<<4)|6: if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xD3<<4)|7: _w65816_cmp16(c, _C(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xD3<<4)|8: assert(false);break;
-    /* PEI s (unimpl) */
-        case (0xD4<<4)|0: _SA(c->PC);break;
-        case (0xD4<<4)|1: _FETCH();break;
-        case (0xD4<<4)|2: assert(false);break;
-        case (0xD4<<4)|3: assert(false);break;
-        case (0xD4<<4)|4: assert(false);break;
-        case (0xD4<<4)|5: assert(false);break;
-        case (0xD4<<4)|6: assert(false);break;
+    /* PEI (d) */
+        case (0xD4<<4)|0: _VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}break;
+        case (0xD4<<4)|1: c->AD=_GD();_SA(c->PC++);break;
+        case (0xD4<<4)|2: _VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);break;
+        case (0xD4<<4)|3: _VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();break;
+        case (0xD4<<4)|4: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();break;
+        case (0xD4<<4)|5: _VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();break;
+        case (0xD4<<4)|6: _FETCH();break;
         case (0xD4<<4)|7: assert(false);break;
         case (0xD4<<4)|8: assert(false);break;
     /* CMP d,x */
