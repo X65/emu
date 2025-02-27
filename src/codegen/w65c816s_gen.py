@@ -114,7 +114,7 @@ ops = [
     # cc = 02
     [
         # ASL         ROL          LSR          ROR          STX          LDX          DEC          INC
-        [[A_STS,M_RW],[A_ABS,M___],[A_IMM,M___],[A_PCL,M__W],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M___],[A_IMM,M___]],
+        [[A_STS,M___],[A_ABS,M___],[A_IMM,M___],[A_PCL,M__W],[A_PCL,M_R_],[A_IMM,M_R_],[A_IMM,M___],[A_IMM,M___]],
         [[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_RW],[A_DIR,M_RW]],
         [[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],

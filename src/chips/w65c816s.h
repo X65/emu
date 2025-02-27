@@ -924,8 +924,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x02<<4)|4: _VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;break;
         case (0x02<<4)|5: _VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */break;
         case (0x02<<4)|6: _VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */break;
-        case (0x02<<4)|7: c->PC=(_GD()<<8)|c->AD;break;
-        case (0x02<<4)|8: _FETCH();break;
+        case (0x02<<4)|7: c->PC=(_GD()<<8)|c->AD;_FETCH();break;
+        case (0x02<<4)|8: assert(false);break;
     /* ORA d,s */
         case (0x03<<4)|0: _VPA();_SA(c->PC++);break;
         case (0x03<<4)|1: c->AD=_GD();break;
