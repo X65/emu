@@ -128,7 +128,7 @@ ops = [
         [[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_]],
         [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
-        [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
+        [[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M__W],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_]],
         [[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_]],
         [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
         [[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_]]
@@ -318,8 +318,13 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('c->AD=_GD();')
         op.t('_VDA(0);_SA(c->AD+_S(c));')
     elif addr_mode == A_SII:
-        op.t('/* (unimpl) */;')
-        op.t('')
+        # (d,s),y
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('c->AD=_GD();')
+        op.t('_VDA(0);_SA(c->AD+_S(c));')
+        op.t('_VDA(0);_SA(c->AD+_S(c)+1);c->AD=_GD();')
+        op.t('c->AD|=_GD()<<8;')
+        op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
     else:
         # invalid instruction
         op.t('/* (invalid) */;')
