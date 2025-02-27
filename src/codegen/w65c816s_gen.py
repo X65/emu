@@ -127,7 +127,7 @@ ops = [
     [
         [[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_RW]],
         [[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_]],
-        [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
+        [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
         [[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M__W],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_]],
         [[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_]],
@@ -357,8 +357,8 @@ def i_cop(o):
 
 #-------------------------------------------------------------------------------
 def i_wai(o):
-    u_cmt(o,'WAI')
-    o.t('')
+    cmt(o,'WAI')
+    o.t('c->stopped=W65816_STOP_WAI;')
 
 #-------------------------------------------------------------------------------
 def i_stp(o):

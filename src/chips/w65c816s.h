@@ -822,6 +822,18 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             c->stopped = 0;
             _FETCH();
         }
+        if (c->stopped == W65816_STOP_WAI) {
+            if (pins & (W65816_IRQ|W65816_NMI|W65816_ABORT|W65816_RES)) {
+                c->stopped = 0;
+                _FETCH();
+
+                if ((pins & W65816_IRQ) && ((c->P & W65816_IF))) {
+                    // IRQ prevented
+                    // fetch next instruction normally
+                    return pins;
+                }
+            }
+        }
         if (c->stopped)
             return pins;
     }
@@ -2914,9 +2926,9 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xCA<<4)|6: assert(false);break;
         case (0xCA<<4)|7: assert(false);break;
         case (0xCA<<4)|8: assert(false);break;
-    /* WAI i (unimpl) */
-        case (0xCB<<4)|0: _SA(c->PC);break;
-        case (0xCB<<4)|1: _FETCH();break;
+    /* WAI  */
+        case (0xCB<<4)|0: c->stopped=W65816_STOP_WAI;break;
+        case (0xCB<<4)|1: assert(false);break;
         case (0xCB<<4)|2: assert(false);break;
         case (0xCB<<4)|3: assert(false);break;
         case (0xCB<<4)|4: assert(false);break;
@@ -3446,6 +3458,9 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFF<<4)|8: assert(false);break;
     // %>
         default: _W65816_UNREACHABLE;
+    }
+    if (c->stopped == W65816_STOP_WAI) {
+        pins &= ~W65816_RDY;
     }
     c->PINS = pins;
     c->irq_pip <<= 1;
