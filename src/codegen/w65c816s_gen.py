@@ -124,7 +124,7 @@ ops = [
     ],
     # cc = 03
     [
-        [[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M_RW],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_RW],[A_STR,M_RW]],
+        [[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_RW]],
         [[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M_RW],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_RW],[A_DIL,M_RW]],
         [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
@@ -284,7 +284,12 @@ def enc_addr(op, addr_mode, mem_access):
             # skip next tick if read access and page not crossed
             op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
         op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
-    elif addr_mode == A_STR or addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_DID:
+    elif addr_mode == A_STR:
+        # d,s
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('c->AD=_GD();')
+        op.t('_VDA(0);_SA(c->AD+_S(c));')
+    elif addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_DID:
         op.t('/* (unimpl) */;')
         op.t('')
     else:
