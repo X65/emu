@@ -650,6 +650,21 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     });
     args_parse(argc, argv);
 
+#ifndef USE_WEB
+    if (arguments.rom && strlen(arguments.rom) >= 4) {
+        char buf[PATH_MAX];
+        strncpy(buf, arguments.rom, PATH_MAX);
+        buf[PATH_MAX - 1] = '\0';
+        const size_t path_len = strlen(buf);
+        if (strcmp(&buf[path_len - 4], ".xex") == 0) {
+            strcpy(&buf[path_len - 4], ".lbl");
+        }
+        if (access(buf, R_OK) == 0) {
+            app_load_labels(buf);
+        }
+    }
+#endif
+
     ui_settings_t* ui_setts = settings_load(settings_key);
     if (ui_setts) {
         window_width = ui_setts->window_width;
