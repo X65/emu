@@ -129,7 +129,7 @@ ops = [
         [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_IMP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
         [[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_RW],[A_SII,M_R_],[A_SII,M_RW],[A_SII,M_RW]],
-        [[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M_RW],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_RW],[A_DLY,M_RW]],
+        [[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_]],
         [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
         [[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_]]
     ]
@@ -304,12 +304,20 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
         op.t('_VDA(0);_SA(_E(c)?((c->AD+2)&0xFF):c->D+c->AD+2);c->AD|=_GD()<<8;')
         op.t('_VDA(_GD());_SA(c->AD);')
+    elif addr_mode == A_DLY:
+        # [d],y
+        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
+        op.t('c->AD=_GD();_SA(c->PC++);')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD)&0xFF):c->D+c->AD);')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+2)&0xFF):c->D+c->AD+2);c->AD|=_GD()<<8;')
+        op.t('_VDA(_GD());_SA(c->AD+_Y(c));')
     elif addr_mode == A_STR:
         # d,s
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();')
         op.t('_VDA(0);_SA(c->AD+_S(c));')
-    elif addr_mode == A_SII or addr_mode == A_DLY:
+    elif addr_mode == A_SII:
         op.t('/* (unimpl) */;')
         op.t('')
     else:
