@@ -102,6 +102,11 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 #undef _FETCH_U16
 #endif
 #define _FETCH_U16(v) v=in_cb(user_data);v|=in_cb(user_data)<<8;pc+=2;
+/* fetch signed 16-bit value and track pc */
+#ifdef _FETCH_I16
+#undef _FETCH_I16
+#endif
+#define _FETCH_I16(v) v=(int16_t)in_cb(user_data);v|=(int16_t)(in_cb(user_data)<<8);pc+=2;
 /* fetch unsigned 24-bit value and track pc */
 #ifdef _FETCH_U24
 #undef _FETCH_U24
@@ -515,7 +520,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
     }
     _STR(n);
 
-    uint8_t u8; int8_t i8; uint16_t u16; uint32_t u24;
+    uint8_t u8; int8_t i8; uint16_t u16; int16_t i16; uint32_t u24;
     switch (_w65816dasm_ops[cc][bbb][aaa]) {
         case A_IMP: /* i       - Implied */
         case A_STC: /* s       - Stack */
@@ -571,8 +576,13 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
         case A_DII: /* (d),y   - Direct Indirect Indexed with Y */
             _CHR(' '); _FETCH_U8(u8); _CHR('('); _STR_U8(u8); _STR("),Y");
             break;
-        case A_PCR: /* r       - Program Counter Relative *//* compute target address */
+        case A_PCR: /* r       - Program Counter Relative */
+            /* compute target address */
             _CHR(' '); _FETCH_I8(i8); _STR_U16(pc+i8);
+            break;
+        case A_PCL: /* rl      - Program Counter Relative Long */
+            /* compute target address */
+            _CHR(' '); _FETCH_I16(i16); _STR_U16(pc+i16);
             break;
         case A_STR: /* d,s     - Stack Relative */
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8); _STR(",S");
@@ -589,10 +599,11 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
         case A_ALN: /* al      - Absolute Long */
             _CHR(' '); _FETCH_U24(u24); _STR_U24(u24);
             break;
-        case A_DLY: /* [d],y   - Direct Indirect Long Indexed with Y */
         case A_DIL: /* [d]     - Direct Indirect Long */
-        case A_PCL: /* rl      - Program Counter Relative Long */
-            _STR(" ?long?");
+            _CHR(' '); _FETCH_U8(u8); _CHR('['); _STR_U8(u8); _STR("]");
+            break;
+        case A_DLY: /* [d],y   - Direct Indirect Long Indexed with Y */
+            _CHR(' '); _FETCH_U8(u8); _CHR('['); _STR_U8(u8); _STR("],Y");
             break;
 
     }
