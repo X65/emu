@@ -294,6 +294,10 @@ extern "C" {
 #define W65816_BRK_NMI   (1<<1)  /* NMI was triggered */
 #define W65816_BRK_RESET (1<<2)  /* RES was triggered */
 
+/* internal stop state flags */
+#define W65816_STOP_STP   (1<<0)  /* STP was called */
+#define W65816_STOP_WAI   (1<<1)  /* WAI was called */
+
 /* the desc structure provided to w65816_init() */
 typedef struct {
     bool bcd_disabled;              /* set to true if BCD mode is disabled */
@@ -316,6 +320,7 @@ typedef struct {
     uint8_t emulation;  /* W65C02 Emulation mode */
     uint8_t brk_flags;  /* W65816_BRK_* */
     uint8_t bcd_enabled;
+    uint8_t stopped;
 } w65816_t;
 
 /* initialize a new w65816 instance and return initial pin mask */
@@ -812,6 +817,14 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 #endif
 
 uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
+    if (c->stopped) {
+        if (c->stopped == W65816_STOP_STP && (pins & W65816_RES)) {
+            c->stopped = 0;
+            _FETCH();
+        }
+        if (c->stopped)
+            return pins;
+    }
     if (pins & (W65816_VPA|W65816_VDA|W65816_IRQ|W65816_NMI|W65816_RDY|W65816_RES)) {
         // interrupt detection also works in RDY phases, but only NMI is "sticky"
 
@@ -3061,10 +3074,10 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xDA<<4)|6: assert(false);break;
         case (0xDA<<4)|7: assert(false);break;
         case (0xDA<<4)|8: assert(false);break;
-    /* STP i (unimpl) */
-        case (0xDB<<4)|0: _SA(c->PC);break;
-        case (0xDB<<4)|1: break;
-        case (0xDB<<4)|2: _FETCH();break;
+    /* STP  */
+        case (0xDB<<4)|0: c->stopped=W65816_STOP_STP;break;
+        case (0xDB<<4)|1: assert(false);break;
+        case (0xDB<<4)|2: assert(false);break;
         case (0xDB<<4)|3: assert(false);break;
         case (0xDB<<4)|4: assert(false);break;
         case (0xDB<<4)|5: assert(false);break;

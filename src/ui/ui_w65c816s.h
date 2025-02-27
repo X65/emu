@@ -150,6 +150,9 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     ImGui::Separator();
     ImGui::Text("Mode: %s", cpu->emulation ? "Emulation":"Native");
     ImGui::Text("BCD : %s", cpu->bcd_enabled ? "enabled":"disabled");
+    if (cpu->stopped) {
+        ImGui::Text("Stopped: %s", cpu->stopped == W65816_STOP_WAI ? "WAI":"STP");
+    }
     ImGui::Separator();
     ImGui::Text("IR: %02X %d", cpu->IR >> 4, cpu->IR & 0xF);
     ImGui::Text("AD: %04X", cpu->AD);

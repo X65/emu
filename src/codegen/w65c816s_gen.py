@@ -68,13 +68,14 @@ A_STC = 21      # Stack - s
 A_STR = 22      # Stack Relative - d,s
 A_SII = 23      # Stack Relative Indirect Indexed with Y - (d,s),y
 A_STS = 24      # Stack with Signature - s
-A_INV = 25      # an invalid instruction
+A_STP = 25      # Special STP instruction - do nothing
+A_INV = 26      # an invalid instruction
 
 # addressing mode strings
 addr_mode_str = [
     'a', '(a,x)', 'a,x', 'a,y', '(a)', 'al,x', 'al', 'A', 'xyc', '(d,x)', 'd,x', 'd,y',
     '(d),y', '[d],y', '[d]', '(d)', 'd', '#', 'i', 'rl', 'r', 's', 'd,s', '(d,s),y', 's',
-    'INVALID'
+    '', 'INVALID'
 ]
 
 # memory access modes
@@ -130,7 +131,7 @@ ops = [
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
         [[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M__W],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_]],
         [[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_]],
-        [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___]],
+        [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_STP,M___],[A_IMP,M___]],
         [[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_]]
     ]
 ]
@@ -325,11 +326,12 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VDA(0);_SA(c->AD+_S(c)+1);c->AD=_GD();')
         op.t('c->AD|=_GD()<<8;')
         op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
+    elif addr_mode == A_STP:
+        pass
     else:
         # invalid instruction
         op.t('/* (invalid) */;')
         op.t('')
-        pass
 
 #-------------------------------------------------------------------------------
 def i_brk(o):
@@ -360,8 +362,8 @@ def i_wai(o):
 
 #-------------------------------------------------------------------------------
 def i_stp(o):
-    u_cmt(o,'STP')
-    o.t('')
+    cmt(o,'STP')
+    o.t('c->stopped=W65816_STOP_STP;')
 
 #-------------------------------------------------------------------------------
 def i_nop(o):
@@ -1139,7 +1141,9 @@ def enc_op(op):
             elif bbb == 6:  i_xce(o)
             else:           i_sbc(o, imm)
     # fetch next opcode byte
-    if mem_access in [M_R_,M___]:
+    if addr_mode == A_STP:
+        pass
+    elif mem_access in [M_R_,M___]:
         o.ta('_FETCH();')
     else:
         o.t('_FETCH();')
