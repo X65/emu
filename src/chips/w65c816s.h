@@ -1851,13 +1851,13 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x61<<4)|6: if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0x61<<4)|7: _w65816_adc16(c,c->AD|(_GD()<<8));_FETCH();break;
         case (0x61<<4)|8: assert(false);break;
-    /* PER s (unimpl) */
-        case (0x62<<4)|0: _SA(c->PC);break;
-        case (0x62<<4)|1: break;
-        case (0x62<<4)|2: _FETCH();break;
-        case (0x62<<4)|3: assert(false);break;
-        case (0x62<<4)|4: assert(false);break;
-        case (0x62<<4)|5: assert(false);break;
+    /* PER rl */
+        case (0x62<<4)|0: _VPA();_SA(c->PC++);break;
+        case (0x62<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
+        case (0x62<<4)|2: c->AD=c->PC+((_GD()<<8)|c->AD);break;
+        case (0x62<<4)|3: _VDA(0);_SAD(_SP(_S(c)--),c->AD>>8);_WR();break;
+        case (0x62<<4)|4: _VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();break;
+        case (0x62<<4)|5: _FETCH();break;
         case (0x62<<4)|6: assert(false);break;
         case (0x62<<4)|7: assert(false);break;
         case (0x62<<4)|8: assert(false);break;

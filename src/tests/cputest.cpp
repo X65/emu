@@ -115,7 +115,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x5F, "EOR al,x",    5, 4, true  },
     { 0x60, "RTS s",       6, 1, true  },
     { 0x61, "ADC (d,x)",   6, 2, true  },
-    { 0x62, "PER s",       6, 3, false },
+    { 0x62, "PER s",       6, 3, true },
     { 0x63, "ADC d,s",     4, 2, true  },
     { 0x64, "STZ d",       3, 2, true  },
     { 0x65, "ADC d",       3, 2, true  },

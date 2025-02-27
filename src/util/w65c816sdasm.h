@@ -197,7 +197,7 @@ static uint8_t _w65816dasm_ops[4][8][8] = {
 /* cc = 02 */
 {
     //ASL  ROL   LSR   ROR   STX   LDX   DEC   INC
-    {A_STS,A_ALN,A_STS,A_STC,A_PCL,A_IMM,A_IMM,A_IMM},
+    {A_STS,A_ALN,A_STS,A_PCL,A_PCL,A_IMM,A_IMM,A_IMM},
     {A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR,A_DIR},
     {A_ACC,A_ACC,A_ACC,A_ACC,A_IMP,A_IMP,A_IMP,A_IMP},
     {A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS,A_ABS},
