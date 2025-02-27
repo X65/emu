@@ -117,7 +117,7 @@ ops = [
         [[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M_RW],[A_DIR,M__W],[A_DIR,M_R_],[A_DIR,M_RW],[A_DIR,M_RW]],
         [[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_ACC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M_RW],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_RW],[A_ABS,M_RW]],
-        [[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M_RW],[A_DID,M__W],[A_DID,M_R_],[A_DID,M_RW],[A_DID,M_RW]],
+        [[A_DID,M_R_],[A_DID,M_R_],[A_DID,M_R_],[A_DID,M_R_],[A_DID,M__W],[A_DID,M_R_],[A_DID,M_R_],[A_DID,M_R_]],
         [[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIX,M_RW],[A_DIY,M__W],[A_DIY,M_R_],[A_DIX,M_RW],[A_DIX,M_RW]],
         [[A_ACC,M___],[A_ACC,M_R_],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_STC,M__W],[A_STC,M___]],
         [[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M_RW],[A_ABX,M__W],[A_ABY,M_R_],[A_ABX,M_RW],[A_ABX,M_RW]]
@@ -208,8 +208,8 @@ def enc_addr(op, addr_mode, mem_access):
         return True
     elif addr_mode == A_DIR:
         # direct page
-        op.t('_VPA();_SA(c->PC++);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
-        op.t('c->AD=_GD();_SA(c->PC);')
+        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
+        op.t('c->AD=_GD();_SA(c->PC++);')
         op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
     elif addr_mode == A_DIX:
         # direct page + X
@@ -219,9 +219,9 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):(c->D+c->AD+_X(c)));')
     elif addr_mode == A_DIY:
         # direct page + Y
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0)c->IR++;')
-        op.t('_SA(c->PC);')
+        op.t('_VPA();_SA(c->PC);')
+        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
+        op.t('_SA(c->PC++);')
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_Y(c))&0xFF):(c->D+c->AD+_Y(c)));')
     elif addr_mode == A_ABS:
         # absolute
@@ -265,11 +265,18 @@ def enc_addr(op, addr_mode, mem_access):
     elif addr_mode == A_AXI:
         # (absolute + X)
         op.t('_VPA();_SA(c->PC++);')
+    elif addr_mode == A_DID:
+        # (d)
+        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
+        op.t('c->AD=_GD();_SA(c->PC++);')
+        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
+        op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
+        op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DXI:
         # (d,x)
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF))c->IR++;')
-        op.t('_SA(c->PC);') # add 1 cycle for direct register low not equal 0
+        op.t('_VPA();_SA(c->PC);')
+        op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}')
+        op.t('_SA(c->PC++);') # add 1 cycle for direct register low not equal 0
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):c->D+c->AD+_X(c));')
         op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c)+1)&0xFF):c->D+c->AD+_X(c)+1);c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
@@ -289,7 +296,7 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();')
         op.t('_VDA(0);_SA(c->AD+_S(c));')
-    elif addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY or addr_mode == A_DID:
+    elif addr_mode == A_SII or addr_mode == A_DIL or addr_mode == A_DLY:
         op.t('/* (unimpl) */;')
         op.t('')
     else:

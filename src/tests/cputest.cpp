@@ -35,7 +35,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x0F, "ORA al",      5, 4, true  },
     { 0x10, "BPL r",       2, 2, true  },
     { 0x11, "ORA (d),y",   5, 2, true  },
-    { 0x12, "ORA (d)",     5, 2, false },
+    { 0x12, "ORA (d)",     5, 2, true  },
     { 0x13, "ORA (d,s),y", 7, 2, false },
     { 0x14, "TRB d",       5, 2, true  },
     { 0x15, "ORA d,x",     4, 2, true  },
@@ -99,7 +99,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x4F, "EOR al",      5, 4, true  },
     { 0x50, "BVC r",       2, 2, true  },
     { 0x51, "EOR (d),y",   5, 2, true  },
-    { 0x52, "EOR (d)",     5, 2, false },
+    { 0x52, "EOR (d)",     5, 2, true  },
     { 0x53, "EOR (d,s),y", 7, 2, false },
     { 0x54, "MVN xyc",     7, 3, true  },
     { 0x55, "EOR d,x",     4, 2, true  },
@@ -131,7 +131,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0x6F, "ADC al",      5, 4, true  },
     { 0x70, "BVS r",       2, 2, true  },
     { 0x71, "ADC (d),y",   5, 2, true  },
-    { 0x72, "ADC (d)",     5, 2, false },
+    { 0x72, "ADC (d)",     5, 2, true  },
     { 0x73, "ADC (d,s),y", 7, 2, false },
     { 0x74, "STZ d,x",     4, 2, true  },
     { 0x75, "ADC d,x",     4, 2, true  },
@@ -195,7 +195,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xAF, "LDA al",      5, 4, true  },
     { 0xB0, "BCS r",       2, 2, true  },
     { 0xB1, "LDA (d),y",   5, 2, true  },
-    { 0xB2, "LDA (d)",     5, 2, false },
+    { 0xB2, "LDA (d)",     5, 2, true  },
     { 0xB3, "LDA (d,s),y", 7, 2, false },
     { 0xB4, "LDY d,x",     4, 2, true  },
     { 0xB5, "LDA d,x",     4, 2, true  },
@@ -227,7 +227,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xCF, "CMP al",      5, 4, true  },
     { 0xD0, "BNE r",       2, 2, true  },
     { 0xD1, "CMP (d),y",   5, 2, true  },
-    { 0xD2, "CMP (d)",     5, 2, false },
+    { 0xD2, "CMP (d)",     5, 2, true  },
     { 0xD3, "CMP (d,s),y", 7, 2, false },
     { 0xD4, "PEI s",       6, 2, false },
     { 0xD5, "CMP d,x",     4, 2, true  },
@@ -259,7 +259,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xEF, "SBC al",      5, 4, true  },
     { 0xF0, "BEQ r",       2, 2, true  },
     { 0xF1, "SBC (d),y",   5, 2, true  },
-    { 0xF2, "SBC (d)",     5, 2, false },
+    { 0xF2, "SBC (d)",     5, 2, true  },
     { 0xF3, "SBC (d,s),y", 7, 2, false },
     { 0xF4, "PEA s",       5, 3, false },
     { 0xF5, "SBC d,x",     4, 2, true  },
@@ -276,11 +276,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
 };
 
 // Skip failing tests for unimplemented instructions.
-const int UNIMPL_skip[] = {
-    0xCB,                                //
-    0x92, 0xB2,                          //
-    0x12, 0x32, 0x52, 0x72, 0xD2, 0xF2,  // (d)
-};
+const int UNIMPL_skip[] = { 0xCB };
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_container)                                                  \
     static size_t _doctest_subcase_idx = 0;                                                                     \
