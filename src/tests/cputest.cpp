@@ -237,7 +237,7 @@ initializer_list<instr_data> INSTR_MATRIX = {
     { 0xD9, "CMP a,y",     4, 3, true  },
     { 0xDA, "PHX s",       3, 1, true  },
     { 0xDB, "STP i",       3, 1, true  },
-    { 0xDC, "JML (a)",     6, 3, false },
+    { 0xDC, "JML (a)",     6, 3, true  },
     { 0xDD, "CMP a,x",     4, 3, true  },
     { 0xDE, "DEC a,x",     7, 3, true  },
     { 0xDF, "CMP al,x",    5, 4, true  },

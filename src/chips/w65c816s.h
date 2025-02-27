@@ -3071,13 +3071,13 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xDB<<4)|6: assert(false);break;
         case (0xDB<<4)|7: assert(false);break;
         case (0xDB<<4)|8: assert(false);break;
-    /* JMP [d] */
-        case (0xDC<<4)|0: /* (unimpl) */;break;
-        case (0xDC<<4)|1: c->PBR=_GB();c->PC=_GA();_FETCH();break;
-        case (0xDC<<4)|2: assert(false);break;
-        case (0xDC<<4)|3: assert(false);break;
-        case (0xDC<<4)|4: assert(false);break;
-        case (0xDC<<4)|5: assert(false);break;
+    /* JML (a) */
+        case (0xDC<<4)|0: _VPA();_SA(c->PC++);break;
+        case (0xDC<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
+        case (0xDC<<4)|2: _VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);break;
+        case (0xDC<<4)|3: _VDA(_GB());_SA(c->AD+1);c->AD=_GD();break;
+        case (0xDC<<4)|4: _VDA(_GB());_SA(_GA()+1);c->PC=(_GD()<<8)|c->AD;break;
+        case (0xDC<<4)|5: c->PBR=_GD();_FETCH();break;
         case (0xDC<<4)|6: assert(false);break;
         case (0xDC<<4)|7: assert(false);break;
         case (0xDC<<4)|8: assert(false);break;

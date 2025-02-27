@@ -96,7 +96,7 @@ ops = [
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
         [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_STC,M_R_],[A_STC,M_R_]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
-        [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M___],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_DIL,M___],[A_AXI,M_R_]]
+        [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M___],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M___],[A_AXI,M_R_]]
     ],
     # cc = 01
     [
@@ -201,7 +201,7 @@ def enc_addr(op, addr_mode, mem_access):
         # INT signature byte, not used but puts the PC on the address bus without
         # incrementing the PC
         op.t('if(0==c->brk_flags){_VPA();}_SA(c->PC);')
-    elif addr_mode == A_IMM or addr_mode == A_PCR or addr_mode == A_PCL or addr_mode == A_BMV or addr_mode == A_ABI:
+    elif addr_mode == A_IMM or addr_mode == A_PCR or addr_mode == A_PCL or addr_mode == A_BMV:
         # immediate mode
         # and others pulling at least one argument byte after the instruction code
         op.t('_VPA();_SA(c->PC++);')
@@ -262,6 +262,11 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('_VPA();_SA(c->PC++);c->AD|=_GD()<<8;')
         op.t('_VDA(_GD());_SA(c->AD+_X(c));')
+    elif addr_mode == A_ABI:
+        op.t('_VPA();_SA(c->PC++);')
+        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+        op.t('_VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);')
+        op.t('_VDA(_GB());_SA(c->AD+1);c->AD=_GD();')
     elif addr_mode == A_AXI:
         # (absolute + X)
         op.t('_VPA();_SA(c->PC++);')
@@ -648,10 +653,13 @@ def i_jmpl(o):
 #-------------------------------------------------------------------------------
 def i_jmpi(o):
     cmt(o,'JMP')
-    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-    o.t('_VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);')
-    o.t('_VDA(_GB());_SA(c->AD+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
+
+#-------------------------------------------------------------------------------
+def i_jmpil(o):
+    cmt(o,'JML')
+    o.t('_VDA(_GB());_SA(_GA()+1);c->PC=(_GD()<<8)|c->AD;')
+    o.t('c->PBR=_GD();')
 
 #-------------------------------------------------------------------------------
 def i_jmpx(o):
@@ -1001,7 +1009,7 @@ def enc_op(op):
             elif bbb == 4:      i_br(o, ZF, 0)  # BNE
             elif bbb == 5:      i_pei(o)
             elif bbb == 6:      i_cl(o, DF)
-            elif bbb == 7:      i_jmpl(o)
+            elif bbb == 7:      i_jmpil(o)
             else:               i_cpy(o, imm)
         elif aaa == 7:
             if bbb == 2:        i_inx(o)
