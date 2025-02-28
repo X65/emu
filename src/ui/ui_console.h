@@ -35,7 +35,6 @@ typedef struct {
 void ui_console_init(ui_console_t* win, const ui_console_desc_t* desc);
 void ui_console_discard(ui_console_t* win);
 void ui_console_draw(ui_console_t* win);
-void ui_console_process_tx(ui_console_t* win);
 void ui_console_save_settings(ui_console_t* win, ui_settings_t* settings);
 void ui_console_load_settings(ui_console_t* win, const ui_settings_t* settings);
 
