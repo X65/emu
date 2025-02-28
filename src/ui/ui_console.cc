@@ -160,6 +160,41 @@ void ui_console_draw(ui_console_t* win) {
                 rb_put(win->rx, '\r');  // CR
                 rb_put(win->rx, '\n');  // LF
             }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Delete)) {
+                rb_put(win->rx, 0x7F);
+            }
+
+            // C0
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Backspace)) {
+                rb_put(win->rx, '\b');
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Tab)) {
+                rb_put(win->rx, '\t');
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Escape)) {
+                rb_put(win->rx, 0x1B);
+            }
+            // CSI
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_UpArrow)) {
+                rb_put(win->rx, 0x1B);  // ESC
+                rb_put(win->rx, '[');
+                rb_put(win->rx, 'A');
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_DownArrow)) {
+                rb_put(win->rx, 0x1B);  // ESC
+                rb_put(win->rx, '[');
+                rb_put(win->rx, 'B');
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_RightArrow)) {
+                rb_put(win->rx, 0x1B);  // ESC
+                rb_put(win->rx, '[');
+                rb_put(win->rx, 'C');
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_LeftArrow)) {
+                rb_put(win->rx, 0x1B);  // ESC
+                rb_put(win->rx, '[');
+                rb_put(win->rx, 'D');
+            }
         }
 
         ImGui::End();
