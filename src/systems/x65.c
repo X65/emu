@@ -10,6 +10,7 @@
 #endif
 
 static uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data);
+static void _x65_api_call(uint8_t data, void* user_data);
 
 #define _X65_DEFAULT(val, def) (((val) != 0) ? (val) : (def))
 
@@ -34,16 +35,18 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &sys->ria,
         &(ria816_desc_t){
             .tick_hz = X65_FREQUENCY,
+            .api_cb = _x65_api_call,
+            .user_data = sys,
         });
     tca6416a_init(&sys->gpio, 0xff, 0xff);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
         .fetch_cb = _x65_vpu_fetch,
+        .user_data = sys,
         .framebuffer = {
             .ptr = sys->fb,
             .size = sizeof(sys->fb),
         },
-        .user_data = sys,
     });
     const beeper_desc_t beeper_desc = {
         .tick_hz = X65_FREQUENCY,
@@ -292,6 +295,15 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
 uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
     x65_t* sys = (x65_t*)user_data;
     return sys->ram[addr & 0xFFFFFF];
+}
+
+void _x65_api_call(uint8_t data, void* user_data) {
+    x65_t* sys = (x65_t*)user_data;
+    switch (data) {
+        case 0xFF:  // STOP CPU
+            sys->running = false;
+            break;
+    }
 }
 
 uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {

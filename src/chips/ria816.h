@@ -175,10 +175,17 @@ typedef struct {
     bool interrupt;
 } ria816_interrupt_t;
 
+// a memory-fetch callback, used to read video memory bytes into the CGIA
+typedef void (*ria816_api_call_t)(uint8_t data, void* user_data);
+
 // the ria816 setup parameters
 typedef struct {
     // the CPU tick rate in hz
     int tick_hz;
+    // API callback
+    ria816_api_call_t api_cb;
+    // optional user-data for the API callback
+    void* user_data;
 } ria816_desc_t;
 
 // ria816 state
@@ -192,6 +199,10 @@ typedef struct {
     int ticks_per_ms;
     int ticks_counter;
     uint64_t pins;
+    // API callback
+    ria816_api_call_t api_cb;
+    // optional user-data for the API callback
+    void* user_data;
 } ria816_t;
 
 // extract 8-bit data bus from 64-bit pins

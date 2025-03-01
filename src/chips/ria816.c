@@ -26,6 +26,9 @@ void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
 
     c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
+    c->api_cb = desc->api_cb;
+    c->user_data = desc->user_data;
+
     // Seed the random number generator
     srand((unsigned int)time(NULL));
 }
@@ -117,6 +120,10 @@ static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
             c->irq.status = 0;
             break;
         case RIA816_IRQ_ENABLE: c->irq.enable = data; break;
+
+        case RIA816_API_OP:
+            if (c->api_cb) c->api_cb(data, c->user_data);
+            break;
 
         default: c->reg[addr] = data;
     }
