@@ -559,13 +559,24 @@ static fs_path_t fs_win32_posix_tmp_dir(void) {
     #endif
 }
 
+static fs_path_t fs_win32_posix_config_dir(void) {
+    #if defined(WIN32)
+    return fs_win32_posix_tmp_dir();
+    #else
+    const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+    if (xdg_config_home && *xdg_config_home) return fs_path_printf("%s", xdg_config_home);
+    const char *home = getenv("HOME");
+    return fs_path_printf("%s/.config", home);
+    #endif
+}
+
 fs_path_t fs_win32_posix_make_snapshot_path(const char* system_name, size_t snapshot_index) {
     fs_path_t tmp_dir = fs_win32_posix_tmp_dir();
     return fs_path_printf("%s/chips_%s_snapshot_%zu", tmp_dir.cstr, system_name, snapshot_index);
 }
 
 fs_path_t fs_win32_posix_make_ini_path(const char* key) {
-    fs_path_t tmp_dir = fs_win32_posix_tmp_dir();
+    fs_path_t tmp_dir = fs_win32_posix_config_dir();
     return fs_path_printf("%s/%s_imgui.ini", tmp_dir.cstr, key);
 }
 
