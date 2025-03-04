@@ -453,6 +453,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.debug_cbs = ui_desc->dbg_debug;
         desc.keys = ui_desc->dbg_keys;
         desc.user_data = ui;
+        desc.labels = ui_desc->labels;
         /* custom breakpoint types */
         desc.user_breaktypes[0].label = "Scanline at";
         desc.user_breaktypes[0].show_val16 = true;

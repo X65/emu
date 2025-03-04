@@ -211,6 +211,7 @@ typedef struct ui_dbg_desc_t {
     bool open;                      // initial open state
     ui_dbg_keys_desc_t keys;        // user-defined hotkeys
     ui_dbg_breaktype_t user_breaktypes[UI_DBG_MAX_USER_BREAKTYPES];  /* user-defined breakpoint types */
+    void* labels;
 } ui_dbg_desc_t;
 
 /* debugger state */
@@ -358,6 +359,7 @@ typedef struct ui_dbg_t {
     ui_dbg_heatmap_t heatmap;
     ui_dbg_history_t history;
     ui_dbg_stopwatch_t stopwatch;
+    void* labels;
 } ui_dbg_t;
 
 // initialize a new ui_dbg_t instance
@@ -1988,6 +1990,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
 
         /* disassembled instruction */
         x += glyph_width * 4;
+        float l_x = x + glyph_width * 26;
         ImGui::SameLine(x);
         if (show_dasm) {
             ImGui::Text("%s", win->dasm_line.chars);
@@ -2016,6 +2019,17 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
                 ImGui::Text(" ");
             }
         }
+
+        /* label */
+        x = l_x;
+        if (show_dasm && win->labels) {
+            std::map<unsigned int, std::string>* labels = static_cast<std::map<unsigned int, std::string>*>(win->labels);
+            if (labels->contains(start_addr)){
+                ImGui::SameLine(x);
+                ImGui::Text("%s", labels->at(start_addr).c_str());
+            }
+        }
+
         ImGui::PopStyleColor();
     }
     clipper.End();
@@ -2058,6 +2072,7 @@ void ui_dbg_init(ui_dbg_t* win, ui_dbg_desc_t* desc) {
     win->texture_cbs = desc->texture_cbs;
     win->debug_cbs = desc->debug_cbs;
     win->user_data = desc->user_data;
+    win->labels = desc->labels;
     _ui_dbg_dbgstate_init(win, desc);
     _ui_dbg_uistate_init(win, desc);
     _ui_dbg_heatmap_init(win);
