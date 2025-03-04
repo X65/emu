@@ -87,6 +87,7 @@ typedef struct {
     const char* title;  /* window title */
     const char* layers[UI_DASM_MAX_LAYERS];   /* memory system layer names */
     ui_dasm_cputype_t cpu_type;     /* only needed when defining both UI_DASM_CPUTYPE_Z80 and _M6502 */
+    void *cpu;
     uint16_t start_addr;
     ui_dasm_read_t read_cb;
     void* user_data;
@@ -100,6 +101,7 @@ typedef struct {
     const char* title;
     ui_dasm_read_t read_cb;
     ui_dasm_cputype_t cpu_type;
+    void* cpu;
     int cur_layer;
     int num_layers;
     const char* layers[UI_DASM_MAX_LAYERS];
@@ -163,6 +165,7 @@ void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
     win->read_cb = desc->read_cb;
     win->start_addr = desc->start_addr;
     win->user_data = desc->user_data;
+    win->cpu = desc->cpu;
     win->labels = desc->labels;
     win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
@@ -215,7 +218,7 @@ static void _ui_dasm_disasm(ui_dasm_t* win) {
         z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     else if (win->cpu_type == UI_DASM_CPUTYPE_W65C816S) {
-        w65816dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+        w65816dasm_op(win->cur_addr, w65816_p((w65816_t*)win->cpu) | (w65816_e((w65816_t*)win->cpu) ? 0x30 : 0), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     else {
         m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
@@ -223,7 +226,7 @@ static void _ui_dasm_disasm(ui_dasm_t* win) {
     #elif defined(UI_DASM_USE_Z80)
     z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #elif defined(UI_DASM_USE_W65C816S)
-    w65816dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+    w65816dasm_op(win->cur_addr, w65816_p((w65816_t*)win->cpu) | (w65816_e((w65816_t*)win->cpu) ? 0x30 : 0), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #else
     m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #endif

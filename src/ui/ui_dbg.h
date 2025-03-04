@@ -274,6 +274,7 @@ typedef struct ui_dbg_uistate_t {
         bool open;
         bool last_open;
     } stopwatch;
+    uint8_t status_reg;
     ui_dbg_keys_desc_t keys;
     ui_dbg_line_t line_array[UI_DBG_NUM_LINES];
     int num_breaktypes;
@@ -459,7 +460,7 @@ static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint16_t addr) {
     #elif defined(UI_DBG_USE_M6502)
         m6502dasm_op(addr, _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
     #elif defined(UI_DBG_USE_W65C816S)
-        w65816dasm_op(addr, _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
+        w65816dasm_op(addr, w65816_p(win->dbg.w65816) | (w65816_e(win->dbg.w65816) ? 0x30 : 0), _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
     #endif
     uint16_t next_addr = win->dasm_line.addr;
     win->dasm_line.addr = addr;
@@ -1840,6 +1841,13 @@ static bool _ui_dbg_line_array_needs_update(ui_dbg_t* win, uint16_t addr) {
             return true;
         }
     }
+#if defined(UI_DBG_USE_W65C816S)
+    /* if status register changed*/
+    if (win->ui.status_reg != w65816_p(win->dbg.w65816)) {
+        win->ui.status_reg = w65816_p(win->dbg.w65816);
+        return true;
+    }
+#endif
     /* all ok, not dirty */
     return false;
 }

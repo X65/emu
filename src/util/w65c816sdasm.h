@@ -24,11 +24,12 @@
     and produces a stream of ASCII characters for exactly one instruction:
 
     ~~~C
-    uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data)
+    uint16_t w65816dasm_op(uint16_t pc, uint8_t p, bool native, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data)
     ~~~
 
     pc      - the current 16-bit program counter, this is used to compute 
               absolute target addresses for relative jumps
+    p       - processor status register used to determine register sizes
     in_cb   - this function is called when the disassembler needs the next 
               instruction byte: uint8_t in_cb(void* user_data)
     out_cb  - (optional) this function is called when the disassembler produces a single
@@ -74,7 +75,7 @@ typedef uint8_t (*w65816dasm_input_t)(void* user_data);
 typedef void (*w65816dasm_output_t)(char c, void* user_data);
 
 /* disassemble a single 65816 instruction into a stream of ASCII characters */
-uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data);
+uint16_t w65816dasm_op(uint16_t pc, uint8_t p, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -261,7 +262,7 @@ static void _w65816dasm_u24(uint32_t val, w65816dasm_output_t out_cb, void* user
 }
 
 /* main disassembler function */
-uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data) {
+uint16_t w65816dasm_op(uint16_t pc, uint8_t p, w65816dasm_input_t in_cb, w65816dasm_output_t out_cb, void* user_data) {
     CHIPS_ASSERT(in_cb);
     uint8_t op;
     _FETCH_U8(op);
@@ -273,6 +274,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
     const char* n = "???";
     bool indirect = false;
     bool ignore_signature = false;
+    bool x8 = true;
     switch (cc) {
         case 0:
             switch (aaa) {
@@ -295,7 +297,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                         case 2:  n = "PLP"; break;
                         case 4:  n = "BMI"; break;
                         case 6:  n = "SEC"; break;
-                        default: n = "BIT"; break;
+                        default: n = "BIT"; x8 = p & 0x20; break;
                     }
                     break;
                 case 2:
@@ -337,7 +339,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                         case 2:  n = "TAY"; break;
                         case 4:  n = "BCS"; break;
                         case 6:  n = "CLV"; break;
-                        default: n = "LDY"; break;
+                        default: n = "LDY"; x8 = p & 0x10; break;
                     }
                     break;
                 case 6:
@@ -347,7 +349,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                         case 5:  n = "PEI"; break;
                         case 6:  n = "CLD"; break;
                         case 7:  n = "JML"; break;
-                        default: n = "CPY"; break;
+                        default: n = "CPY"; x8 = p & 0x10; break;
                     }
                     break;
                 case 7:
@@ -357,7 +359,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                         case 5:  n = "PEA"; break;
                         case 6:  n = "SED"; break;
                         case 7:  n = "JSR"; indirect = true; break;  /* jsr (a,x) */
-                        default: n = "CPX"; break;
+                        default: n = "CPX"; x8 = p & 0x10; break;
                     }
                     break;
             }
@@ -365,19 +367,19 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
 
         case 1:
             switch (aaa) {
-                case 0: n = "ORA"; break;
-                case 1: n = "AND"; break; /* AND A */
-                case 2: n = "EOR"; break;
-                case 3: n = "ADC"; break;
+                case 0: n = "ORA"; x8 = p & 0x20; break;
+                case 1: n = "AND"; x8 = p & 0x20; break;
+                case 2: n = "EOR"; x8 = p & 0x20; break;
+                case 3: n = "ADC"; x8 = p & 0x20; break;
                 case 4:
                     switch (bbb) {
-                        case 2:  n = "BIT"; break;
+                        case 2:  n = "BIT"; x8 = p & 0x20; break;
                         default: n = "STA"; break;
                     }
                     break;
-                case 5: n = "LDA"; break;
-                case 6: n = "CMP"; break;
-                case 7: n = "SBC"; break;
+                case 5: n = "LDA"; x8 = p & 0x20; break;
+                case 6: n = "CMP"; x8 = p & 0x20; break;
+                case 7: n = "SBC"; x8 = p & 0x20; break;
             }
             break;
 
@@ -387,7 +389,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "COP"; break;
                         case 2:  n = "ASL"; break; /* ASL A */
-                        case 4:  n = "ORA"; break;
+                        case 4:  n = "ORA"; x8 = p & 0x20; break;
                         case 6:  n = "INC"; break; /* INC A */
                         default: n = "ASL"; break;
                     }
@@ -396,7 +398,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "JSL"; break;
                         case 2:  n = "ROL"; break; /* ROL A */
-                        case 4:  n = "AND"; break;
+                        case 4:  n = "AND"; x8 = p & 0x20; break;
                         case 6:  n = "DEC"; break; /* DEC A */
                         default: n = "ROL"; break;
                     }
@@ -405,7 +407,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "WDM"; break;
                         case 2:  n = "LSR"; break; /* LSR A */
-                        case 4:  n = "EOR"; break;
+                        case 4:  n = "EOR"; x8 = p & 0x20; break;
                         case 6:  n = "PHY"; break;
                         default: n = "LSR"; break;
                     }
@@ -414,7 +416,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "PER"; break;
                         case 2:  n = "ROR"; break; /* ROR A */
-                        case 4:  n = "ADC"; break;
+                        case 4:  n = "ADC"; x8 = p & 0x20; break;
                         case 6:  n = "PLY"; break;
                         default: n = "ROR"; break;
                     }
@@ -432,16 +434,16 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                 case 5:
                     switch (bbb) {
                         case 2:  n = "TAX"; break;
-                        case 4:  n = "LDA"; break;
+                        case 4:  n = "LDA"; x8 = p & 0x20; break;
                         case 6:  n = "TSX"; break;
-                        default: n = "LDX"; break;
+                        default: n = "LDX"; x8 = p & 0x10; break;
                     }
                     break;
                 case 6:
                     switch (bbb) {
                         case 0:  n = "REP"; break;
                         case 2:  n = "DEX"; break;
-                        case 4:  n = "CMP"; break;
+                        case 4:  n = "CMP"; x8 = p & 0x20; break;
                         case 6:  n = "PHX"; break;
                         default: n = "DEC"; break;
                     }
@@ -450,7 +452,7 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 0:  n = "SEP"; break;
                         case 2:  n = "NOP"; break;
-                        case 4:  n = "SBC"; break;
+                        case 4:  n = "SBC"; x8 = p & 0x20; break;
                         case 6:  n = "PLX"; break;
                         default: n = "INC"; break;
                     }
@@ -464,28 +466,28 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 2:  n = "PHD"; break;
                         case 6:  n = "TCS"; break;
-                        default: n = "ORA"; break;
+                        default: n = "ORA"; x8 = p & 0x20; break;
                     }
                     break;
                 case 1:
                     switch (bbb) {
                         case 2:  n = "PLD"; break;
                         case 6:  n = "TSC"; break;
-                        default: n = "AND"; break;
+                        default: n = "AND"; x8 = p & 0x20; break;
                     }
                     break;
                 case 2:
                     switch (bbb) {
                         case 2:  n = "PHK"; break;
                         case 6:  n = "TCD"; break;
-                        default: n = "EOR"; break;
+                        default: n = "EOR"; x8 = p & 0x20; break;
                     }
                     break;
                 case 3:
                     switch (bbb) {
                         case 2:  n = "RTL"; break;
                         case 6:  n = "TDC"; break;
-                        default: n = "ADC"; break;
+                        default: n = "ADC"; x8 = p & 0x20; break;
                     }
                     break;
                 case 4:
@@ -499,21 +501,21 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
                     switch (bbb) {
                         case 2:  n = "PLB"; break;
                         case 6:  n = "TYX"; break;
-                        default: n = "LDA"; break;
+                        default: n = "LDA"; x8 = p & 0x20; break;
                     }
                     break;
                 case 6:
                     switch (bbb) {
                         case 2:  n = "WAI"; break;
                         case 6:  n = "STP"; break;
-                        default: n = "CMP"; break;
+                        default: n = "CMP"; x8 = p & 0x20; break;
                     }
                     break;
                 case 7:
                     switch (bbb) {
                         case 2:  n = "XBA"; break;
                         case 6:  n = "XCE"; break;
-                        default: n = "SBC"; break;
+                        default: n = "SBC"; x8 = p & 0x20; break;
                     }
                     break;
             }
@@ -533,7 +535,8 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
             {_CHR(' '); _FETCH_U8(u8); _STR_U8(u8);}
             break;
         case A_IMM: /* #       - Immediate */
-            _CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8);
+            if (x8) {_CHR(' '); _FETCH_U8(u8); _CHR('#'); _STR_U8(u8);}
+            else    {_CHR(' '); _FETCH_U16(u16); _CHR('#'); _STR_U16(u16);}
             break;
         case A_DIR: /* d       - Direct */
             _CHR(' '); _FETCH_U8(u8); _STR_U8(u8);
@@ -548,12 +551,8 @@ uint16_t w65816dasm_op(uint16_t pc, w65816dasm_input_t in_cb, w65816dasm_output_
         case A_JSR: /* special JSR abs */
         case A_JMP: /* special JMP abs */
             _CHR(' '); _FETCH_U16(u16);
-            if (indirect) {
-                _CHR('('); _STR_U16(u16); _CHR(')');
-            }
-            else {
-                _STR_U16(u16);
-            }
+            if (indirect) {_CHR('('); _STR_U16(u16); _CHR(')');}
+            else          {_STR_U16(u16);}
             break;
         case A_ABX: /* a,x     - Absolute Indexed with X */
             _CHR(' '); _FETCH_U16(u16); _STR_U16(u16); _STR(",X");

@@ -581,6 +581,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
         }
         desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
+        desc.cpu = &ui->cpu;
         desc.start_addr = mem_rd16(ui->x65, 0, 0xFFFC);
         desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;

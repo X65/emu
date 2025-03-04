@@ -283,7 +283,12 @@ int main(int argc, char* argv[]) {
             dasm_context.mem = mem + addr;
             dasm_context.buffer = dasm_buffer;
             memset(dasm_buffer, 0, sizeof(dasm_buffer));
-            w65816dasm_op(addr, dasm_in_cb, dasm_out_cb, &dasm_context);
+            w65816dasm_op(
+                (uint16_t)addr,
+                w65816_p(&cpu) | (w65816_e(&cpu) ? 0x30 : 0),
+                dasm_in_cb,
+                dasm_out_cb,
+                &dasm_context);
         }
         else {
             dasm_buffer[0] = '\0';
@@ -293,7 +298,7 @@ int main(int argc, char* argv[]) {
             // print the current state
             fprintf(
                 output,
-                "%s%s%s  ADDR: %02X %04X  DATA: %02X\t\tPC: %02X %04X  C: %04X  X: %04X  Y: %04X  SP: %04X  DB: %02X",
+                "%s%s%s  ADDR: %02X %04X  DATA: %02X\t\tPC: %02X %04X  C: %04X  X: %04X  Y: %04X  SP: %04X  DB: %02X  P: %02X %s",
                 cpu_read ? "R" : "w",
                 (pins & W65816_VPA) ? "P" : " ",
                 (pins & W65816_VDA) ? "D" : " ",
@@ -306,7 +311,9 @@ int main(int argc, char* argv[]) {
                 w65816_x(&cpu),
                 w65816_y(&cpu),
                 w65816_s(&cpu),
-                w65816_db(&cpu));
+                w65816_db(&cpu),
+                w65816_p(&cpu),
+                w65816_e(&cpu) ? "E" : "N");
             if (dasm_buffer[0] != '\0') {
                 fprintf(output, "\t%s\n", dasm_buffer);
             }
