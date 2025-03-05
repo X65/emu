@@ -64,6 +64,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         -include ${CMAKE_CURRENT_SOURCE_DIR}/src/mingw.h
         -static-libgcc -static-libstdc++
     )
+    target_link_options(emu PRIVATE --static)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     message(STATUS "Building for Emscripten (WASM)")
