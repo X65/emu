@@ -2,7 +2,7 @@
 
 This is Emu <img src="emu.gif" alt="Emu"> The [X65 Computer][1] Emulator.
 
-Based on [chips emulators][2] by Andre Weissflog.
+Emu is based on [chip emulators][2] by Andre Weissflog.
 
 > The USP of the chip emulators is that they communicate with the outside world
 > through a 'pin bit mask': A 'tick' function takes an uint64_t as input
@@ -14,8 +14,6 @@ Based on [chips emulators][2] by Andre Weissflog.
 
 This emulator started as a hard fork of C64 emulator example
 and it shows in places - it is still a work-in-progress.
-Machine is being gradually transitioned to X65 emulator,
-by replacing chips modules and "rewiring" the system shell.
 
 [1]: https://x65.zone/
 [2]: https://github.com/floooh/chips
