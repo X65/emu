@@ -107,6 +107,7 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
             chip->int_status & CGIA_REG_INT_FLAG_VBI ? "VBI " : "",
             chip->int_status & CGIA_REG_INT_FLAG_DLI ? "DLI " : "",
             chip->int_status & CGIA_REG_INT_FLAG_RSI ? "RSI " : "");
+        ui_util_b8("INT Mask  : ", win->cgia->int_mask);
     }
 }
 
@@ -115,8 +116,8 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
         ImGui::Text("H Period:    %4d", win->cgia->h_period / CGIA_FIXEDPOINT_SCALE);
         ImGui::Text("H Counter:   %4d", win->cgia->h_count / CGIA_FIXEDPOINT_SCALE);
         ImGui::Text("V Counter:   %4d", win->cgia->v_count);
-        ImGui::Text("V Period:   %4d", MODE_V_TOTAL_LINES - 1);
-        ImGui::Text("Active Line: %4d", win->cgia->active_line);
+        ImGui::Text("V Period:    %4d", MODE_V_TOTAL_LINES - 1);
+        ImGui::Text("Scan Line:   %4d", win->cgia->scan_line);
         const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
         ImGui::Text("Raster Line: %4d", chip->raster);
     }

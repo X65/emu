@@ -249,7 +249,7 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
-    int scanline = x65->cgia.active_line;
+    int scanline = x65->cgia.scan_line;
     for (int i = 0; (i < dbg_win->dbg.num_breakpoints) && (trap_id == 0); i++) {
         const ui_dbg_breakpoint_t* bp = &dbg_win->dbg.breakpoints[i];
         if (bp->enabled) {
@@ -266,14 +266,8 @@ static int _ui_x65_eval_bp(ui_dbg_t* dbg_win, int trap_id, uint64_t pins, void* 
                         trap_id = UI_DBG_BP_BASE_TRAPID + i;
                     }
                     break;
-                /* next badline */
-                case UI_DBG_BREAKTYPE_USER + 2:
-                    if ((ui->dbg_scanline != scanline) && x65->cgia.badline) {
-                        trap_id = UI_DBG_BP_BASE_TRAPID + i;
-                    }
-                    break;
                 /* next frame */
-                case UI_DBG_BREAKTYPE_USER + 3:
+                case UI_DBG_BREAKTYPE_USER + 2:
                     if ((ui->dbg_scanline != scanline) && (scanline == 0)) {
                         trap_id = UI_DBG_BP_BASE_TRAPID + i;
                     }
@@ -458,8 +452,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.user_breaktypes[0].label = "Scanline at";
         desc.user_breaktypes[0].show_val16 = true;
         desc.user_breaktypes[1].label = "Next Scanline";
-        desc.user_breaktypes[2].label = "Next Badline";
-        desc.user_breaktypes[3].label = "Next Frame";
+        desc.user_breaktypes[2].label = "Next Frame";
         ui_dbg_init(&ui->dbg, &desc);
     }
     x += dx;

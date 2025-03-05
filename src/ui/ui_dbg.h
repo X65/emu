@@ -1044,7 +1044,7 @@ static void _ui_dbg_bp_draw(ui_dbg_t* win) {
             }
             ImGui::SameLine();
             bool upd_val = false;
-            ImGui::PushItemWidth(112);
+            ImGui::PushItemWidth(118);
             if (ImGui::Combo("##type", &bp->type, win->ui.breaktype_combo_labels, win->ui.num_breaktypes)) {
                 upd_val = true;
             }

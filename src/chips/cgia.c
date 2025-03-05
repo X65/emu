@@ -80,26 +80,22 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
         uint32_t* src = vpu->linebuffer + CGIA_LINEBUFFER_PADDING;
 
         if (vpu->v_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
-            vpu->active_line = vpu->v_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
+            vpu->scan_line = vpu->v_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
 
-            if (vpu->active_line % FB_V_REPEAT == 0) {
+            if (vpu->scan_line % FB_V_REPEAT == 0) {
                 // rasterize new line
-                vpu->badline = true;
-                cgia_render((uint16_t)(vpu->active_line / FB_V_REPEAT), src);
+                cgia_render((uint16_t)(vpu->scan_line / FB_V_REPEAT), src);
             }
-            else {
-                vpu->badline = false;
+
+            uint32_t* dst = vpu->fb + (vpu->scan_line * CGIA_FRAMEBUFFER_WIDTH);
+            for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
+                for (uint r = 0; r < FB_H_REPEAT; ++r) {
+                    *dst++ = *src | 0xFF000000;  // set ALPHA channel to 100% opacity
+                }
             }
         }
         else {
             vpu->regs[CGIA_REG_RASTER] = 0;
-        }
-
-        uint32_t* dst = vpu->fb + (vpu->active_line * CGIA_FRAMEBUFFER_WIDTH);
-        for (uint x = 0; x < CGIA_ACTIVE_WIDTH; ++x, ++src) {
-            for (uint r = 0; r < FB_H_REPEAT; ++r) {
-                *dst++ = *src | 0xFF000000;  // set ALPHA channel to 100% opacity
-            }
         }
     }
 
@@ -796,4 +792,5 @@ static void _copy_internal_regs(cgia_t* vpu) {
         vpu->vram_cache[i].wanted_bank_mask = vram_wanted_bank_mask[i];
         vpu->vram_cache[i].cache_ptr_idx = vram_cache_ptr[i] == vram_cache[0] ? 0 : 1;
     }
+    vpu->int_mask = int_mask;
 }

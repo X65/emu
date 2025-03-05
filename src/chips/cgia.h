@@ -191,8 +191,7 @@ typedef struct {
     uint h_period;
     uint v_count;
 
-    uint active_line;  // currently rendered physical line
-    bool badline;      // active when rasterizer code is running and stealing memory reads from CPU
+    uint scan_line;  // currently rendered physical scan line
 
     // CGIA registers
     uint8_t* regs;
@@ -215,6 +214,9 @@ typedef struct {
         uint32_t wanted_bank_mask;
         uint8_t cache_ptr_idx;
     } vram_cache[2];
+
+    // Interrupt mask
+    uint8_t int_mask;
 
     // the fetch callback function
     cgia_fetch_t fetch_cb;
