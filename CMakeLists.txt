@@ -60,7 +60,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Building for Windows (mingw-w64)")
-    target_compile_options(emu BEFORE PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/src/mingw.h)
+    target_compile_options(emu BEFORE PRIVATE
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/src/mingw.h
+        -static-libgcc -static-libstdc++
+    )
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     message(STATUS "Building for Emscripten (WASM)")
