@@ -695,7 +695,7 @@ def i_jmpx(o):
     cmt(o,'JMP')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
-    o.t('_VDA(c->DBR);c->AD|=_GD()<<8;_SA(c->AD+_X(c));')
+    o.t('_VDA(c->DBR);_SA(c->AD+_X(c));')
     o.t('_VDA(c->DBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
