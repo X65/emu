@@ -44,3 +44,16 @@ Install [Emscripten][3] toolchain. Next, run the following commands:
     cmake --build .
 
 [3]: https://emscripten.org/docs/getting_started/downloads.html
+
+## Running
+
+Linux
+
+    > build/emu --help
+    Usage: emu [OPTION...] [ROM.xex]
+
+    > build/emu roms/SOTB.xex
+
+Windows
+
+    > build/emu.exe file=roms/SOTB.xex
