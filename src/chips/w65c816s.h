@@ -842,7 +842,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
 
         // NMI is edge-triggered
         if (0 != ((pins & (pins ^ c->PINS)) & W65816_NMI)) {
-            c->nmi_pip |= 0x100;
+            c->nmi_pip |= 0x40;
         }
         // IRQ test is level triggered
         if ((pins & W65816_IRQ) && (0 == (c->P & W65816_IF))) {
@@ -870,14 +870,14 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             if (0 != (c->irq_pip & 0x400)) {
                 c->brk_flags |= W65816_BRK_IRQ;
             }
-            if (0 != (c->nmi_pip & 0xFC00)) {
+            if (0 != (c->nmi_pip & 0xFF00)) {
                 c->brk_flags |= W65816_BRK_NMI;
+                c->nmi_pip = 0x00;
             }
             if (0 != (pins & W65816_RES)) {
                 c->brk_flags |= W65816_BRK_RESET;
             }
             c->irq_pip &= 0x3FF;
-            c->nmi_pip &= 0x3FF;
 
             // if interrupt or reset was requested, force a BRK instruction
             if (c->brk_flags) {
@@ -889,9 +889,9 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
                 c->PC++;
             }
         }
-        // internal operation is default
-        _OFF(W65816_VPA|W65816_VDA);
     }
+    // internal operation is default
+    _OFF(W65816_VPA|W65816_VDA);
     // reads are default, writes are special
     _RD();
     switch (c->IR++) {
