@@ -61,6 +61,8 @@ void ui_util_u8(const char* label, uint8_t val);
 void ui_util_u16(const char* label, uint16_t val);
 // draw an 8-bit binary label/value text
 void ui_util_b8(const char* label, uint8_t val);
+// draw an 16-bit binary label/value text
+void ui_util_b16(const char* label, uint16_t val);
 // draw a 24-bit binary label/value text
 void ui_util_b24(const char* label, uint32_t val);
 // draw a 32-bit binary label/value text
@@ -146,6 +148,15 @@ void ui_util_b8(const char* label, uint8_t val) {
         str[i] = (val & (1<<(7-i))) ? '1':'0';
     }
     str[8] = 0;
+    ImGui::Text("%s%s", label, str);
+}
+
+void ui_util_b16(const char* label, uint16_t val) {
+    char str[17];
+    for (int i = 0; i < 16; i++) {
+        str[i] = (val & (1<<(15-i))) ? '1':'0';
+    }
+    str[16] = 0;
     ImGui::Text("%s%s", label, str);
 }
 

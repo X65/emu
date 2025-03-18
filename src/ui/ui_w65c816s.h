@@ -153,10 +153,13 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     if (cpu->stopped) {
         ImGui::Text("Stopped: %s", cpu->stopped == W65816_STOP_WAI ? "WAI":"STP");
     }
-    ImGui::Separator();
+    ImGui::SeparatorText("Internal");
     ImGui::Text("IR: %02X %d", cpu->IR >> 4, cpu->IR & 0xF);
     ImGui::Text("AD: %04X", cpu->AD);
     ImGui::Text("PINS: %010" PRIX64, cpu->PINS);
+    ui_util_b16("IRQ<<: ", cpu->irq_pip);
+    ui_util_b16("NMI<<: ", cpu->nmi_pip);
+    ui_util_b8("BRK  : ", cpu->brk_flags);
 }
 
 void ui_w65816_draw(ui_w65816_t* win) {
