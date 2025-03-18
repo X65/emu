@@ -1102,6 +1102,13 @@ static void _ui_dbg_bp_draw(ui_dbg_t* win) {
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Delete");
             }
+            if (bt->show_addr && win->labels) {
+                std::map<unsigned int, std::string>* labels = static_cast<std::map<unsigned int, std::string>*>(win->labels);
+                if (labels->contains(bp->addr)){
+                    ImGui::SameLine();
+                    ImGui::Text("%s", labels->at(bp->addr).c_str());
+                }
+            }
             ImGui::PopID();
         }
         if (del_bp_index != -1) {
