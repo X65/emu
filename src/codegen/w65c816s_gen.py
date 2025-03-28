@@ -693,7 +693,7 @@ def i_jmpil(o):
 #-------------------------------------------------------------------------------
 def i_jmpx(o):
     cmt(o,'JMP')
-    o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+    o.t('_VPA();_SA(c->PC);c->AD=_GD();')
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     o.t('_VDA(c->DBR);_SA(c->AD+_X(c));')
     o.t('_VDA(c->DBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
@@ -714,8 +714,8 @@ def i_jsr(o):
 #-------------------------------------------------------------------------------
 def i_jsrx(o):
     cmt(o,'JSR')
-    # write PC high byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
+    # get address low and write PC high byte to stack
+    o.t('_VDA(0);c->AD=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
     # load target address high byte

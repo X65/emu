@@ -2138,7 +2138,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x7B<<4)|8: assert(false);break;
     /* JMP (a,x) */
         case (0x7C<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0x7C<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
+        case (0x7C<<4)|1: _VPA();_SA(c->PC);c->AD=_GD();break;
         case (0x7C<<4)|2: _SA(c->PC);c->AD=(_GD()<<8)|c->AD;break;
         case (0x7C<<4)|3: _VDA(c->DBR);_SA(c->AD+_X(c));break;
         case (0x7C<<4)|4: _VDA(c->DBR);_SA(c->AD+_X(c)+1);c->AD=_GD();break;
@@ -3418,7 +3418,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFB<<4)|8: assert(false);break;
     /* JSR (a,x) */
         case (0xFC<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0xFC<<4)|1: _VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();break;
+        case (0xFC<<4)|1: _VDA(0);c->AD=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();break;
         case (0xFC<<4)|2: _VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();break;
         case (0xFC<<4)|3: _VPA();_SA(c->PC);break;
         case (0xFC<<4)|4: _SA(c->PC);c->AD=(_GD()<<8)|c->AD;break;
