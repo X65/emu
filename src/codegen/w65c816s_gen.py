@@ -829,13 +829,13 @@ def i_cmp(o, imm):
 #-------------------------------------------------------------------------------
 def i_cpx(o, imm):
     cmt(o,'CPX')
-    o.t('if(_a8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_cmp16(c, _X(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
 def i_cpy(o, imm):
     cmt(o,'CPY')
-    o.t('if(_a8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
     o.t('_w65816_cmp16(c, _Y(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------

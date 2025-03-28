@@ -2818,7 +2818,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xBF<<4)|8: assert(false);break;
     /* CPY # */
         case (0xC0<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0xC0<<4)|1: if(_a8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VPA();_SA(c->PC++);}break;
+        case (0xC0<<4)|1: if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VPA();_SA(c->PC++);}break;
         case (0xC0<<4)|2: _w65816_cmp16(c, _Y(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xC0<<4)|3: assert(false);break;
         case (0xC0<<4)|4: assert(false);break;
@@ -2860,7 +2860,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xC4<<4)|0: _VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}break;
         case (0xC4<<4)|1: c->AD=_GD();_SA(c->PC++);break;
         case (0xC4<<4)|2: _VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);break;
-        case (0xC4<<4)|3: if(_a8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
+        case (0xC4<<4)|3: if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xC4<<4)|4: _w65816_cmp16(c, _Y(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xC4<<4)|5: assert(false);break;
         case (0xC4<<4)|6: assert(false);break;
@@ -2940,7 +2940,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xCC<<4)|0: _VPA();_SA(c->PC++);break;
         case (0xCC<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xCC<<4)|2: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
-        case (0xCC<<4)|3: if(_a8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
+        case (0xCC<<4)|3: if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xCC<<4)|4: _w65816_cmp16(c, _Y(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xCC<<4)|5: assert(false);break;
         case (0xCC<<4)|6: assert(false);break;
@@ -3138,7 +3138,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xDF<<4)|8: assert(false);break;
     /* CPX # */
         case (0xE0<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0xE0<<4)|1: if(_a8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VPA();_SA(c->PC++);}break;
+        case (0xE0<<4)|1: if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VPA();_SA(c->PC++);}break;
         case (0xE0<<4)|2: _w65816_cmp16(c, _X(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xE0<<4)|3: assert(false);break;
         case (0xE0<<4)|4: assert(false);break;
@@ -3180,7 +3180,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xE4<<4)|0: _VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}break;
         case (0xE4<<4)|1: c->AD=_GD();_SA(c->PC++);break;
         case (0xE4<<4)|2: _VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);break;
-        case (0xE4<<4)|3: if(_a8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
+        case (0xE4<<4)|3: if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xE4<<4)|4: _w65816_cmp16(c, _X(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xE4<<4)|5: assert(false);break;
         case (0xE4<<4)|6: assert(false);break;
@@ -3260,7 +3260,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xEC<<4)|0: _VPA();_SA(c->PC++);break;
         case (0xEC<<4)|1: _VPA();_SA(c->PC++);c->AD=_GD();break;
         case (0xEC<<4)|2: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
-        case (0xEC<<4)|3: if(_a8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
+        case (0xEC<<4)|3: if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xEC<<4)|4: _w65816_cmp16(c, _X(c), c->AD|(_GD()<<8));_FETCH();break;
         case (0xEC<<4)|5: assert(false);break;
         case (0xEC<<4)|6: assert(false);break;
