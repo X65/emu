@@ -737,7 +737,7 @@ def i_jsl(o):
     # read bank of target address
     o.t('_VPA();_SA(c->PC++);')
     # write PC high byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);c->PBR=_GD();_WR();')
+    o.t('_VDA(0);c->PBR=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
     # load PC and done
