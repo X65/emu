@@ -2,6 +2,8 @@
 
 #include "chips/clk.h"
 
+#include "firmware/src/ria/cgia/font_8.h"
+
 #include <string.h>  // memcpy, memset
 
 #ifndef CHIPS_ASSERT
@@ -300,9 +302,24 @@ uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
 void _x65_api_call(uint8_t data, void* user_data) {
     x65_t* sys = (x65_t*)user_data;
     switch (data) {
+        case 0x10: {  // RIA_API_GET_CHARGEN
+            uint8_t value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            uint16_t mem_addr = (uint16_t)value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint16_t)value << 8;
+            uint8_t bank;
+            if (!rb_get(&sys->ria.api_stack, &bank)) break;
+
+            // copy chargen to memory
+            for (size_t i = 0; i < sizeof(font8_data); ++i)
+                mem_wr(sys, bank, mem_addr++, font8_data[i]);
+            break;
+        }
         case 0xFF:  // STOP CPU
             sys->running = false;
             break;
+        default: fprintf(stderr, "Unhandled RIA API call: %02x\n", data);
     }
 }
 

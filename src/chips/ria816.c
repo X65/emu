@@ -26,6 +26,7 @@ void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
 
     c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
+    rb_init(&c->api_stack);
     c->api_cb = desc->api_cb;
     c->user_data = desc->user_data;
 
@@ -39,6 +40,7 @@ void ria816_reset(ria816_t* c) {
     c->us = 0;
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
+    rb_init(&c->api_stack);
     m6526_reset(&c->cia);
 }
 
@@ -106,6 +108,8 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         case RIA816_IRQ_STATUS: data = c->irq.status; break;
         case RIA816_IRQ_ENABLE: data = c->irq.enable; break;
 
+        case RIA816_API_STACK: rb_get(&c->api_stack, &data); break;
+
         default: data = c->reg[addr];
     }
     return data;
@@ -121,6 +125,7 @@ static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
             break;
         case RIA816_IRQ_ENABLE: c->irq.enable = data; break;
 
+        case RIA816_API_STACK: rb_put(&c->api_stack, data); break;
         case RIA816_API_OP:
             if (c->api_cb) c->api_cb(data, c->user_data);
             break;

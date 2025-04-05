@@ -199,6 +199,7 @@ typedef struct {
     int ticks_per_ms;
     int ticks_counter;
     uint64_t pins;
+    ring_buffer_t api_stack;
     // API callback
     ria816_api_call_t api_cb;
     // optional user-data for the API callback
