@@ -30,6 +30,7 @@
 
 #include "icon.c"
 #include "./args.h"
+#include "./dap.h"
 
 extern const char* GIT_TAG;
 extern const char* GIT_REV;
@@ -58,6 +59,7 @@ static struct {
         uint32_t entry_addr;
         uint32_t exit_addr;
     } dbg;
+    dap_t dap;
     x65_snapshot_t snapshots[UI_SNAPSHOT_MAX_SLOTS];
 #endif
 } state;
@@ -231,6 +233,7 @@ void app_init(void) {
             .dbg_read_memory = web_dbg_read_memory,
         },
     });
+    dap_init(&state.dap, arguments.dap, arguments.dap_port);
 #endif
     bool delay_input = false;
     if (arguments.rom) {
