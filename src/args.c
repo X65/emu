@@ -23,6 +23,8 @@ static struct argp_option options[] = {
     { "silent", 's', 0, OPTION_ALIAS },
     { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
     { "labels", 'l', "LABELS_FILE", 0, "Load VICE compatible global labels file" },
+    { "dap", 'd', 0, 0, "Enable Debug Adapter Protocol over stdin/stdout" },
+    { "dap-port", 'p', "PORT", 0, "Enable Debug Adapter Protocol over TCP port" },
     { 0 }
 };
 
@@ -34,6 +36,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 's': args->silent = 1; break;
         case 'v': args->verbose = 1; break;
         case 'o': args->output_file = arg; break;
+        case 'd': args->dap = 1; break;
+        case 'p': args->dap_port = arg; break;
 
         case 'l': app_load_labels(arg); break;
 

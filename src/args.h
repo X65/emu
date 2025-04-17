@@ -11,6 +11,8 @@ extern struct arguments {
     const char* rom;
     int silent, verbose;
     const char* output_file;
+    bool dap;
+    const char* dap_port;
 } arguments;
 
 void args_parse(int argc, char* argv[]);
