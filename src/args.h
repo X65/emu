@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 extern const char* app_name;
 extern const char* app_releases_address;
 extern const char* app_bug_address;

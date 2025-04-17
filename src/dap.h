@@ -5,11 +5,14 @@ extern "C" {
 #endif
 
 typedef struct {
-    bool std;    // use stdin/stdout
-    char* port;  // use TCP port
+    bool std;          // use stdin/stdout
+    const char* port;  // use TCP port
+
+    void* session;  // DAP session
+    void* server;   // DAP TCP server
 } dap_t;
 
-void dap_init(dap_t* dap, bool std, char* port);
+void dap_init(dap_t* dap, bool std, const char* port);
 
 #ifdef __cplusplus
 } /* extern "C" */
