@@ -2,3 +2,4 @@
 /wasm/
 .cache/
 /Testing/
+dap.log
