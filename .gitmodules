@@ -16,3 +16,6 @@
 [submodule "ext/doctest"]
 	path = ext/doctest
 	url = https://github.com/doctest/doctest.git
+[submodule "ext/cppdap"]
+	path = ext/cppdap
+	url = https://github.com/google/cppdap.git

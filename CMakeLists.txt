@@ -19,6 +19,9 @@ endif()
 
 find_package(OpenGL REQUIRED)
 
+set(CPPDAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/cppdap")
+add_subdirectory(${CPPDAP_DIR})
+
 add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
@@ -50,7 +53,7 @@ add_executable(emu
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking esfmu)
+    PRIVATE common ui imgui-docking esfmu cppdap)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 
