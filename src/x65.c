@@ -119,6 +119,23 @@ x65_desc_t x65_desc(x65_joystick_type_t joy_type) {
     };
 }
 
+static void app_load_rom_labels(const char* rom_file) {
+#ifndef USE_WEB
+    if (rom_file && strlen(rom_file) >= 4) {
+        char buf[PATH_MAX];
+        strncpy(buf, rom_file, PATH_MAX);
+        buf[PATH_MAX - 1] = '\0';
+        const size_t path_len = strlen(buf);
+        if (buf[path_len - 4] == '.') {
+            strcpy(&buf[path_len - 4], ".lbl");
+        }
+        if (access(buf, R_OK) == 0) {
+            app_load_labels(buf, true);
+        }
+    }
+#endif
+}
+
 void app_init(void) {
     saudio_setup(&(saudio_desc){
         .logger.func = slog_func,
@@ -219,6 +236,7 @@ void app_init(void) {
     if (arguments.rom) {
         delay_input = true;
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
+        app_load_rom_labels(arguments.rom);
     }
     if (sargs_exists("prg")) {
         fs_load_base64(FS_CHANNEL_IMAGES, "url.prg", sargs_value("prg"));
@@ -409,6 +427,7 @@ static void ui_boot_cb(x65_t* sys) {
     x65_init(sys, &desc);
     if (arguments.rom) {
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
+        app_load_rom_labels(arguments.rom);
     }
 }
 
@@ -622,9 +641,9 @@ static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) 
 }
 #endif
 
-void app_load_labels(const char* file) {
+void app_load_labels(const char* file, bool clear) {
 #ifdef CHIPS_USE_UI
-    labels = ui_dasm_load_labels(&state.ui.dasm[0], file);
+    labels = ui_dasm_load_labels(&state.ui.dasm[0], file, labels, clear);
 #endif
 }
 
@@ -650,20 +669,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     });
     args_parse(argc, argv);
 
-#ifndef USE_WEB
-    if (arguments.rom && strlen(arguments.rom) >= 4) {
-        char buf[PATH_MAX];
-        strncpy(buf, arguments.rom, PATH_MAX);
-        buf[PATH_MAX - 1] = '\0';
-        const size_t path_len = strlen(buf);
-        if (strcmp(&buf[path_len - 4], ".xex") == 0) {
-            strcpy(&buf[path_len - 4], ".lbl");
-        }
-        if (access(buf, R_OK) == 0) {
-            app_load_labels(buf);
-        }
-    }
-#endif
+    app_load_rom_labels(arguments.rom);
 
     ui_settings_t* ui_setts = settings_load(settings_key);
     if (ui_setts) {

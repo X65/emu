@@ -130,7 +130,7 @@ void ui_dasm_discard(ui_dasm_t* win);
 void ui_dasm_draw(ui_dasm_t* win);
 void ui_dasm_save_settings(ui_dasm_t* win, ui_settings_t* settings);
 void ui_dasm_load_settings(ui_dasm_t* ui, const ui_settings_t* settings);
-void* ui_dasm_load_labels(ui_dasm_t* win, const char* file);
+void* ui_dasm_load_labels(ui_dasm_t* win, const char* file, void* labels, bool clear);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -534,8 +534,14 @@ void ui_dasm_load_settings(ui_dasm_t* win, const ui_settings_t* settings) {
     win->open = ui_settings_isopen(settings, win->title);
 }
 
-void* ui_dasm_load_labels(ui_dasm_t* win, const char* filename) {
-    auto labels = new std::map<unsigned int, std::string>();
+void* ui_dasm_load_labels(ui_dasm_t* win, const char* filename, void* _labels, bool clear) {
+    auto labels = reinterpret_cast<std::map<unsigned int, std::string>*>(_labels);
+    if (labels) {
+        if (clear) labels->clear();
+    }
+    else {
+        labels = new std::map<unsigned int, std::string>();
+    }
 
     std::ifstream file(filename);
     if (!file.is_open()) {

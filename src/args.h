@@ -16,3 +16,5 @@ extern struct arguments {
 } arguments;
 
 void args_parse(int argc, char* argv[]);
+
+extern void app_load_labels(const char* file, bool clear);
