@@ -130,9 +130,10 @@ static void app_load_rom_labels(const char* rom_file) {
         const size_t path_len = strlen(buf);
         if (buf[path_len - 4] == '.') {
             strcpy(&buf[path_len - 4], ".lbl");
-        }
-        if (access(buf, R_OK) == 0) {
-            app_load_labels(buf, true);
+
+            if (access(buf, R_OK) == 0) {
+                app_load_labels(buf, true);
+            }
         }
     }
 #endif
