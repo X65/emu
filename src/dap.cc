@@ -1,5 +1,7 @@
 #include "./dap.h"
 
+#include <csignal>
+#include <cstdlib>
 #include <cstring>
 #include <csignal>
 
@@ -64,6 +66,7 @@ void dap_init(dap_t* dap, bool std, const char* port) {
         std::shared_ptr<dap::Reader> in = dap::file(stdin, false);
         std::shared_ptr<dap::Writer> out = dap::file(stdout, false);
         if (log) {
+            dap::writef(log, "dap::stdio binding\n");
             session->bind(spy(in, log), spy(out, log));
         }
         else {
@@ -144,4 +147,18 @@ void dap_init(dap_t* dap, bool std, const char* port) {
     }
 
     dap->session = session.release();
+}
+
+void dap_shutdown(dap_t* dap) {
+#ifdef LOG_TO_FILE
+    log->close();
+#endif
+
+#ifndef _WIN32
+    if (dap->std) {
+        // DAP server might be waiting for stdin and will not join reading thread
+        // Kill the whole process, as we are going down anyway…
+        kill(getpid(), SIGTERM);
+    }
+#endif
 }

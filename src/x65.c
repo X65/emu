@@ -346,6 +346,7 @@ void app_cleanup(void) {
     saudio_shutdown();
     gfx_shutdown();
     sargs_shutdown();
+    dap_shutdown(&state.dap);
 }
 
 static void send_keybuf_input(void) {

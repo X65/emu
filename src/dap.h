@@ -13,6 +13,7 @@ typedef struct {
 } dap_t;
 
 void dap_init(dap_t* dap, bool std, const char* port);
+void dap_shutdown(dap_t* dap);
 
 #ifdef __cplusplus
 } /* extern "C" */
