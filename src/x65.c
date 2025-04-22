@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include "icon.c"
+#include "log.h"
 #include "./args.h"
 #include "./dap.h"
 
@@ -650,6 +651,17 @@ void app_load_labels(const char* file, bool clear) {
 #ifdef CHIPS_USE_UI
     labels = ui_dasm_load_labels(&state.ui.dasm[0], file, labels, clear);
 #endif
+}
+
+void log_func(uint32_t log_level, uint32_t log_id, uint32_t line_nr, const char* filename, const char* fmt, ...) {
+    char message[512];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(message, sizeof(message), fmt, args);
+    va_end(args);
+
+    slog_func(NULL, log_level, log_id, message, line_nr, filename, NULL);
 }
 
 char app_version[256];
