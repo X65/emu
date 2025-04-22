@@ -27,6 +27,21 @@
 
 std::shared_ptr<dap::Writer> log;
 
+void dap_register_session(dap::Session* session) {
+    // The Initialize request is the first message sent from the client and
+    // the response reports debugger capabilities.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
+    session->registerHandler([&](const dap::InitializeRequest&) {
+        dap::InitializeResponse response;
+        if (log) {
+            dap::writef(log, "Server received initialize request from client\n");
+        }
+
+        response.supportsConfigurationDoneRequest = true;
+        return response;
+    });
+}
+
 void dap_init(dap_t* dap, bool std, const char* port) {
     memset(dap, 0, sizeof(dap_t));
     dap->std = std;
@@ -45,21 +60,19 @@ void dap_init(dap_t* dap, bool std, const char* port) {
 #endif  // OS_WINDOWS
     }
 
-    auto session = dap::Session::create();
-
-    // Handle errors reported by the Session. These errors include protocol
-    // parsing errors and receiving messages with no handler.
-    session->onError([&](const char* msg) {
-        if (log) {
-            dap::writef(log, "dap::Session error: %s\n", msg);
-            log->close();
-        }
-        // terminate.fire();
-    });
-
-    // All the handlers we care about have now been registered.
-
     if (dap->std) {
+        auto session = dap::Session::create();
+
+        // Handle errors reported by the Session. These errors include protocol
+        // parsing errors and receiving messages with no handler.
+        session->onError([&](const char* msg) {
+            if (log) {
+                dap::writef(log, "dap::Session error: %s\n", msg);
+                log->close();
+            }
+            // terminate.fire();
+        });
+
         // We now bind the session to stdin and stdout to connect to the client.
         // After the call to bind() we should start receiving requests, starting with
         // the Initialize request.
@@ -72,6 +85,10 @@ void dap_init(dap_t* dap, bool std, const char* port) {
         else {
             session->bind(in, out);
         }
+
+        dap_register_session(session.get());
+
+        dap->session = session.release();
     }
     if (dap->port) {
         int kPort = atoi(dap->port);
@@ -86,16 +103,7 @@ void dap_init(dap_t* dap, bool std, const char* port) {
 
             session->bind(socket);
 
-            // The Initialize request is the first message sent from the client and
-            // the response reports debugger capabilities.
-            // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
-            session->registerHandler([&](const dap::InitializeRequest&) {
-                dap::InitializeResponse response;
-                if (log) {
-                    dap::writef(log, "Server received initialize request from client\n");
-                }
-                return response;
-            });
+            dap_register_session(session.get());
 
             // Signal used to terminate the server session when a DisconnectRequest
             // is made by the client.
@@ -145,8 +153,6 @@ void dap_init(dap_t* dap, bool std, const char* port) {
 
         dap->server = server.release();
     }
-
-    dap->session = session.release();
 }
 
 void dap_shutdown(dap_t* dap) {

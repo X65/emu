@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "IconsFontAwesome6.h"
 #include "args.h"
+#include <filesystem>
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten/version.h>
@@ -185,6 +186,8 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 #ifdef __EMSCRIPTEN__
         ImGui::Text("define: __EMSCRIPTEN__");
         ImGui::Text("Emscripten: %d.%d.%d", __EMSCRIPTEN_major__, __EMSCRIPTEN_minor__, __EMSCRIPTEN_tiny__);
+#else
+        ImGui::Text("CWD: %s", std::filesystem::current_path().c_str());
 #endif
         ImGui::Separator();
         ImGui::Text("ROM = %s", arguments.rom);
