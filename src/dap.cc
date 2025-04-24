@@ -1,5 +1,7 @@
 #include "./dap.h"
 
+#include "log.h"
+
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -27,17 +29,38 @@
 
 std::shared_ptr<dap::Writer> log;
 
+enum {
+    DAP_INFO = 1000,
+    DAP_NETWORK,
+    DAP_SESSION_ERROR,
+    DAP_NETWORK_ERROR,
+};
+
 void dap_register_session(dap::Session* session) {
+    // Handle errors reported by the Session. These errors include protocol
+    // parsing errors and receiving messages with no handler.
+    session->onError([&](const char* msg) {
+        LOG_ERROR(DAP_SESSION_ERROR, "%s", msg);
+        // terminate.fire();
+    });
+
     // The Initialize request is the first message sent from the client and
     // the response reports debugger capabilities.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
-    session->registerHandler([&](const dap::InitializeRequest&) {
+    session->registerHandler([&](const dap::InitializeRequest& request) {
         dap::InitializeResponse response;
-        if (log) {
-            dap::writef(log, "Server received initialize request from client\n");
-        }
-
+        LOG_INFO(DAP_INFO, "Client '%s' initialize", request.clientName.value("unknown").c_str());
         response.supportsConfigurationDoneRequest = true;
+        response.supportsEvaluateForHovers = true;
+        response.supportsSetVariable = true;
+        response.supportsTerminateRequest = true;
+        response.supportTerminateDebuggee = true;
+        response.supportsRestartRequest = true;
+        response.supportSuspendDebuggee = true;
+        response.supportsValueFormattingOptions = true;
+        response.supportsReadMemoryRequest = true;
+        response.supportsWriteMemoryRequest = false;
+        response.supportsDisassembleRequest = true;
         return response;
     });
 }
@@ -63,23 +86,12 @@ void dap_init(dap_t* dap, bool std, const char* port) {
     if (dap->std) {
         auto session = dap::Session::create();
 
-        // Handle errors reported by the Session. These errors include protocol
-        // parsing errors and receiving messages with no handler.
-        session->onError([&](const char* msg) {
-            if (log) {
-                dap::writef(log, "dap::Session error: %s\n", msg);
-                log->close();
-            }
-            // terminate.fire();
-        });
-
         // We now bind the session to stdin and stdout to connect to the client.
         // After the call to bind() we should start receiving requests, starting with
         // the Initialize request.
         std::shared_ptr<dap::Reader> in = dap::file(stdin, false);
         std::shared_ptr<dap::Writer> out = dap::file(stdout, false);
         if (log) {
-            dap::writef(log, "dap::stdio binding\n");
             session->bind(spy(in, log), spy(out, log));
         }
         else {
@@ -128,17 +140,11 @@ void dap_init(dap_t* dap, bool std, const char* port) {
             // client.
             std::unique_lock<std::mutex> lock(mutex);
             cv.wait_for(lock, std::chrono::seconds(5), [&] { return terminate; });
-            if (log) {
-                dap::writef(log, "Server closing connection\n");
-            }
+            LOG_INFO(DAP_INFO, "Server closing connection");
         };
 
         // Error handler
-        auto onError = [&](const char* msg) {
-            if (log) {
-                dap::writef(log, "dap::network server error: %s\n", msg);
-            }
-        };
+        auto onError = [&](const char* msg) { LOG_ERROR(DAP_NETWORK_ERROR, "%s", msg); };
 
         // Create the network server
         auto server = dap::net::Server::create();
@@ -147,9 +153,7 @@ void dap_init(dap_t* dap, bool std, const char* port) {
         // onError will be called on any connection errors.
         server->start(kPort, onClientConnected, onError);
 
-        if (log) {
-            dap::writef(log, "dap::network listening on port %d\n", kPort);
-        }
+        LOG_INFO(DAP_NETWORK, "dap::network listening on port %d", kPort);
 
         dap->server = server.release();
     }
