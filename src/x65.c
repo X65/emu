@@ -60,7 +60,6 @@ static struct {
         uint32_t entry_addr;
         uint32_t exit_addr;
     } dbg;
-    dap_t dap;
     x65_snapshot_t snapshots[UI_SNAPSHOT_MAX_SLOTS];
 #endif
 } state;
@@ -235,7 +234,28 @@ void app_init(void) {
             .dbg_read_memory = web_dbg_read_memory,
         },
     });
-    dap_init(&state.dap, arguments.dap, arguments.dap_port);
+    dap_init(&(dap_desc_t){
+        .stdio = arguments.dap,
+        .port = arguments.dap_port,
+        .funcs = {
+            .boot = web_boot,
+            .reset = web_reset,
+            .ready = web_ready,
+            .load = web_load,
+            .input = web_input,
+            .dbg_connect = web_dbg_connect,
+            .dbg_disconnect = web_dbg_disconnect,
+            .dbg_add_breakpoint = web_dbg_add_breakpoint,
+            .dbg_remove_breakpoint = web_dbg_remove_breakpoint,
+            .dbg_break = web_dbg_break,
+            .dbg_continue = web_dbg_continue,
+            .dbg_step_next = web_dbg_step_next,
+            .dbg_step_into = web_dbg_step_into,
+            .dbg_cpu_state = web_dbg_cpu_state,
+            .dbg_request_disassembly = web_dbg_request_disassemly,
+            .dbg_read_memory = web_dbg_read_memory,
+        },
+    });
 #endif
     bool delay_input = false;
     if (arguments.rom) {
@@ -347,7 +367,7 @@ void app_cleanup(void) {
     saudio_shutdown();
     gfx_shutdown();
     sargs_shutdown();
-    dap_shutdown(&state.dap);
+    dap_shutdown();
 }
 
 static void send_keybuf_input(void) {
@@ -588,18 +608,22 @@ static void web_dbg_on_stopped(int stop_reason, uint16_t addr) {
         webapi_stop_reason = WEBAPI_STOPREASON_BREAKPOINT;
     }
     webapi_event_stopped(webapi_stop_reason, addr);
+    dap_event_stopped(webapi_stop_reason, addr);
 }
 
 static void web_dbg_on_continued(void) {
     webapi_event_continued();
+    dap_event_continued();
 }
 
 static void web_dbg_on_reboot(void) {
     webapi_event_reboot();
+    dap_event_reboot();
 }
 
 static void web_dbg_on_reset(void) {
     webapi_event_reset();
+    dap_event_reset();
 }
 
 static webapi_cpu_state_t web_dbg_cpu_state(void) {
