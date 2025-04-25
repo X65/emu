@@ -63,6 +63,12 @@ void dap_register_session(dap::Session* session) {
         response.supportsDisassembleRequest = true;
         return response;
     });
+
+    // When the Initialize response has been sent, we need to send the initialized event.
+    // We use the registerSentHandler() to ensure the event is sent *after* the initialize response.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
+    session->registerSentHandler(
+        [&](const dap::ResponseOrError<dap::InitializeResponse>&) { session->send(dap::InitializedEvent()); });
 }
 
 void dap_init(dap_t* dap, bool std, const char* port) {
