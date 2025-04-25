@@ -48,8 +48,9 @@ void dap_register_session(dap::Session* session) {
     // the response reports debugger capabilities.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
     session->registerHandler([&](const dap::InitializeRequest& request) {
-        dap::InitializeResponse response;
         LOG_INFO(DAP_INFO, "Client '%s' initialize", request.clientName.value("unknown").c_str());
+
+        dap::InitializeResponse response;
         response.supportsConfigurationDoneRequest = true;
         response.supportsEvaluateForHovers = true;
         response.supportsSetVariable = true;
@@ -69,12 +70,38 @@ void dap_register_session(dap::Session* session) {
     // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
     session->registerSentHandler(
         [&](const dap::ResponseOrError<dap::InitializeResponse>&) { session->send(dap::InitializedEvent()); });
+
+    // The Launch request is made when the client instructs the debugger adapter
+    // to start the debuggee. This request contains the launch arguments.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Launch
+    session->registerHandler([&](const dap::LaunchRequest& request) {
+        LOG_INFO(DAP_INFO, "launch request")
+
+        if (request.noDebug.value(false)) {
+            LOG_INFO(DAP_INFO, "Launching debuggee without debugging");
+            state.enabled = false;
+        }
+
+        return dap::LaunchResponse();
+    });
+
+    // Handler for disconnect requests
+    session->registerHandler([&](const dap::DisconnectRequest& request) {
+        if (request.terminateDebuggee.value(false)) {
+            // terminate.fire();
+        }
+        return dap::DisconnectResponse();
+    });
+
+    // The ConfigurationDone request is made by the client once all configuration
+    // requests have been made.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
+    session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
+        // configured.fire();
+        return dap::ConfigurationDoneResponse();
+    });
 }
 
-void dap_init(dap_t* dap, bool std, const char* port) {
-    memset(dap, 0, sizeof(dap_t));
-    dap->std = std;
-    dap->port = port;
 
 #ifdef LOG_TO_FILE
     log = dap::file(LOG_TO_FILE);
