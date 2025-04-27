@@ -14,6 +14,7 @@ typedef struct {
 
 void dap_init(const dap_desc_t* desc);
 void dap_shutdown();
+void dap_process();
 
 // stop_reason: WEBAPI_STOPREASON_xxx
 void dap_event_stopped(int stop_reason, uint16_t addr);

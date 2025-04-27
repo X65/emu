@@ -286,6 +286,7 @@ void app_frame(void) {
     gfx_draw(x65_display_info(&state.x65));
     handle_file_loading();
     send_keybuf_input();
+    dap_process();
 }
 
 void app_input(const sapp_event* event) {

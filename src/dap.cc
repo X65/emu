@@ -74,6 +74,7 @@ static void dap_dbg_disconnect(void) {
 
 static void dap_boot(void) {
     if (state.inited && state.funcs.boot) {
+        LOG_INFO(DAP_INFO, "dap_boot() called");
         state.funcs.boot();
     }
 }
@@ -256,6 +257,8 @@ void dap_event_reset(void) {
 
 // ---------------------------------------------------------------------------
 
+static bool run_dap_boot = false;
+
 void dap_register_session(dap::Session* session) {
     // Handle errors reported by the Session. These errors include protocol
     // parsing errors and receiving messages with no handler.
@@ -301,6 +304,8 @@ void dap_register_session(dap::Session* session) {
             LOG_INFO(DAP_INFO, "Launching debuggee without debugging");
             state.enabled = false;
         }
+
+        run_dap_boot = true;
 
         return dap::LaunchResponse();
     });
@@ -426,9 +431,22 @@ void dap_shutdown() {
 
 #ifndef _WIN32
     if (state.stdio) {
-        // DAP server might be waiting for stdin and will not join reading thread
+        // DAP server might be waiting for stdin in fgetc() and will not join reading thread
         // Kill the whole process, as we are going down anyway…
         kill(getpid(), SIGTERM);
     }
 #endif
+}
+
+/**
+ * @brief Processes the Debug Adapter Protocol (DAP) requests.
+ *
+ * This function is being called from main frame handler thread.
+ * It is used to safely cross DAP server and Emu thread boundary.
+ */
+void dap_process() {
+    if (run_dap_boot) {
+        run_dap_boot = false;
+        dap_boot();
+    }
 }
