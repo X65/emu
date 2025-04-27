@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 /* callback for reading a byte from memory */
-typedef uint8_t (*ui_dasm_read_t)(int layer, uint16_t addr, void* user_data);
+typedef uint8_t (*ui_dasm_read_t)(int layer, uint32_t addr, void* user_data);
 
 #define UI_DASM_MAX_LAYERS (16)
 #define UI_DASM_MAX_STRLEN (32)
@@ -281,7 +281,7 @@ static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr)
         /* W65C816S CPU */
         if (win->bin_pos == 3) {
             uint8_t l, h;
-            uint16_t addr;
+            uint32_t addr;
             switch (win->bin_buf[0]) {
                 /* JSR/JMP abs */
                 case 0x20: case 0x4C:
@@ -339,7 +339,7 @@ static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr)
 }
 
 /* push an address on the bookmark stack */
-static void _ui_dasm_stack_push(ui_dasm_t* win, uint16_t addr) {
+static void _ui_dasm_stack_push(ui_dasm_t* win, uint32_t addr) {
     if (win->stack_num < UI_DASM_MAX_STACK) {
         /* ignore if the same address is already on top of stack */
         if ((win->stack_num > 0) && (addr == win->stack[win->stack_num-1])) {
@@ -351,7 +351,7 @@ static void _ui_dasm_stack_push(ui_dasm_t* win, uint16_t addr) {
 }
 
 /* return current address on stack, and set pos to previous */
-static bool _ui_dasm_stack_back(ui_dasm_t* win, uint16_t* addr) {
+static bool _ui_dasm_stack_back(ui_dasm_t* win, uint32_t* addr) {
     if (win->stack_num > 0) {
         *addr = win->stack[win->stack_pos];
         if (win->stack_pos > 0) {
@@ -364,7 +364,7 @@ static bool _ui_dasm_stack_back(ui_dasm_t* win, uint16_t* addr) {
 }
 
 /* goto to address, op address on stack */
-static void _ui_dasm_goto(ui_dasm_t* win, uint16_t addr) {
+static void _ui_dasm_goto(ui_dasm_t* win, uint32_t addr) {
     win->start_addr = addr;
 }
 
@@ -382,7 +382,7 @@ static const char* _ui_dasm_get_label(ui_dasm_t* win, uint32_t addr) {
 static void _ui_dasm_draw_controls(ui_dasm_t* win) {
     win->start_addr = ui_util_input_u16("##addr", win->start_addr);
     ImGui::SameLine();
-    uint16_t addr = 0;
+    uint32_t addr = 0;
     if (ImGui::ArrowButton("##back", ImGuiDir_Left)) {
         if (_ui_dasm_stack_back(win, &addr)) {
             _ui_dasm_goto(win, addr);

@@ -49,7 +49,7 @@ void webapi_init(const webapi_desc_t* desc) {
 
 #if defined(__EMSCRIPTEN__)
 
-EM_JS(void, webapi_js_event_stopped, (int stop_reason, uint16_t addr), {
+EM_JS(void, webapi_js_event_stopped, (int stop_reason, uint32_t addr), {
     console.log("webapi_js_event_stopped()");
     if (Module["webapi_onStopped"]) {
         Module["webapi_onStopped"](stop_reason, addr);
@@ -172,13 +172,13 @@ EMSCRIPTEN_KEEPALIVE void webapi_save_snapshot(size_t index) {
     }
 }
 
-EMSCRIPTEN_KEEPALIVE void webapi_dbg_add_breakpoint(uint16_t addr) {
+EMSCRIPTEN_KEEPALIVE void webapi_dbg_add_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_add_breakpoint) {
         state.funcs.dbg_add_breakpoint(addr);
     }
 }
 
-EMSCRIPTEN_KEEPALIVE void webapi_dbg_remove_breakpoint(uint16_t addr) {
+EMSCRIPTEN_KEEPALIVE void webapi_dbg_remove_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_remove_breakpoint) {
         state.funcs.dbg_remove_breakpoint(addr);
     }
@@ -221,7 +221,7 @@ EMSCRIPTEN_KEEPALIVE uint16_t* webapi_dbg_cpu_state(void) {
 
 // request a disassembly, returns ptr to heap-allocated array of 'num_lines' webapi_dasm_line_t structs which must be freed with webapi_free()
 // NOTE: may return 0!
-EMSCRIPTEN_KEEPALIVE webapi_dasm_line_t* webapi_dbg_request_disassembly(uint16_t addr, int offset_lines, int num_lines) {
+EMSCRIPTEN_KEEPALIVE webapi_dasm_line_t* webapi_dbg_request_disassembly(uint32_t addr, int offset_lines, int num_lines) {
     if (num_lines <= 0) {
         return 0;
     }
@@ -236,7 +236,7 @@ EMSCRIPTEN_KEEPALIVE webapi_dasm_line_t* webapi_dbg_request_disassembly(uint16_t
 
 // reads a memory chunk, returns heap-allocated buffer which must be freed with webapi_free()
 // NOTE: may return 0!
-EMSCRIPTEN_KEEPALIVE uint8_t* webapi_dbg_read_memory(uint16_t addr, int num_bytes) {
+EMSCRIPTEN_KEEPALIVE uint8_t* webapi_dbg_read_memory(uint32_t addr, int num_bytes) {
     if (state.inited && state.funcs.dbg_read_memory) {
         uint8_t* ptr = calloc((size_t)num_bytes, 1);
         state.funcs.dbg_read_memory(addr, num_bytes, ptr);
@@ -258,7 +258,7 @@ EMSCRIPTEN_KEEPALIVE bool webapi_input_internal(char* text) {
 #endif // __EMSCRIPTEN__
 
 // stop_reason is UI_DBG_STOP_REASON_xxx
-void webapi_event_stopped(int stop_reason, uint16_t addr) {
+void webapi_event_stopped(int stop_reason, uint32_t addr) {
     #if defined(__EMSCRIPTEN__)
         webapi_js_event_stopped(stop_reason, addr);
     #else

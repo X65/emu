@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <map>
+#include <vector>
 
 #include "dap/io.h"
 #include "dap/network.h"
@@ -52,6 +54,8 @@ enum {
     DAP_SESSION_ERROR,
     DAP_NETWORK_ERROR,
 };
+
+#define EMU_RAM_SIZE (1 << 24)  // 16MB
 
 // ---------------------------------------------------------------------------
 
@@ -138,14 +142,16 @@ static void dap_save_snapshot(size_t index) {
     }
 }
 
-static void dap_dbg_add_breakpoint(uint16_t addr) {
+static void dap_dbg_add_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_add_breakpoint) {
+        LOG_INFO(DAP_INFO, "dap_dbg_add_breakpoint(%d) called", addr);
         state.funcs.dbg_add_breakpoint(addr);
     }
 }
 
-static void dap_dbg_remove_breakpoint(uint16_t addr) {
+static void dap_dbg_remove_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_remove_breakpoint) {
+        LOG_INFO(DAP_INFO, "dap_dbg_remove_breakpoint(%d) called", addr);
         state.funcs.dbg_remove_breakpoint(addr);
     }
 }
@@ -259,6 +265,10 @@ void dap_event_reset(void) {
 
 static bool run_dap_boot = false;
 
+std::mutex dap_breakpoints_update_mutex;
+static std::map<dap::integer, std::vector<uint32_t>> dap_breakpoints = {};
+static std::map<dap::integer, std::vector<uint32_t>> dap_breakpoints_update = {};
+
 void dap_register_session(dap::Session* session) {
     // Handle errors reported by the Session. These errors include protocol
     // parsing errors and receiving messages with no handler.
@@ -325,6 +335,46 @@ void dap_register_session(dap::Session* session) {
         // configured.fire();
         return dap::ConfigurationDoneResponse();
     });
+
+    // The SetBreakpoints request instructs the debugger to clear and set a number
+    // of line breakpoints for a specific source file.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetBreakpoints
+    session->registerHandler(
+        [&](const dap::SetBreakpointsRequest& request) -> dap::ResponseOrError<dap::SetBreakpointsResponse> {
+            dap::SetBreakpointsResponse response;
+
+            if (!request.source.sourceReference.has_value()) {
+                LOG_ERROR(DAP_SESSION_ERROR, "Source reference not provided in SetBreakpointsRequest");
+                return dap::Error("Source reference not provided in SetBreakpointsRequest");
+            }
+
+            if (!request.lines.has_value()) {
+                LOG_ERROR(DAP_SESSION_ERROR, "Lines not provided in SetBreakpointsRequest");
+                return dap::Error("Lines not provided in SetBreakpointsRequest");
+            }
+
+            dap::integer source = request.source.sourceReference.value();
+
+            if (dap_breakpoints_update.find(source) != dap_breakpoints_update.end()) {
+                LOG_ERROR(DAP_SESSION_ERROR, "SetBreakpointsRequest is coming too fast");
+                return dap::Error("SetBreakpointsRequest is coming too fast");
+            }
+
+            auto breakpoints = request.lines.value();
+
+            {
+                std::lock_guard<std::mutex> lock(dap_breakpoints_update_mutex);
+
+                dap_breakpoints_update[source] = {};
+                for (size_t i = 0; i < breakpoints.size(); i++) {
+                    dap::integer address = breakpoints[i];
+                    bool valid = address >= 0 && address < EMU_RAM_SIZE;
+                    if (valid) dap_breakpoints_update[source].push_back((uint32_t)address);
+                    response.breakpoints[i].verified = valid;
+                }
+            }
+            return response;
+        });
 }
 
 void dap_init(const dap_desc_t* desc) {
@@ -448,5 +498,24 @@ void dap_process() {
     if (run_dap_boot) {
         run_dap_boot = false;
         dap_boot();
+    }
+    while (!dap_breakpoints_update.empty()) {
+        dap::integer source;
+        std::vector<uint32_t> add_addresses;
+        std::vector<uint32_t> remove_addresses;
+        {
+            std::lock_guard<std::mutex> lock(dap_breakpoints_update_mutex);
+            source = dap_breakpoints_update.begin()->first;
+            add_addresses = std::move(dap_breakpoints_update.begin()->second);
+            dap_breakpoints_update.erase(dap_breakpoints_update.begin());
+            remove_addresses = std::move(dap_breakpoints.find(source)->second);
+            dap_breakpoints[source] = add_addresses;
+        }
+        for (auto address : remove_addresses) {
+            dap_dbg_remove_breakpoint(address);
+        }
+        for (auto address : add_addresses) {
+            dap_dbg_add_breakpoint(address);
+        }
     }
 }

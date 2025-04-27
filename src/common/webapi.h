@@ -49,7 +49,7 @@ typedef struct webapi_cpu_state_t {
 #define WEBAPI_DASM_LINE_MAX_CHARS (32)
 
 typedef struct {
-    uint16_t addr;
+    uint32_t addr;
     uint8_t num_bytes;
     uint8_t num_chars;
     uint8_t bytes[WEBAPI_DASM_LINE_MAX_BYTES];
@@ -76,22 +76,22 @@ typedef struct {
     void (*boot)(void);
     void (*reset)(void);
     bool (*ready)(void);
-    bool (*load)(chips_range_t data);       // data starts with a webapi_fileheader_t
-    bool (*load_file)(const char *file);
+    bool (*load)(chips_range_t data);  // data starts with a webapi_fileheader_t
+    bool (*load_file)(const char* file);
     bool (*unload_file)();
     bool (*load_snapshot)(size_t index);
     void (*save_snapshot)(size_t index);
     void (*dbg_connect)(void);
     void (*dbg_disconnect)(void);
-    void (*dbg_add_breakpoint)(uint16_t addr);
-    void (*dbg_remove_breakpoint)(uint16_t addr);
+    void (*dbg_add_breakpoint)(uint32_t addr);
+    void (*dbg_remove_breakpoint)(uint32_t addr);
     void (*dbg_break)(void);
     void (*dbg_continue)(void);
     void (*dbg_step_next)(void);
     void (*dbg_step_into)(void);
     webapi_cpu_state_t (*dbg_cpu_state)(void);
-    void (*dbg_request_disassembly)(uint16_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* dst_lines);
-    void (*dbg_read_memory)(uint16_t addr, int num_bytes, uint8_t* dst_ptr);
+    void (*dbg_request_disassembly)(uint32_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* dst_lines);
+    void (*dbg_read_memory)(uint32_t addr, int num_bytes, uint8_t* dst_ptr);
     void (*input)(const char* text);
 } webapi_interface_t;
 
@@ -101,7 +101,7 @@ typedef struct {
 
 void webapi_init(const webapi_desc_t* desc);
 // stop_reason: WEBAPI_STOPREASON_xxx
-void webapi_event_stopped(int stop_reason, uint16_t addr);
+void webapi_event_stopped(int stop_reason, uint32_t addr);
 void webapi_event_continued(void);
 void webapi_event_reboot(void);
 void webapi_event_reset(void);

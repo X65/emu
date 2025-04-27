@@ -64,8 +64,8 @@ typedef void MemoryEditor;
 #define UI_MEMEDIT_MAX_LAYERS (16)
 
 /* callbacks for reading and writing bytes */
-typedef uint8_t (*ui_memedit_read_t)(int layer, uint16_t addr, void* user_data);
-typedef void (*ui_memedit_write_t)(int layer, uint16_t addr, uint8_t data, void* user_data);
+typedef uint8_t (*ui_memedit_read_t)(int layer, uint32_t addr, void* user_data);
+typedef void (*ui_memedit_write_t)(int layer, uint32_t addr, uint8_t data, void* user_data);
 
 /* setup parameters for ui_memedit_init()
 

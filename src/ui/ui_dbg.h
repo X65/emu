@@ -125,7 +125,7 @@ typedef struct ui_dbg_breakpoint_t {
     int type;           /* UI_DBG_BREAKTYPE_* */
     int cond;           /* UI_DBG_BREAKCOND_* */
     bool enabled;
-    uint16_t addr;
+    uint32_t addr;
     int val;
 } ui_dbg_breakpoint_t;
 
@@ -142,7 +142,7 @@ typedef struct ui_dbg_user_breaktype_t {
 /* forward decl */
 struct ui_dbg_t;
 /* callback for reading a byte from memory */
-typedef uint8_t (*ui_dbg_read_t)(int layer, uint16_t addr, void* user_data);
+typedef uint8_t (*ui_dbg_read_t)(int layer, uint32_t addr, void* user_data);
 /* callback for evaluating uer breakpoints, return breakpoint index, or -1 */
 typedef int (*ui_dbg_user_break_t)(struct ui_dbg_t* win, int trap_id, uint64_t pins, void* user_data);
 /* a callback to create a dynamic-update RGBA8 UI texture, needs to return an ImTextureID handle */
@@ -156,7 +156,7 @@ typedef void (*ui_dbg_reboot_t)(void);
 /* callback when emulator is being reset */
 typedef void (*ui_dbg_reset_t)(void);
 /* callback when emulator has stopped at an address (stop_reason is UI_DBG_STOP_REASON_XXX) */
-typedef void (*ui_dbg_stopped_t)(int stop_reason, uint16_t addr);
+typedef void (*ui_dbg_stopped_t)(int stop_reason, uint32_t addr);
 /* callback when emulator has continued after stopped state */
 typedef void (*ui_dbg_continued_t)(void);
 
@@ -239,7 +239,7 @@ typedef struct ui_dbg_state_t {
 
 /* a displayed line */
 typedef struct ui_dbg_line_t {
-    uint16_t addr;
+    uint32_t addr;
     uint8_t val;
 } ui_dbg_line_t;
 
@@ -320,7 +320,7 @@ enum {
 };
 
 typedef struct ui_dbg_dasm_line_t {
-    uint16_t addr;
+    uint32_t addr;
     uint8_t num_bytes;
     uint8_t num_chars;
     uint8_t bytes[UI_DBG_DASM_LINE_MAX_BYTES];
@@ -328,7 +328,7 @@ typedef struct ui_dbg_dasm_line_t {
 } ui_dbg_dasm_line_t;
 
 typedef struct ui_dbg_dasm_request_t {
-    uint16_t addr;                  // base address
+    uint32_t addr;                  // base address
     int offset_lines;               // offset in number of ops/lines, may be negative
     int num_lines;                  // number of lines to disassemble
     ui_dbg_dasm_line_t* out_lines;  // pointer to output ops, must have at least num_ops entries
@@ -383,9 +383,9 @@ void ui_dbg_reset(ui_dbg_t* win);
 // call when rebooting the emulated machine (re-initializes some data structures)
 void ui_dbg_reboot(ui_dbg_t* win);
 // set an execution breakpoint at address
-void ui_dbg_add_breakpoint(ui_dbg_t* win, uint16_t addr);
+void ui_dbg_add_breakpoint(ui_dbg_t* win, uint32_t addr);
 // clear an execution breakpoint at address
-void ui_dbg_remove_breakpoint(ui_dbg_t* win, uint16_t addr);
+void ui_dbg_remove_breakpoint(ui_dbg_t* win, uint32_t addr);
 // pause/stop execution
 void ui_dbg_break(ui_dbg_t* win);
 // continue execution
@@ -420,11 +420,11 @@ static inline const char* _ui_dbg_str_or_def(const char* str, const char* def) {
     }
 }
 
-static inline uint8_t _ui_dbg_read_byte(ui_dbg_t* win, uint16_t addr) {
+static inline uint8_t _ui_dbg_read_byte(ui_dbg_t* win, uint32_t addr) {
     return win->read_cb(win->read_layer, addr, win->user_data);
 }
 
-static inline uint16_t _ui_dbg_read_word(ui_dbg_t* win, uint16_t addr) {
+static inline uint16_t _ui_dbg_read_word(ui_dbg_t* win, uint32_t addr) {
     uint8_t l = win->read_cb(win->read_layer, addr, win->user_data);
     uint8_t h = win->read_cb(win->read_layer, addr+1, win->user_data);
     return (uint16_t) (h<<8)|l;
@@ -454,7 +454,7 @@ static void _ui_dbg_dasm_out_cb(char c, void* user_data) {
 }
 
 // disassemble instruction at address
-static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint16_t addr) {
+static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint32_t addr) {
     memset(&win->dasm_line, 0, sizeof(win->dasm_line));
     win->dasm_line.addr = addr;
     #if defined(UI_DBG_USE_Z80)
@@ -653,7 +653,7 @@ static void _ui_dbg_history_draw(ui_dbg_t* win) {
 
             /* get history PC */
             uint16_t pc = _ui_dbg_history_get(win, line_i);
-            uint16_t addr = _ui_dbg_disasm(win, pc);
+            uint32_t addr = _ui_dbg_disasm(win, pc);
             const int num_bytes = addr - pc;
 
             /* address */
@@ -866,7 +866,7 @@ static int _ui_dbg_eval_tick_breakpoints(ui_dbg_t* win, int trap_id, uint64_t pi
 }
 
 /* add an execution breakpoint */
-static bool _ui_dbg_bp_add_exec(ui_dbg_t* win, bool enabled, uint16_t addr) {
+static bool _ui_dbg_bp_add_exec(ui_dbg_t* win, bool enabled, uint32_t addr) {
     if (win->dbg.num_breakpoints < UI_DBG_MAX_BREAKPOINTS) {
         ui_dbg_breakpoint_t* bp = &win->dbg.breakpoints[win->dbg.num_breakpoints++];
         bp->type = UI_DBG_BREAKTYPE_EXEC;
@@ -882,7 +882,7 @@ static bool _ui_dbg_bp_add_exec(ui_dbg_t* win, bool enabled, uint16_t addr) {
 }
 
 /* add a memory breakpoint (bytes) */
-static bool _ui_dbg_bp_add_byte(ui_dbg_t* win, bool enabled, uint16_t addr) {
+static bool _ui_dbg_bp_add_byte(ui_dbg_t* win, bool enabled, uint32_t addr) {
     if (win->dbg.num_breakpoints < UI_DBG_MAX_BREAKPOINTS) {
         ui_dbg_breakpoint_t* bp = &win->dbg.breakpoints[win->dbg.num_breakpoints++];
         bp->type = UI_DBG_BREAKTYPE_BYTE;
@@ -898,7 +898,7 @@ static bool _ui_dbg_bp_add_byte(ui_dbg_t* win, bool enabled, uint16_t addr) {
 }
 
 /* add a memory breakpoint (word) */
-static bool _ui_dbg_bp_add_word(ui_dbg_t* win, bool enabled, uint16_t addr) {
+static bool _ui_dbg_bp_add_word(ui_dbg_t* win, bool enabled, uint32_t addr) {
     if (win->dbg.num_breakpoints < UI_DBG_MAX_BREAKPOINTS) {
         ui_dbg_breakpoint_t* bp = &win->dbg.breakpoints[win->dbg.num_breakpoints++];
         bp->type = UI_DBG_BREAKTYPE_WORD;
@@ -914,7 +914,7 @@ static bool _ui_dbg_bp_add_word(ui_dbg_t* win, bool enabled, uint16_t addr) {
 }
 
 /* find breakpoint index by type and address, return -1 if not found */
-static int _ui_dbg_bp_find(ui_dbg_t* win, int type, uint16_t addr) {
+static int _ui_dbg_bp_find(ui_dbg_t* win, int type, uint32_t addr) {
     for (int i = 0; i < win->dbg.num_breakpoints; i++) {
         const ui_dbg_breakpoint_t* bp = &win->dbg.breakpoints[i];
         if (bp->type == type && bp->addr == addr) {
@@ -935,7 +935,7 @@ static void _ui_dbg_bp_del(ui_dbg_t* win, int index) {
 }
 
 /* add a new breakpoint, or remove existing one */
-static void _ui_dbg_bp_toggle_exec(ui_dbg_t* win, uint16_t addr) {
+static void _ui_dbg_bp_toggle_exec(ui_dbg_t* win, uint32_t addr) {
     int index = _ui_dbg_bp_find(win, UI_DBG_BREAKTYPE_EXEC, addr);
     if (index >= 0) {
         /* breakpoint already exists, remove */
@@ -1757,10 +1757,10 @@ static void _ui_dbg_draw_buttons(ui_dbg_t* win) {
 */
 typedef struct {
     bool is_known_op;
-    uint16_t addr;
+    uint32_t addr;
 } _ui_dbg_disasm_backscan_result_t;
 
-static _ui_dbg_disasm_backscan_result_t _ui_dbg_disasm_backscan(ui_dbg_t* win, uint16_t addr) {
+static _ui_dbg_disasm_backscan_result_t _ui_dbg_disasm_backscan(ui_dbg_t* win, uint32_t addr) {
     bool is_known_op = false;
     uint16_t bs_addr = addr - 1;
     uint16_t scan_addr = bs_addr;
@@ -1797,7 +1797,7 @@ static _ui_dbg_disasm_backscan_result_t _ui_dbg_disasm_backscan(ui_dbg_t* win, u
    listing, this only happens when the PC is outside the visible
    area or when the memory content 'under' the line array changes
 */
-static void _ui_dbg_update_line_array(ui_dbg_t* win, uint16_t addr) {
+static void _ui_dbg_update_line_array(ui_dbg_t* win, uint32_t addr) {
     /* one half is backtraced from current PC, the other half is
        'forward tracked' from current PC
     */
@@ -1825,7 +1825,7 @@ static void _ui_dbg_update_line_array(ui_dbg_t* win, uint16_t addr) {
     disassembled" even if those addresses haven't been
     executed before.
 */
-static bool _ui_dbg_addr_inside_line_array(ui_dbg_t* win, uint16_t addr) {
+static bool _ui_dbg_addr_inside_line_array(ui_dbg_t* win, uint32_t addr) {
     uint16_t first_addr = win->ui.line_array[UI_DBG_NUM_BACKTRACE_LINES].addr;
     uint16_t last_addr = win->ui.line_array[UI_DBG_NUM_LINES-16].addr;
     if (first_addr == last_addr) {
@@ -1839,7 +1839,7 @@ static bool _ui_dbg_addr_inside_line_array(ui_dbg_t* win, uint16_t addr) {
 }
 
 /* update the line array if necessary (content doesn't match anymore, or PC is outside) */
-static bool _ui_dbg_line_array_needs_update(ui_dbg_t* win, uint16_t addr) {
+static bool _ui_dbg_line_array_needs_update(ui_dbg_t* win, uint32_t addr) {
     /* first check if the current address is outside the line array */
     if (!_ui_dbg_addr_inside_line_array(win, addr)) {
         return true;
@@ -1890,7 +1890,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
     clipper.Begin(UI_DBG_NUM_LINES, line_height);
     clipper.Step();
     for (int line_i = 0; line_i < UI_DBG_NUM_LINES; line_i++) {
-        uint16_t addr = win->ui.line_array[line_i].addr;
+        uint32_t addr = win->ui.line_array[line_i].addr;
         bool in_safe_area = (line_i >= (clipper.DisplayStart+safe_lines)) && (line_i <= (clipper.DisplayEnd-safe_lines));
         bool is_pc_line = (addr == pc);
         if (is_pc_line &&
@@ -1913,7 +1913,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
     /* draw the disassembly */
     for (int line_i = 0; line_i < UI_DBG_NUM_LINES; line_i++) {
         bool visible_line = (line_i >= clipper.DisplayStart) && (line_i < clipper.DisplayEnd);
-        uint16_t addr = win->ui.line_array[line_i].addr;
+        uint32_t addr = win->ui.line_array[line_i].addr;
         bool is_pc_line = (addr == pc);
         bool show_dasm = (line_i >= UI_DBG_NUM_BACKTRACE_LINES) || _ui_dbg_heatmap_is_opcode(win, addr);
         const uint16_t start_addr = addr;
@@ -2201,7 +2201,7 @@ void ui_dbg_external_debugger_disconnected(ui_dbg_t* win) {
     _ui_dbg_continue(win, false);
 }
 
-void ui_dbg_add_breakpoint(ui_dbg_t* win, uint16_t addr) {
+void ui_dbg_add_breakpoint(ui_dbg_t* win, uint32_t addr) {
     CHIPS_ASSERT(win && win->valid && win->ui.title);
     int index = _ui_dbg_bp_find(win, UI_DBG_BREAKTYPE_EXEC, addr);
     if (index < 0) {
@@ -2209,7 +2209,7 @@ void ui_dbg_add_breakpoint(ui_dbg_t* win, uint16_t addr) {
     }
 }
 
-void ui_dbg_remove_breakpoint(ui_dbg_t* win, uint16_t addr) {
+void ui_dbg_remove_breakpoint(ui_dbg_t* win, uint32_t addr) {
     CHIPS_ASSERT(win && win->valid && win->ui.title);
     int index = _ui_dbg_bp_find(win, UI_DBG_BREAKTYPE_EXEC, addr);
     if (index >= 0) {

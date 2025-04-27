@@ -78,19 +78,19 @@ static bool web_load(chips_range_t data);
 static void web_input(const char* text);
 static void web_dbg_connect(void);
 static void web_dbg_disconnect(void);
-static void web_dbg_add_breakpoint(uint16_t addr);
-static void web_dbg_remove_breakpoint(uint16_t addr);
+static void web_dbg_add_breakpoint(uint32_t addr);
+static void web_dbg_remove_breakpoint(uint32_t addr);
 static void web_dbg_break(void);
 static void web_dbg_continue(void);
 static void web_dbg_step_next(void);
 static void web_dbg_step_into(void);
-static void web_dbg_on_stopped(int stop_reason, uint16_t addr);
+static void web_dbg_on_stopped(int stop_reason, uint32_t addr);
 static void web_dbg_on_continued(void);
 static void web_dbg_on_reboot(void);
 static void web_dbg_on_reset(void);
 static webapi_cpu_state_t web_dbg_cpu_state(void);
-static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result);
-static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr);
+static void web_dbg_request_disassemly(uint32_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result);
+static void web_dbg_read_memory(uint32_t addr, int num_bytes, uint8_t* dst_ptr);
 static void* labels = NULL;
     #define BORDER_TOP (24)
 #else
@@ -565,11 +565,11 @@ static void web_input(const char* text) {
     keybuf_put(text);
 }
 
-static void web_dbg_add_breakpoint(uint16_t addr) {
+static void web_dbg_add_breakpoint(uint32_t addr) {
     ui_dbg_add_breakpoint(&state.ui.dbg, addr);
 }
 
-static void web_dbg_remove_breakpoint(uint16_t addr) {
+static void web_dbg_remove_breakpoint(uint32_t addr) {
     ui_dbg_remove_breakpoint(&state.ui.dbg, addr);
 }
 
@@ -589,7 +589,7 @@ static void web_dbg_step_into(void) {
     ui_dbg_step_into(&state.ui.dbg);
 }
 
-static void web_dbg_on_stopped(int stop_reason, uint16_t addr) {
+static void web_dbg_on_stopped(int stop_reason, uint32_t addr) {
     // stopping on the entry or exit breakpoints always
     // overrides the incoming stop_reason
     int webapi_stop_reason = WEBAPI_STOPREASON_UNKNOWN;
@@ -642,7 +642,7 @@ static webapi_cpu_state_t web_dbg_cpu_state(void) {
     };
 }
 
-static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result) {
+static void web_dbg_request_disassemly(uint32_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result) {
     assert(num_lines > 0);
     ui_dbg_dasm_line_t* lines = calloc((size_t)num_lines, sizeof(ui_dbg_dasm_line_t));
     ui_dbg_disassemble(
@@ -665,9 +665,10 @@ static void web_dbg_request_disassemly(uint16_t addr, int offset_lines, int num_
     free(lines);
 }
 
-static void web_dbg_read_memory(uint16_t addr, int num_bytes, uint8_t* dst_ptr) {
+static void web_dbg_read_memory(uint32_t addr, int num_bytes, uint8_t* dst_ptr) {
     for (int i = 0; i < num_bytes; i++) {
-        *dst_ptr++ = mem_rd(&state.x65, 0, addr++);
+        const uint8_t bank = (addr >> 16) & 0xFF;
+        *dst_ptr++ = mem_rd(&state.x65, bank, addr++ & 0xFFFF);
     }
 }
 #endif

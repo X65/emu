@@ -220,12 +220,12 @@ static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
     "CPU Mapped", "RAM Bank 00", "RAM Bank 01", "RAM Bank FF", "VRAM0", "VRAM1",
 };
 
-static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
+static uint8_t _ui_x65_mem_read(int layer, uint32_t addr, void* user_data) {
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, 0, addr);
+        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, (addr >> 16) & 0xFF, addr & 0xFFFF);
         case _UI_X65_MEMLAYER_RAM00: return x65->ram[(0x00 << 16) + addr];
         case _UI_X65_MEMLAYER_RAM01: return x65->ram[(0x01 << 16) + addr];
         case _UI_X65_MEMLAYER_RAMFF: return x65->ram[(0xFF << 16) + addr];
@@ -235,12 +235,12 @@ static uint8_t _ui_x65_mem_read(int layer, uint16_t addr, void* user_data) {
     }
 }
 
-static void _ui_x65_mem_write(int layer, uint16_t addr, uint8_t data, void* user_data) {
+static void _ui_x65_mem_write(int layer, uint32_t addr, uint8_t data, void* user_data) {
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: mem_wr(x65, 0, addr, data); break;
+        case _UI_X65_MEMLAYER_CPU: mem_wr(x65, (addr >> 16) & 0xFF, addr & 0xFFFF, data); break;
         case _UI_X65_MEMLAYER_RAM00: x65->ram[(0x00 << 16) + addr] = data; break;
         case _UI_X65_MEMLAYER_RAM01: x65->ram[(0x01 << 16) + addr] = data; break;
         case _UI_X65_MEMLAYER_RAMFF: x65->ram[(0xFF << 16) + addr] = data; break;
