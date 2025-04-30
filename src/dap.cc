@@ -59,6 +59,11 @@ enum {
 
 #define EMU_RAM_SIZE (1 << 24)  // 16MB
 
+// Hard-coded identifiers for the one thread, frame, variable and source.
+// These numbers have no meaning, and just need to remain constant for the
+// duration of the service.
+const dap::integer threadId = 100;
+
 // ---------------------------------------------------------------------------
 
 static void dap_dbg_connect(void) {
@@ -323,6 +328,12 @@ void dap_register_session(dap::Session* session) {
 
         dap_dbg_connect();
 
+        // Broadcast the existence of the single thread to the client.
+        dap::ThreadEvent threadStartedEvent;
+        threadStartedEvent.reason = "started";
+        threadStartedEvent.threadId = threadId;
+        session->send(threadStartedEvent);
+
         return dap::LaunchResponse();
     });
 
@@ -401,6 +412,17 @@ void dap_register_session(dap::Session* session) {
             }
             return response;
         });
+
+    // The Threads request queries the debugger's list of active threads.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Threads
+    session->registerHandler([&](const dap::ThreadsRequest&) {
+        dap::ThreadsResponse response;
+        dap::Thread thread;
+        thread.id = threadId;
+        thread.name = "TheThread";
+        response.threads.push_back(thread);
+        return response;
+    });
 }
 
 void dap_init(const dap_desc_t* desc) {
