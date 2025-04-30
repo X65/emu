@@ -9,6 +9,8 @@
 #include <map>
 #include <vector>
 
+#include "sokol_app.h"
+
 #include "dap/io.h"
 #include "dap/network.h"
 #include "dap/protocol.h"
@@ -89,7 +91,7 @@ static void dap_reset(void) {
     }
 }
 
-bool dap_ready(void) {
+static bool dap_ready(void) {
     if (state.inited && state.funcs.ready) {
         return state.funcs.ready();
     }
@@ -98,7 +100,7 @@ bool dap_ready(void) {
     }
 }
 
-bool dap_load(void* ptr, int size) {
+static bool dap_load(void* ptr, int size) {
     if (state.inited && state.funcs.load && ptr && ((size_t)size > sizeof(webapi_fileheader_t))) {
         const webapi_fileheader_t* hdr = (webapi_fileheader_t*)ptr;
         if ((hdr->magic[0] != 'C') || (hdr->magic[1] != 'H') || (hdr->magic[2] != 'I') || (hdr->magic[3] != 'P')) {
@@ -109,7 +111,7 @@ bool dap_load(void* ptr, int size) {
     return false;
 }
 
-bool dap_load_file_internal(char* file) {
+static bool dap_load_file_internal(char* file) {
     if (state.funcs.load_file != NULL) {
         return state.funcs.load_file(file);
     }
@@ -118,7 +120,7 @@ bool dap_load_file_internal(char* file) {
     }
 }
 
-bool dap_unload_file() {
+static bool dap_unload_file() {
     if (state.funcs.unload_file != NULL) {
         return state.funcs.unload_file();
     }
@@ -127,7 +129,7 @@ bool dap_unload_file() {
     }
 }
 
-bool dap_load_snapshot(size_t index) {
+static bool dap_load_snapshot(size_t index) {
     if (state.funcs.load_snapshot != NULL) {
         return state.funcs.load_snapshot(index);
     }
@@ -181,7 +183,7 @@ static void dap_dbg_step_into(void) {
 }
 
 // return emulator state as JSON-formatted string pointer into WASM heap
-uint16_t* dap_dbg_cpu_state(void) {
+static uint16_t* dap_dbg_cpu_state(void) {
     static webapi_cpu_state_t res;
     if (state.inited && state.funcs.dbg_cpu_state) {
         res = state.funcs.dbg_cpu_state();
@@ -194,7 +196,7 @@ uint16_t* dap_dbg_cpu_state(void) {
 
 // request a disassembly, returns ptr to heap-allocated array of 'num_lines' webapi_dasm_line_t structs which must be
 // freed with dap_free() NOTE: may return 0!
-webapi_dasm_line_t* dap_dbg_request_disassembly(uint16_t addr, int offset_lines, int num_lines) {
+static webapi_dasm_line_t* dap_dbg_request_disassembly(uint16_t addr, int offset_lines, int num_lines) {
     if (num_lines <= 0) {
         return 0;
     }
@@ -210,7 +212,7 @@ webapi_dasm_line_t* dap_dbg_request_disassembly(uint16_t addr, int offset_lines,
 
 // reads a memory chunk, returns heap-allocated buffer which must be freed with dap_free()
 // NOTE: may return 0!
-uint8_t* dap_dbg_read_memory(uint16_t addr, int num_bytes) {
+static uint8_t* dap_dbg_read_memory(uint16_t addr, int num_bytes) {
     if (state.inited && state.funcs.dbg_read_memory) {
         uint8_t* ptr = (uint8_t*)calloc((size_t)num_bytes, 1);
         state.funcs.dbg_read_memory(addr, num_bytes, ptr);
@@ -221,7 +223,7 @@ uint8_t* dap_dbg_read_memory(uint16_t addr, int num_bytes) {
     }
 }
 
-bool dap_input_internal(char* text) {
+static bool dap_input_internal(char* text) {
     if (state.funcs.input != NULL && text != NULL) {
         state.funcs.input(text);
         return true;
@@ -274,7 +276,7 @@ void dap_register_session(dap::Session* session) {
     // parsing errors and receiving messages with no handler.
     session->onError([&](const char* msg) {
         LOG_ERROR(DAP_SESSION_ERROR, "%s", msg);
-        // terminate.fire();
+        // sapp_request_quit();
     });
 
     // The Initialize request is the first message sent from the client and
@@ -282,6 +284,8 @@ void dap_register_session(dap::Session* session) {
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
     session->registerHandler([&](const dap::InitializeRequest& request) {
         LOG_INFO(DAP_INFO, "Client '%s' initialize", request.clientName.value("unknown").c_str());
+
+        run_dap_boot = true;
 
         dap::InitializeResponse response;
         response.supportsConfigurationDoneRequest = true;
@@ -301,38 +305,60 @@ void dap_register_session(dap::Session* session) {
     // When the Initialize response has been sent, we need to send the initialized event.
     // We use the registerSentHandler() to ensure the event is sent *after* the initialize response.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
-    session->registerSentHandler(
-        [&](const dap::ResponseOrError<dap::InitializeResponse>&) { session->send(dap::InitializedEvent()); });
+    session->registerSentHandler([&](const dap::ResponseOrError<dap::InitializeResponse>&) {
+        // Send the initialized event after the initialize response.
+        session->send(dap::InitializedEvent());
+    });
 
     // The Launch request is made when the client instructs the debugger adapter
     // to start the debuggee. This request contains the launch arguments.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Launch
     session->registerHandler([&](const dap::LaunchRequest& request) {
-        LOG_INFO(DAP_INFO, "launch request")
+        LOG_INFO(DAP_INFO, "Launch request")
 
         if (request.noDebug.value(false)) {
             LOG_INFO(DAP_INFO, "Launching debuggee without debugging");
             state.enabled = false;
         }
 
-        run_dap_boot = true;
+        dap_dbg_connect();
 
         return dap::LaunchResponse();
     });
 
     // Handler for disconnect requests
     session->registerHandler([&](const dap::DisconnectRequest& request) {
+        LOG_INFO(DAP_INFO, "Disconnect request");
+
         if (request.terminateDebuggee.value(false)) {
-            // terminate.fire();
+            LOG_INFO(DAP_INFO, "Terminating debuggee");
+            sapp_request_quit();
         }
+        else {
+            dap_dbg_disconnect();
+        }
+
         return dap::DisconnectResponse();
+    });
+
+    // Handler for terminate requests
+    session->registerHandler([&](const dap::TerminateRequest& request) {
+        const bool restart = request.restart.value(false);
+        LOG_INFO(DAP_INFO, "%s request", restart ? "Restart" : "Terminate");
+        if (restart) {
+            dap_reset();
+        }
+        else {
+            sapp_request_quit();
+        }
+        return dap::TerminateResponse();
     });
 
     // The ConfigurationDone request is made by the client once all configuration
     // requests have been made.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
     session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
-        // configured.fire();
+        dap_ready();
         return dap::ConfigurationDoneResponse();
     });
 
