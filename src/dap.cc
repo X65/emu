@@ -398,6 +398,7 @@ void dap_register_session(dap::Session* session) {
             }
 
             auto breakpoints = request.lines.value();
+            response.breakpoints.resize(breakpoints.size());
 
             {
                 std::lock_guard<std::mutex> lock(dap_breakpoints_update_mutex);
@@ -411,6 +412,15 @@ void dap_register_session(dap::Session* session) {
                 }
             }
             return response;
+        });
+
+    // The SetInstructionBreakpoints request instructs the debugger to clear and set a number
+    // of instruction breakpoints.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetInstructionBreakpoints
+    session->registerHandler(
+        [&](const dap::SetInstructionBreakpointsRequest&)
+            -> dap::ResponseOrError<dap::SetInstructionBreakpointsResponse> {
+            return dap::Error("SetInstructionBreakpoints not implemented yet");
         });
 
     // The Threads request queries the debugger's list of active threads.
