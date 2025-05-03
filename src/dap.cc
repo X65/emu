@@ -307,14 +307,6 @@ void dap_register_session(dap::Session* session) {
         return response;
     });
 
-    // When the Initialize response has been sent, we need to send the initialized event.
-    // We use the registerSentHandler() to ensure the event is sent *after* the initialize response.
-    // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
-    session->registerSentHandler([&](const dap::ResponseOrError<dap::InitializeResponse>&) {
-        // Send the initialized event after the initialize response.
-        session->send(dap::InitializedEvent());
-    });
-
     // The Launch request is made when the client instructs the debugger adapter
     // to start the debuggee. This request contains the launch arguments.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Launch
@@ -327,12 +319,6 @@ void dap_register_session(dap::Session* session) {
         }
 
         dap_dbg_connect();
-
-        // Broadcast the existence of the single thread to the client.
-        dap::ThreadEvent threadStartedEvent;
-        threadStartedEvent.reason = "started";
-        threadStartedEvent.threadId = threadId;
-        session->send(threadStartedEvent);
 
         return dap::LaunchResponse();
     });
@@ -437,7 +423,6 @@ void dap_register_session(dap::Session* session) {
 
 void dap_init(const dap_desc_t* desc) {
     assert(desc);
-    state.inited = true;
     state.enabled = true;
     state.stdio = desc->stdio;
     state.port = desc->port;
@@ -459,6 +444,8 @@ void dap_init(const dap_desc_t* desc) {
     if (state.stdio) {
         auto session = dap::Session::create();
 
+        dap_register_session(session.get());
+
         // We now bind the session to stdin and stdout to connect to the client.
         // After the call to bind() we should start receiving requests, starting with
         // the Initialize request.
@@ -470,8 +457,6 @@ void dap_init(const dap_desc_t* desc) {
         else {
             session->bind(in, out);
         }
-
-        dap_register_session(session.get());
 
         state.session = session.release();
     }
@@ -486,9 +471,9 @@ void dap_init(const dap_desc_t* desc) {
             // receives a baseline level of validation before being processed.
             session->setOnInvalidData(dap::kClose);
 
-            session->bind(socket);
-
             dap_register_session(session.get());
+
+            session->bind(socket);
 
             // Signal used to terminate the server session when a DisconnectRequest
             // is made by the client.
@@ -553,10 +538,27 @@ void dap_shutdown() {
  * It is used to safely cross DAP server and Emu thread boundary.
  */
 void dap_process() {
+    if (!state.inited) {
+        state.inited = true;
+    }
+
     if (run_dap_boot) {
         run_dap_boot = false;
         dap_boot();
+
+        // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
+        if (state.session) {
+            auto sess = static_cast<dap::Session*>(state.session);
+            sess->send(dap::InitializedEvent());
+
+            // Broadcast the existence of the single thread to the client.
+            dap::ThreadEvent threadStartedEvent;
+            threadStartedEvent.reason = "started";
+            threadStartedEvent.threadId = threadId;
+            sess->send(threadStartedEvent);
+        }
     }
+
     while (!dap_breakpoints_update.empty()) {
         dap::integer source;
         std::vector<uint32_t> add_addresses;
