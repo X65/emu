@@ -379,8 +379,6 @@ void dap_register_session(dap::Session* session) {
 
                 for (size_t i = 0; i < breakpoints.size(); i++) {
                     response.breakpoints[i].verified = false;
-                    response.breakpoints[i].source = request.source;
-                    response.breakpoints[i].line = breakpoints[i];
                     response.breakpoints[i].reason = "failed";
                     response.breakpoints[i].message = "Source reference not provided in SetBreakpointsRequest";
                 }
@@ -403,6 +401,7 @@ void dap_register_session(dap::Session* session) {
                     bool valid = address >= 0 && address < EMU_RAM_SIZE;
                     if (valid) dap_breakpoints_update[source].push_back((uint32_t)address);
                     response.breakpoints[i].verified = valid;
+                    // response.breakpoints[i].message = // TODO: Add label if present
                 }
             }
             return response;
