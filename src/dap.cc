@@ -366,14 +366,25 @@ void dap_register_session(dap::Session* session) {
         [&](const dap::SetBreakpointsRequest& request) -> dap::ResponseOrError<dap::SetBreakpointsResponse> {
             dap::SetBreakpointsResponse response;
 
-            if (!request.source.sourceReference.has_value()) {
-                LOG_ERROR(DAP_SESSION_ERROR, "Source reference not provided in SetBreakpointsRequest");
-                return dap::Error("Source reference not provided in SetBreakpointsRequest");
-            }
-
             if (!request.lines.has_value()) {
                 LOG_ERROR(DAP_SESSION_ERROR, "Lines not provided in SetBreakpointsRequest");
                 return dap::Error("Lines not provided in SetBreakpointsRequest");
+            }
+
+            auto breakpoints = request.lines.value();
+            response.breakpoints.resize(breakpoints.size());
+
+            if (!request.source.sourceReference.has_value()) {
+                LOG_ERROR(DAP_SESSION_ERROR, "Source reference not provided in SetBreakpointsRequest");
+
+                for (size_t i = 0; i < breakpoints.size(); i++) {
+                    response.breakpoints[i].verified = false;
+                    response.breakpoints[i].source = request.source;
+                    response.breakpoints[i].line = breakpoints[i];
+                    response.breakpoints[i].reason = "failed";
+                    response.breakpoints[i].message = "Source reference not provided in SetBreakpointsRequest";
+                }
+                return response;
             }
 
             dap::integer source = request.source.sourceReference.value();
@@ -382,9 +393,6 @@ void dap_register_session(dap::Session* session) {
                 LOG_ERROR(DAP_SESSION_ERROR, "SetBreakpointsRequest is coming too fast");
                 return dap::Error("SetBreakpointsRequest is coming too fast");
             }
-
-            auto breakpoints = request.lines.value();
-            response.breakpoints.resize(breakpoints.size());
 
             {
                 std::lock_guard<std::mutex> lock(dap_breakpoints_update_mutex);
