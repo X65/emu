@@ -78,7 +78,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem(ICON_LC_CPU " WDC 65C816 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem(ICON_LC_HDMI_PORT " CGIA (VPU)", 0, &ui->cgia.open);
             ImGui::MenuItem(ICON_LC_AUDIO_LINES " YMF262 (OPL3)", 0, &ui->opl3.open);
-            ImGui::MenuItem(ICON_LC_BLEND " RIA816", 0, &ui->ria.open);
+            ImGui::MenuItem(ICON_LC_BLEND " RIA816 (Bridge)", 0, &ui->ria.open);
             ImGui::MenuItem(ICON_LC_MICROCHIP " TI TCA6416A (GPIO)", 0, &ui->gpio.open);
             ImGui::EndMenu();
         }
