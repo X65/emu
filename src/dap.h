@@ -17,7 +17,7 @@ void dap_shutdown();
 void dap_process();
 
 // stop_reason: WEBAPI_STOPREASON_xxx
-void dap_event_stopped(int stop_reason, uint16_t addr);
+void dap_event_stopped(int stop_reason, uint32_t addr);
 void dap_event_continued(void);
 void dap_event_reboot(void);
 void dap_event_reset(void);

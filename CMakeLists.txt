@@ -19,9 +19,6 @@ endif()
 
 find_package(OpenGL REQUIRED)
 
-set(CPPDAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/cppdap")
-add_subdirectory(${CPPDAP_DIR})
-
 add_subdirectory(ext)
 include_directories(ext/imgui)
 include_directories(ext/sokol)
@@ -43,7 +40,6 @@ add_executable(emu
     src/x65.c
     src/x65-ui-impl.cc
     src/args.c
-    src/dap.cc
     src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
@@ -54,13 +50,19 @@ add_executable(emu
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking esfmu cppdap)
+    PRIVATE common ui imgui-docking esfmu)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "Building for Linux")
     target_compile_definitions(emu PRIVATE USE_ARGP)
+    target_link_libraries(emu PRIVATE cppdap)
+
+    set(CPPDAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/cppdap")
+    add_subdirectory(${CPPDAP_DIR})
+    target_compile_definitions(emu PRIVATE USE_DAP)
+    target_sources(emu PRIVATE src/dap.cc)
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Building for Windows (mingw-w64)")

@@ -201,7 +201,7 @@ static uint16_t* dap_dbg_cpu_state(void) {
 
 // request a disassembly, returns ptr to heap-allocated array of 'num_lines' webapi_dasm_line_t structs which must be
 // freed with dap_free() NOTE: may return 0!
-static webapi_dasm_line_t* dap_dbg_request_disassembly(uint16_t addr, int offset_lines, int num_lines) {
+static webapi_dasm_line_t* dap_dbg_request_disassembly(uint32_t addr, int offset_lines, int num_lines) {
     if (num_lines <= 0) {
         return 0;
     }
@@ -217,7 +217,7 @@ static webapi_dasm_line_t* dap_dbg_request_disassembly(uint16_t addr, int offset
 
 // reads a memory chunk, returns heap-allocated buffer which must be freed with dap_free()
 // NOTE: may return 0!
-static uint8_t* dap_dbg_read_memory(uint16_t addr, int num_bytes) {
+static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
     if (state.inited && state.funcs.dbg_read_memory) {
         uint8_t* ptr = (uint8_t*)calloc((size_t)num_bytes, 1);
         state.funcs.dbg_read_memory(addr, num_bytes, ptr);
@@ -241,7 +241,7 @@ static bool dap_input_internal(char* text) {
 // ---------------------------------------------------------------------------
 
 // stop_reason is UI_DBG_STOP_REASON_xxx
-void dap_event_stopped(int stop_reason, uint16_t addr) {
+void dap_event_stopped(int stop_reason, uint32_t addr) {
 #if defined(__EMSCRIPTEN__)
     dap_js_event_stopped(stop_reason, addr);
 #else

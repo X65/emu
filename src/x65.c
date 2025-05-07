@@ -234,6 +234,7 @@ void app_init(void) {
             .dbg_read_memory = web_dbg_read_memory,
         },
     });
+    #ifdef USE_DAP
     dap_init(&(dap_desc_t){
         .stdio = arguments.dap,
         .port = arguments.dap_port,
@@ -256,6 +257,7 @@ void app_init(void) {
             .dbg_read_memory = web_dbg_read_memory,
         },
     });
+    #endif
 #endif
     bool delay_input = false;
     if (arguments.rom) {
@@ -286,7 +288,9 @@ void app_frame(void) {
     gfx_draw(x65_display_info(&state.x65));
     handle_file_loading();
     send_keybuf_input();
+#ifdef USE_DAP
     dap_process();
+#endif
 }
 
 void app_input(const sapp_event* event) {
@@ -368,7 +372,9 @@ void app_cleanup(void) {
     saudio_shutdown();
     gfx_shutdown();
     sargs_shutdown();
+#ifdef USE_DAP
     dap_shutdown();
+#endif
 }
 
 static void send_keybuf_input(void) {
@@ -609,22 +615,30 @@ static void web_dbg_on_stopped(int stop_reason, uint32_t addr) {
         webapi_stop_reason = WEBAPI_STOPREASON_BREAKPOINT;
     }
     webapi_event_stopped(webapi_stop_reason, addr);
+    #ifdef USE_DAP
     dap_event_stopped(webapi_stop_reason, addr);
+    #endif
 }
 
 static void web_dbg_on_continued(void) {
     webapi_event_continued();
+    #ifdef USE_DAP
     dap_event_continued();
+    #endif
 }
 
 static void web_dbg_on_reboot(void) {
     webapi_event_reboot();
+    #ifdef USE_DAP
     dap_event_reboot();
+    #endif
 }
 
 static void web_dbg_on_reset(void) {
     webapi_event_reset();
+    #ifdef USE_DAP
     dap_event_reset();
+    #endif
 }
 
 static webapi_cpu_state_t web_dbg_cpu_state(void) {
