@@ -79,14 +79,14 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem(ICON_LC_HDMI_PORT " CGIA (VPU)", 0, &ui->cgia.open);
             ImGui::MenuItem(ICON_LC_AUDIO_LINES " YMF262 (OPL3)", 0, &ui->opl3.open);
             ImGui::MenuItem(ICON_LC_BLEND " RIA816", 0, &ui->ria.open);
-            ImGui::MenuItem(ICON_LC_CABLE " RIA UART", 0, &ui->ria_uart.open);
             ImGui::MenuItem(ICON_LC_MICROCHIP " TI TCA6416A (GPIO)", 0, &ui->gpio.open);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu(ICON_LC_BUG " Debug")) {
-            ImGui::MenuItem("CPU Debugger", 0, &ui->dbg.ui.open);
-            ImGui::MenuItem("Breakpoints", 0, &ui->dbg.ui.breakpoints.open);
-            ImGui::MenuItem("Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
+            ImGui::MenuItem(ICON_LC_CABLE " UART Console (USB CDC)", 0, &ui->ria_uart.open);
+            ImGui::MenuItem(ICON_LC_CPU " CPU Debugger", 0, &ui->dbg.ui.open);
+            ImGui::MenuItem(ICON_LC_BUG_PLAY " Breakpoints", 0, &ui->dbg.ui.breakpoints.open);
+            ImGui::MenuItem(ICON_LC_TIMER " Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
             ImGui::MenuItem("Execution History", 0, &ui->dbg.ui.history.open);
             ImGui::MenuItem("Memory Heatmap", 0, &ui->dbg.ui.heatmap.open);
             if (ImGui::BeginMenu("Memory Editor")) {
@@ -503,7 +503,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     y += dy;
     {
         ui_console_desc_t desc = { 0 };
-        desc.title = "RIA UART";
+        desc.title = "UART Console";
         desc.rx = &ui->x65->ria.uart_rx;
         desc.tx = &ui->x65->ria.uart_tx;
         desc.x = x;
