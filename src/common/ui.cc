@@ -15,10 +15,9 @@
 #include <stdio.h> // snprintf
 #include "ui/ui_display.h"
 
-#include "AtariST8x16SystemFont.cpp"
-#include "fa-regular-400.cpp"
-#include "fa-solid-900.cpp"
-#include "IconsFontAwesome6.h"
+#include "AtariST8x16SystemFont.c"
+#include "lucide.c"
+#include "IconsLucide.h"
 
 #define UI_DELETE_STACK_SIZE (32)
 
@@ -90,7 +89,7 @@ void ui_init(const ui_desc_t* desc) {
     ImFontConfig font_cfg;
     font_cfg.PixelSnapH = true;
     float font_size = 16.0f;
-    font_cfg.EllipsisChar = 0xf141;
+    font_cfg.EllipsisChar = 0xe0ba;
     io.Fonts->AddFontFromMemoryCompressedTTF(
         AtariST8x16SystemFont_compressed_data,
         AtariST8x16SystemFont_compressed_size,
@@ -99,16 +98,11 @@ void ui_init(const ui_desc_t* desc) {
         io.Fonts->GetGlyphRangesDefault());
     font_cfg.MergeMode = true;
     font_cfg.GlyphMinAdvanceX = font_size;
-    static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    font_cfg.GlyphOffset = ImVec2(0.0f, 2.0f);
+    static const ImWchar icon_ranges[] = { ICON_MIN_LC, ICON_MAX_LC, 0 /* zero terminated list */ };
     io.Fonts->AddFontFromMemoryCompressedTTF(
-        fa400_compressed_data,
-        fa400_compressed_size,
-        font_size,
-        &font_cfg,
-        icon_ranges);
-    io.Fonts->AddFontFromMemoryCompressedTTF(
-        fa900_compressed_data,
-        fa900_compressed_size,
+        lucide_compressed_data,
+        lucide_compressed_size,
         font_size,
         &font_cfg,
         icon_ranges);

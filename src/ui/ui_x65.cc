@@ -1,7 +1,7 @@
 #include "./ui_x65.h"
 
 #include "imgui.h"
-#include "IconsFontAwesome6.h"
+#include "IconsLucide.h"
 #include "args.h"
 #include <filesystem>
 
@@ -25,59 +25,65 @@
 static void _ui_x65_draw_menu(ui_x65_t* ui) {
     CHIPS_ASSERT(ui && ui->x65 && ui->boot_cb);
     if (ImGui::BeginMainMenuBar()) {
-        ImGui::Text("%s", ui->x65->running ? (ui->dbg.dbg.stopped ? ICON_FA_PAUSE : ICON_FA_PLAY) : ICON_FA_STOP);
+        ImGui::Text("%s", ui->x65->running ? (ui->dbg.dbg.stopped ? ICON_LC_PAUSE : ICON_LC_PLAY) : ICON_LC_SQUARE);
         if (arguments.rom && ImGui::IsItemHovered()) {
             ImGui::BeginTooltip();
             ImGui::Text("%s", arguments.rom);
             ImGui::EndTooltip();
         }
-        if (ImGui::SmallButton(ICON_FA_ROTATE_LEFT)) {
+        if (ImGui::SmallButton(ICON_LC_ROTATE_CCW)) {
             x65_reset(ui->x65);
             ui_dbg_reset(&ui->dbg);
         }
-        if (ImGui::SmallButton(ICON_FA_POWER_OFF)) {
+        if (ImGui::SmallButton(ICON_LC_POWER)) {
             ui->boot_cb(ui->x65);
             ui_dbg_reboot(&ui->dbg);
         }
         if (ImGui::BeginMenu("System")) {
-            if (ImGui::MenuItem(ui->x65->running ? "Running" : "Run", 0, ui->x65->running)) {
+            if (ImGui::MenuItem(ui->x65->running ? "Running" : ICON_LC_PLAY " Run", 0, ui->x65->running)) {
                 x65_set_running(ui->x65, !ui->x65->running);
             }
             ui_snapshot_menus(&ui->snapshot);
-            if (ImGui::MenuItem("Reset")) {
+            if (ImGui::MenuItem(ICON_LC_ROTATE_CCW " Reset")) {
                 x65_reset(ui->x65);
                 ui_dbg_reset(&ui->dbg);
             }
-            if (ImGui::MenuItem("Cold Boot")) {
+            if (ImGui::MenuItem(ICON_LC_POWER " Cold Boot")) {
                 ui->boot_cb(ui->x65);
                 ui_dbg_reboot(&ui->dbg);
             }
-            if (ImGui::BeginMenu("Joystick")) {
+            if (ImGui::BeginMenu(ICON_LC_GAMEPAD " Controller")) {
                 if (ImGui::MenuItem("None", 0, ui->x65->joystick_type == X65_JOYSTICKTYPE_NONE)) {
                     ui->x65->joystick_type = X65_JOYSTICKTYPE_NONE;
                 }
-                if (ImGui::MenuItem("Digital #1", 0, ui->x65->joystick_type == X65_JOYSTICKTYPE_DIGITAL_1)) {
+                if (ImGui::MenuItem(
+                        ICON_LC_JOYSTICK " Digital #1",
+                        0,
+                        ui->x65->joystick_type == X65_JOYSTICKTYPE_DIGITAL_1)) {
                     ui->x65->joystick_type = X65_JOYSTICKTYPE_DIGITAL_1;
                 }
-                if (ImGui::MenuItem("Digital #2", 0, ui->x65->joystick_type == X65_JOYSTICKTYPE_DIGITAL_2)) {
+                if (ImGui::MenuItem(
+                        ICON_LC_JOYSTICK " Digital #2",
+                        0,
+                        ui->x65->joystick_type == X65_JOYSTICKTYPE_DIGITAL_2)) {
                     ui->x65->joystick_type = X65_JOYSTICKTYPE_DIGITAL_2;
                 }
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Hardware")) {
-            ImGui::MenuItem("Audio Output", 0, &ui->audio.open);
-            ImGui::MenuItem("Display", 0, &ui->display.open);
-            ImGui::MenuItem("WDC 65C816 (CPU)", 0, &ui->cpu.open);
-            ImGui::MenuItem("CGIA (VPU)", 0, &ui->cgia.open);
-            ImGui::MenuItem("YMF262 (OPL3)", 0, &ui->opl3.open);
-            ImGui::MenuItem("RIA816", 0, &ui->ria.open);
-            ImGui::MenuItem("RIA UART", 0, &ui->ria_uart.open);
-            ImGui::MenuItem("TI TCA6416A (GPIO)", 0, &ui->gpio.open);
+        if (ImGui::BeginMenu(ICON_LC_MICROCHIP " Hardware")) {
+            ImGui::MenuItem(ICON_LC_AUDIO_WAVEFORM " Audio Output", 0, &ui->audio.open);
+            ImGui::MenuItem(ICON_LC_MONITOR " Display", 0, &ui->display.open);
+            ImGui::MenuItem(ICON_LC_CPU " WDC 65C816 (CPU)", 0, &ui->cpu.open);
+            ImGui::MenuItem(ICON_LC_HDMI_PORT " CGIA (VPU)", 0, &ui->cgia.open);
+            ImGui::MenuItem(ICON_LC_AUDIO_LINES " YMF262 (OPL3)", 0, &ui->opl3.open);
+            ImGui::MenuItem(ICON_LC_BLEND " RIA816", 0, &ui->ria.open);
+            ImGui::MenuItem(ICON_LC_CABLE " RIA UART", 0, &ui->ria_uart.open);
+            ImGui::MenuItem(ICON_LC_MICROCHIP " TI TCA6416A (GPIO)", 0, &ui->gpio.open);
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Debug")) {
+        if (ImGui::BeginMenu(ICON_LC_BUG " Debug")) {
             ImGui::MenuItem("CPU Debugger", 0, &ui->dbg.ui.open);
             ImGui::MenuItem("Breakpoints", 0, &ui->dbg.ui.breakpoints.open);
             ImGui::MenuItem("Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
