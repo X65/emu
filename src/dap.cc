@@ -317,7 +317,8 @@ void dap_event_reset(void) {
 
 // ---------------------------------------------------------------------------
 
-static bool run_dap_boot = false;
+static bool do_dap_boot = false;
+static bool do_send_thread_info = false;
 
 std::mutex dap_breakpoints_update_mutex;
 static std::map<dap::integer, std::vector<uint32_t>> dap_breakpoints = {};
@@ -540,7 +541,7 @@ void dap_register_session(dap::Session* session) {
     session->registerHandler([&](const dap::InitializeRequest& request) {
         LOG_INFO(DAP_INFO, "Client '%s' initialize", request.clientName.value("unknown").c_str());
 
-        run_dap_boot = true;
+        do_dap_boot = true;
 
         dap::InitializeResponse response;
         response.supportsConfigurationDoneRequest = true;
@@ -615,13 +616,6 @@ void dap_register_session(dap::Session* session) {
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
     session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
         dap_dbg_continue();  // Continue the debuggee
-
-        // Broadcast the existence of the single thread to the client.
-        dap::ThreadEvent threadStartedEvent;
-        threadStartedEvent.reason = "started";
-        threadStartedEvent.threadId = threadId;
-        session->send(threadStartedEvent);
-
         return dap::ConfigurationDoneResponse();
     });
 
@@ -942,8 +936,22 @@ void dap_shutdown() {
  * It is used to safely cross DAP server and Emu thread boundary.
  */
 void dap_process() {
-    if (run_dap_boot) {
-        run_dap_boot = false;
+    if (do_send_thread_info && dap_is_ready()) {
+        do_send_thread_info = false;
+
+        if (state.session) {
+            auto sess = static_cast<dap::Session*>(state.session);
+            // Broadcast the existence of the single thread to the client.
+            dap::ThreadEvent threadStartedEvent;
+            threadStartedEvent.reason = "started";
+            threadStartedEvent.threadId = threadId;
+            sess->send(threadStartedEvent);
+        }
+    }
+
+    if (do_dap_boot) {
+        do_dap_boot = false;
+
         dap_boot();
         dap_dbg_break();  // wait for configuration
 
@@ -952,6 +960,8 @@ void dap_process() {
             auto sess = static_cast<dap::Session*>(state.session);
             sess->send(dap::InitializedEvent());
         }
+
+        do_send_thread_info = true;
     }
 
     while (!dap_breakpoints_update.empty()) {
