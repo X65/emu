@@ -28,6 +28,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef USE_UNWIND
+    #include <signal.h>
+extern void segfault_handler(int sig);
+#endif
+
 #include "icon.c"
 #include "log.h"
 #include "./args.h"
@@ -712,6 +717,10 @@ char app_version[256];
 char program_version[256];
 
 sapp_desc sokol_main(int argc, char* argv[]) {
+#ifdef USE_UNWIND
+    signal(SIGSEGV, segfault_handler);
+#endif
+
     if (strlen(GIT_TAG))
         snprintf(app_version, sizeof(app_version), "%s", GIT_TAG);
     else
