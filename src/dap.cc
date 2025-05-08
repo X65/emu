@@ -69,7 +69,10 @@ enum {
 // Hard-coded identifiers for the one thread, frame, variable and source.
 // These numbers have no meaning, and just need to remain constant for the
 // duration of the service.
-const dap::integer threadId = 1;
+const int threadId = 1;
+const int registersVariablesReferenceId = 1;
+const int registerCVariablesReferenceId = 10;
+const int registerPVariablesReferenceId = 11;
 
 // ---------------------------------------------------------------------------
 
@@ -508,6 +511,191 @@ void dap_register_session(dap::Session* session) {
             response.stackFrames.push_back(frame);
             return response;
         });
+
+    // The Scopes request reports all the scopes of the given stack frame.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Scopes
+    session->registerHandler([&](const dap::ScopesRequest& request) -> dap::ResponseOrError<dap::ScopesResponse> {
+        if (request.frameId > 0xFFFFFF) {
+            return dap::Error("Unknown frameId '%d'", int(request.frameId));
+        }
+
+        dap::Scope scope;
+        scope.name = "Registers";
+        scope.presentationHint = "registers";
+        scope.variablesReference = registersVariablesReferenceId;
+
+        dap::ScopesResponse response;
+        response.scopes.push_back(scope);
+        return response;
+    });
+
+    // The Variables request reports all the variables for the given scope.
+    // This example debugger only exposes a single 'currentLine' variable for the
+    // single 'Locals' scope.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Variables
+    session->registerHandler([&](const dap::VariablesRequest& request) -> dap::ResponseOrError<dap::VariablesResponse> {
+        char buffer[20];
+        webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
+        assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+
+        dap::VariablesResponse response;
+
+        dap::VariablePresentationHint regHint;
+        regHint.kind = "property";
+
+        dap::Variable regVar;
+        regVar.type = "register";
+        regVar.presentationHint = regHint;
+        regVar.variablesReference = 0;
+
+        switch (request.variablesReference) {
+            case registersVariablesReferenceId: {
+                regVar.name = "C";
+                regVar.evaluateName = "reg.C";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_C]);
+                regVar.value = buffer;
+                regVar.variablesReference = registerCVariablesReferenceId;
+                response.variables.push_back(regVar);
+                regVar.variablesReference = 0;
+
+                regVar.name = "X";
+                regVar.evaluateName = "reg.X";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_X]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "Y";
+                regVar.evaluateName = "reg.Y";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_Y]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "S";
+                regVar.evaluateName = "reg.S";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_S]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "PC";
+                regVar.evaluateName = "reg.PC";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_PC]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                const uint8_t f = cpu_state.items[WEBAPI_CPUSTATE_65816_P] & 0xFF;
+                bool emulation = cpu_state.items[WEBAPI_CPUSTATE_65816_E];
+                char f_str[9] = { (f & W65816_NF) ? 'N' : '-',
+                                  (f & W65816_VF) ? 'V' : '-',
+                                  emulation ? ((f & W65816_UF) ? '1' : '-') : ((f & W65816_MF) ? 'M' : '-'),
+                                  emulation ? ((f & W65816_BF) ? 'B' : '-') : ((f & W65816_XF) ? 'X' : '-'),
+                                  (f & W65816_DF) ? 'D' : '-',
+                                  (f & W65816_IF) ? 'I' : '-',
+                                  (f & W65816_ZF) ? 'Z' : '-',
+                                  (f & W65816_CF) ? 'C' : '-',
+                                  0 };
+                regVar.name = "P";
+                regVar.evaluateName = "reg.P";
+                regVar.value = f_str;
+                regVar.variablesReference = registerPVariablesReferenceId;
+                response.variables.push_back(regVar);
+                regVar.variablesReference = 0;
+
+                regVar.name = "D";
+                regVar.evaluateName = "reg.D";
+                sprintf(buffer, "$%04X", cpu_state.items[WEBAPI_CPUSTATE_65816_D]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "DBR";
+                regVar.evaluateName = "reg.DBR";
+                sprintf(buffer, "$%02X", cpu_state.items[WEBAPI_CPUSTATE_65816_DBR]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "PBR";
+                regVar.evaluateName = "reg.PBR";
+                sprintf(buffer, "$%02X", cpu_state.items[WEBAPI_CPUSTATE_65816_PBR]);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                break;
+            }
+            case registerCVariablesReferenceId: {
+                regVar.name = "A";
+                regVar.evaluateName = "reg.A";
+                sprintf(buffer, "$%02X", cpu_state.items[WEBAPI_CPUSTATE_65816_C] & 0xFF);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                regVar.name = "B";
+                regVar.evaluateName = "reg.B";
+                sprintf(buffer, "$%02X", (cpu_state.items[WEBAPI_CPUSTATE_65816_C] >> 8) & 0xFF);
+                regVar.value = buffer;
+                response.variables.push_back(regVar);
+
+                break;
+            }
+            case registerPVariablesReferenceId: {
+                const uint8_t flags = cpu_state.items[WEBAPI_CPUSTATE_65816_P] & 0xFF;
+                bool emulation = cpu_state.items[WEBAPI_CPUSTATE_65816_E];
+
+                regVar.name = "Carry";
+                regVar.evaluateName = "flag.C";
+                regVar.value = (flags & W65816_CF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                regVar.name = "Zero";
+                regVar.evaluateName = "flag.Z";
+                regVar.value = (flags & W65816_ZF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                regVar.name = "IRQ disable";
+                regVar.evaluateName = "flag.I";
+                regVar.value = (flags & W65816_IF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                regVar.name = "Decimal";
+                regVar.evaluateName = "flag.D";
+                regVar.value = (flags & W65816_DF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                if (emulation) {
+                    regVar.name = "Break";
+                    regVar.evaluateName = "flag.B";
+                    regVar.value = (flags & W65816_BF) ? '1' : '0';
+                    response.variables.push_back(regVar);
+                }
+                else {
+                    regVar.name = "indeX";
+                    regVar.evaluateName = "flag.X";
+                    regVar.value = (flags & W65816_XF) ? '1' : '0';
+                    response.variables.push_back(regVar);
+
+                    regVar.name = "Memory/Accumulator";
+                    regVar.evaluateName = "flag.M";
+                    regVar.value = (flags & W65816_MF) ? '1' : '0';
+                    response.variables.push_back(regVar);
+                }
+
+                regVar.name = "oVerflow";
+                regVar.evaluateName = "flag.V";
+                regVar.value = (flags & W65816_VF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                regVar.name = "Zero";
+                regVar.evaluateName = "flag.N";
+                regVar.value = (flags & W65816_NF) ? '1' : '0';
+                response.variables.push_back(regVar);
+
+                break;
+            }
+            default: {
+                return dap::Error("Unknown variablesReference '%d'", int(request.variablesReference));
+            }
+        }
+
+        return response;
+    });
 }
 
 void dap_init(const dap_desc_t* desc) {

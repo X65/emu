@@ -655,6 +655,7 @@ static webapi_cpu_state_t web_dbg_cpu_state(void) {
             [WEBAPI_CPUSTATE_65816_D] = cpu->D,
             [WEBAPI_CPUSTATE_65816_DBR] = cpu->DBR,
             [WEBAPI_CPUSTATE_65816_PBR] = cpu->PBR,
+            [WEBAPI_CPUSTATE_65816_E] = cpu->emulation,
         }
     };
 }
