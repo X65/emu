@@ -109,7 +109,7 @@ static void dap_reset(void) {
     }
 }
 
-static bool dap_ready(void) {
+static bool dap_is_ready(void) {
     if (state.inited && state.funcs.ready) {
         LOG_INFO(DAP_INFO, "ready() called");
         return state.funcs.ready();
@@ -602,12 +602,34 @@ void dap_register_session(dap::Session* session) {
         return dap::TerminateResponse();
     });
 
+    // Handler for restarts requests
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Restart
+    session->registerHandler([&](const dap::RestartRequest&) {
+        LOG_INFO(DAP_INFO, "Restart request");
+        dap_reset();
+        return dap::RestartResponse();
+    });
+
     // The ConfigurationDone request is made by the client once all configuration
     // requests have been made.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
     session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
-        dap_ready();
+        dap_dbg_continue();  // Continue the debuggee
+
+        // Broadcast the existence of the single thread to the client.
+        dap::ThreadEvent threadStartedEvent;
+        threadStartedEvent.reason = "started";
+        threadStartedEvent.threadId = threadId;
+        session->send(threadStartedEvent);
+
         return dap::ConfigurationDoneResponse();
+    });
+
+    // The ConfigurationDone request is made by the client once all configuration
+    // requests have been made.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
+    session->registerHandler([&](const dap::SourceRequest&) -> dap::ResponseOrError<dap::SourceResponse> {
+        return dap::Error("'source' request is not supported. The source is gone. It was never yours to see.");
     });
 
     // The SetBreakpoints request instructs the debugger to clear and set a number
@@ -808,6 +830,7 @@ void dap_init(const dap_desc_t* desc) {
     state.stdio = desc->stdio;
     state.port = desc->port;
     state.funcs = desc->funcs;
+    state.inited = true;
 
 #ifdef LOG_TO_FILE
     log = dap::file(LOG_TO_FILE);
@@ -919,24 +942,15 @@ void dap_shutdown() {
  * It is used to safely cross DAP server and Emu thread boundary.
  */
 void dap_process() {
-    if (!state.inited) {
-        state.inited = true;
-    }
-
     if (run_dap_boot) {
         run_dap_boot = false;
         dap_boot();
+        dap_dbg_break();  // wait for configuration
 
         // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
         if (state.session) {
             auto sess = static_cast<dap::Session*>(state.session);
             sess->send(dap::InitializedEvent());
-
-            // Broadcast the existence of the single thread to the client.
-            dap::ThreadEvent threadStartedEvent;
-            threadStartedEvent.reason = "started";
-            threadStartedEvent.threadId = threadId;
-            sess->send(threadStartedEvent);
         }
     }
 
