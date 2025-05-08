@@ -2,6 +2,12 @@
 
 #include "log.h"
 
+#include "ui/ui_util.h"
+#include "ui/ui_settings.h"
+#define UI_DBG_USE_W65C816S
+#include "chips/w65c816s.h"
+#include "ui/ui_dbg.h"
+
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -11,6 +17,7 @@
 
 #include "sokol_app.h"
 
+#include "dap/types.h"
 #include "dap/io.h"
 #include "dap/network.h"
 #include "dap/protocol.h"
@@ -62,13 +69,14 @@ enum {
 // Hard-coded identifiers for the one thread, frame, variable and source.
 // These numbers have no meaning, and just need to remain constant for the
 // duration of the service.
-const dap::integer threadId = 100;
+const dap::integer threadId = 1;
 
 // ---------------------------------------------------------------------------
 
 static void dap_dbg_connect(void) {
     if (state.inited) {
         if (state.funcs.dbg_connect) {
+            LOG_INFO(DAP_INFO, "dbg_connect() called");
             state.funcs.dbg_connect();
         }
     }
@@ -79,6 +87,7 @@ static void dap_dbg_connect(void) {
 
 static void dap_dbg_disconnect(void) {
     if (state.inited && state.funcs.dbg_disconnect) {
+        LOG_INFO(DAP_INFO, "dbg_disconnect() called");
         state.funcs.dbg_disconnect();
     }
 }
@@ -92,12 +101,14 @@ static void dap_boot(void) {
 
 static void dap_reset(void) {
     if (state.inited && state.funcs.reset) {
+        LOG_INFO(DAP_INFO, "reset() called");
         state.funcs.reset();
     }
 }
 
 static bool dap_ready(void) {
     if (state.inited && state.funcs.ready) {
+        LOG_INFO(DAP_INFO, "ready() called");
         return state.funcs.ready();
     }
     else {
@@ -107,6 +118,7 @@ static bool dap_ready(void) {
 
 static bool dap_load(void* ptr, int size) {
     if (state.inited && state.funcs.load && ptr && ((size_t)size > sizeof(webapi_fileheader_t))) {
+        LOG_INFO(DAP_INFO, "load(%p, %d) called", ptr, size);
         const webapi_fileheader_t* hdr = (webapi_fileheader_t*)ptr;
         if ((hdr->magic[0] != 'C') || (hdr->magic[1] != 'H') || (hdr->magic[2] != 'I') || (hdr->magic[3] != 'P')) {
             return false;
@@ -118,6 +130,7 @@ static bool dap_load(void* ptr, int size) {
 
 static bool dap_load_file_internal(char* file) {
     if (state.funcs.load_file != NULL) {
+        LOG_INFO(DAP_INFO, "load_file(%s) called", file);
         return state.funcs.load_file(file);
     }
     else {
@@ -127,6 +140,7 @@ static bool dap_load_file_internal(char* file) {
 
 static bool dap_unload_file() {
     if (state.funcs.unload_file != NULL) {
+        LOG_INFO(DAP_INFO, "unload_file() called");
         return state.funcs.unload_file();
     }
     else {
@@ -136,6 +150,7 @@ static bool dap_unload_file() {
 
 static bool dap_load_snapshot(size_t index) {
     if (state.funcs.load_snapshot != NULL) {
+        LOG_INFO(DAP_INFO, "load_snapshot(%zu) called", index);
         return state.funcs.load_snapshot(index);
     }
     else {
@@ -145,6 +160,7 @@ static bool dap_load_snapshot(size_t index) {
 
 static void dap_save_snapshot(size_t index) {
     if (state.funcs.save_snapshot != NULL) {
+        LOG_INFO(DAP_INFO, "save_snapshot(%zu) called", index);
         state.funcs.save_snapshot(index);
     }
 }
@@ -165,24 +181,28 @@ static void dap_dbg_remove_breakpoint(uint32_t addr) {
 
 static void dap_dbg_break(void) {
     if (state.inited && state.funcs.dbg_break) {
+        LOG_INFO(DAP_INFO, "dbg_break() called");
         state.funcs.dbg_break();
     }
 }
 
 static void dap_dbg_continue(void) {
     if (state.inited && state.funcs.dbg_continue) {
+        LOG_INFO(DAP_INFO, "dbg_continue() called");
         state.funcs.dbg_continue();
     }
 }
 
 static void dap_dbg_step_next(void) {
     if (state.inited && state.funcs.dbg_step_next) {
+        LOG_INFO(DAP_INFO, "dbg_step_next() called");
         state.funcs.dbg_step_next();
     }
 }
 
 static void dap_dbg_step_into(void) {
     if (state.inited && state.funcs.dbg_step_into) {
+        LOG_INFO(DAP_INFO, "dbg_step_into() called");
         state.funcs.dbg_step_into();
     }
 }
@@ -191,6 +211,7 @@ static void dap_dbg_step_into(void) {
 static uint16_t* dap_dbg_cpu_state(void) {
     static webapi_cpu_state_t res;
     if (state.inited && state.funcs.dbg_cpu_state) {
+        LOG_INFO(DAP_INFO, "dbg_cpu_state() called");
         res = state.funcs.dbg_cpu_state();
     }
     else {
@@ -207,6 +228,7 @@ static webapi_dasm_line_t* dap_dbg_request_disassembly(uint32_t addr, int offset
     }
     if (state.inited && state.funcs.dbg_request_disassembly) {
         webapi_dasm_line_t* out_lines = (webapi_dasm_line_t*)calloc((size_t)num_lines, sizeof(webapi_dasm_line_t));
+        LOG_INFO(DAP_INFO, "dbg_request_disassembly() called");
         state.funcs.dbg_request_disassembly(addr, offset_lines, num_lines, out_lines);
         return out_lines;
     }
@@ -220,6 +242,7 @@ static webapi_dasm_line_t* dap_dbg_request_disassembly(uint32_t addr, int offset
 static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
     if (state.inited && state.funcs.dbg_read_memory) {
         uint8_t* ptr = (uint8_t*)calloc((size_t)num_bytes, 1);
+        LOG_INFO(DAP_INFO, "dbg_read_memory() called");
         state.funcs.dbg_read_memory(addr, num_bytes, ptr);
         return ptr;
     }
@@ -230,6 +253,7 @@ static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
 
 static bool dap_input_internal(char* text) {
     if (state.funcs.input != NULL && text != NULL) {
+        LOG_INFO(DAP_INFO, "input() called");
         state.funcs.input(text);
         return true;
     }
@@ -242,27 +266,47 @@ static bool dap_input_internal(char* text) {
 
 // stop_reason is UI_DBG_STOP_REASON_xxx
 void dap_event_stopped(int stop_reason, uint32_t addr) {
-#if defined(__EMSCRIPTEN__)
-    dap_js_event_stopped(stop_reason, addr);
-#else
-    (void)stop_reason;
-    (void)addr;
-#endif
+    LOG_INFO(DAP_INFO, "dap_event_stopped(stop_reason=%d, addr=%04x) called", stop_reason, addr);
+
+    if (state.session) {
+        auto sess = static_cast<dap::Session*>(state.session);
+
+        // Notify UI about stopped event
+        dap::StoppedEvent stoppedEvent;
+        switch (stop_reason) {
+            case UI_DBG_STOP_REASON_UNKNOWN: stoppedEvent.reason = "unknown"; break;
+            case UI_DBG_STOP_REASON_BREAK: stoppedEvent.reason = "pause"; break;
+            case UI_DBG_STOP_REASON_BREAKPOINT:
+                stoppedEvent.hitBreakpointIds = dap::array<dap::integer>{ addr };
+                stoppedEvent.reason = "breakpoint";
+                break;
+            case UI_DBG_STOP_REASON_STEP: stoppedEvent.reason = "step"; break;
+        }
+        stoppedEvent.threadId = threadId;
+        stoppedEvent.allThreadsStopped = true;
+        sess->send(stoppedEvent);
+    }
 }
 
 void dap_event_continued(void) {
+    LOG_INFO(DAP_INFO, "dap_event_continued() called");
+
 #if defined(__EMSCRIPTEN__)
     dap_js_event_continued();
 #endif
 }
 
 void dap_event_reboot(void) {
+    LOG_INFO(DAP_INFO, "dap_event_reboot() called");
+
 #if defined(__EMSCRIPTEN__)
     dap_js_event_reboot();
 #endif
 }
 
 void dap_event_reset(void) {
+    LOG_INFO(DAP_INFO, "dap_event_reset() called");
+
 #if defined(__EMSCRIPTEN__)
     dap_js_event_reset();
 #endif
@@ -304,6 +348,7 @@ void dap_register_session(dap::Session* session) {
         response.supportsReadMemoryRequest = true;
         response.supportsWriteMemoryRequest = false;
         response.supportsDisassembleRequest = true;
+        response.supportsStepInTargetsRequest = true;
         return response;
     });
 
@@ -399,9 +444,15 @@ void dap_register_session(dap::Session* session) {
                 for (size_t i = 0; i < breakpoints.size(); i++) {
                     dap::integer address = breakpoints[i];
                     bool valid = address >= 0 && address < EMU_RAM_SIZE;
-                    if (valid) dap_breakpoints_update[source].push_back((uint32_t)address);
                     response.breakpoints[i].verified = valid;
-                    // response.breakpoints[i].message = // TODO: Add label if present
+                    if (valid) {
+                        response.breakpoints[i].id = address;
+                        char buffer[20];
+                        sprintf(buffer, "$%06lX", address & 0xFFFFFF);
+                        response.breakpoints[i].message = buffer;
+
+                        dap_breakpoints_update[source].push_back((uint32_t)address);
+                    }
                 }
             }
             return response;
@@ -422,10 +473,41 @@ void dap_register_session(dap::Session* session) {
         dap::ThreadsResponse response;
         dap::Thread thread;
         thread.id = threadId;
-        thread.name = "TheThread";
+        thread.name = "CPU";
         response.threads.push_back(thread);
         return response;
     });
+
+    // The StackTrace request reports the stack frames (call stack) for a given
+    // thread. This debugger only exposes a single stack frame for the
+    // single thread.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_StackTrace
+    session->registerHandler(
+        [&](const dap::StackTraceRequest& request) -> dap::ResponseOrError<dap::StackTraceResponse> {
+            if (request.threadId != threadId) {
+                return dap::Error("Unknown threadId '%d'", int(request.threadId));
+            }
+
+            webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
+            assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+
+            dap::integer address =
+                (cpu_state.items[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state.items[WEBAPI_CPUSTATE_65816_PC];
+
+            char buffer[20];
+            sprintf(buffer, "$%06lX", address & 0xFFFFFF);
+
+            dap::StackFrame frame;
+            frame.name = buffer;
+            frame.id = address;
+            frame.line = address;
+            /// If attribute `source` is missing or doesn't exist, `column` is 0 and should be ignored by the client.
+            frame.column = 0;
+
+            dap::StackTraceResponse response;
+            response.stackFrames.push_back(frame);
+            return response;
+        });
 }
 
 void dap_init(const dap_desc_t* desc) {

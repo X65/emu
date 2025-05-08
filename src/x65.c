@@ -645,13 +645,16 @@ static webapi_cpu_state_t web_dbg_cpu_state(void) {
     const w65816_t* cpu = &state.x65.cpu;
     return (webapi_cpu_state_t){
         .items = {
-            [WEBAPI_CPUSTATE_TYPE] = WEBAPI_CPUTYPE_6502,
+            [WEBAPI_CPUSTATE_TYPE] = WEBAPI_CPUTYPE_65816,
             [WEBAPI_CPUSTATE_6502_A] = cpu->C,
             [WEBAPI_CPUSTATE_6502_X] = cpu->X,
             [WEBAPI_CPUSTATE_6502_Y] = cpu->Y,
             [WEBAPI_CPUSTATE_6502_S] = cpu->S,
             [WEBAPI_CPUSTATE_6502_P] = cpu->P,
             [WEBAPI_CPUSTATE_6502_PC] = cpu->PC,
+            [WEBAPI_CPUSTATE_65816_D] = cpu->D,
+            [WEBAPI_CPUSTATE_65816_DBR] = cpu->DBR,
+            [WEBAPI_CPUSTATE_65816_PBR] = cpu->PBR,
         }
     };
 }
