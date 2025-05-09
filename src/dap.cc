@@ -294,9 +294,15 @@ void dap_event_stopped(int stop_reason, uint32_t addr) {
 void dap_event_continued(void) {
     LOG_INFO(DAP_INFO, "dap_event_continued() called");
 
-#if defined(__EMSCRIPTEN__)
-    dap_js_event_continued();
-#endif
+    if (state.session) {
+        auto sess = static_cast<dap::Session*>(state.session);
+
+        // Notify UI about continued event
+        dap::ContinuedEvent continuedEvent;
+        continuedEvent.threadId = threadId;
+        continuedEvent.allThreadsContinued = true;
+        sess->send(continuedEvent);
+    }
 }
 
 void dap_event_reboot(void) {
@@ -319,6 +325,11 @@ void dap_event_reset(void) {
 
 static bool do_dap_boot = false;
 static bool do_send_thread_info = false;
+static bool do_dap_reset = false;
+static bool do_dap_pause = false;
+static bool do_dap_run = false;
+static bool do_dap_stepForward = false;
+static bool do_dap_stepIn = false;
 
 std::mutex dap_breakpoints_update_mutex;
 static std::map<dap::integer, std::vector<uint32_t>> dap_breakpoints = {};
@@ -551,11 +562,9 @@ void dap_register_session(dap::Session* session) {
         response.supportTerminateDebuggee = true;
         response.supportsRestartRequest = true;
         response.supportSuspendDebuggee = true;
-        response.supportsValueFormattingOptions = true;
         response.supportsReadMemoryRequest = true;
         response.supportsWriteMemoryRequest = false;
         response.supportsDisassembleRequest = true;
-        response.supportsStepInTargetsRequest = true;
         return response;
     });
 
@@ -595,7 +604,7 @@ void dap_register_session(dap::Session* session) {
         const bool restart = request.restart.value(false);
         LOG_INFO(DAP_INFO, "%s request", restart ? "Restart" : "Terminate");
         if (restart) {
-            dap_reset();
+            do_dap_reset = true;
         }
         else {
             sapp_request_quit();
@@ -607,7 +616,7 @@ void dap_register_session(dap::Session* session) {
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Restart
     session->registerHandler([&](const dap::RestartRequest&) {
         LOG_INFO(DAP_INFO, "Restart request");
-        dap_reset();
+        do_dap_reset = true;
         return dap::RestartResponse();
     });
 
@@ -751,10 +760,6 @@ void dap_register_session(dap::Session* session) {
     // The Variables request reports all the variables for the given scope.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Variables
     session->registerHandler([&](const dap::VariablesRequest& request) -> dap::ResponseOrError<dap::VariablesResponse> {
-        char buffer[20];
-        webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-        assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
-
         dap::VariablesResponse response;
 
         switch (request.variablesReference) {
@@ -776,6 +781,9 @@ void dap_register_session(dap::Session* session) {
                 break;
             }
             case registerPVariablesReferenceId: {
+                webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
+                assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+
                 response.variables.push_back(evaluateVariable("flag.C"));
                 response.variables.push_back(evaluateVariable("flag.Z"));
                 response.variables.push_back(evaluateVariable("flag.I"));
@@ -815,6 +823,45 @@ void dap_register_session(dap::Session* session) {
         }
 
         return dap::Error("Unknown expression");
+    });
+
+    // The Pause request instructs the debugger to pause execution of one or all
+    // threads.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Pause
+    session->registerHandler([&](const dap::PauseRequest&) {
+        do_dap_pause = true;
+        return dap::PauseResponse();
+    });
+
+    // The Continue request instructs the debugger to resume execution of one or
+    // all threads.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Continue
+    session->registerHandler([&](const dap::ContinueRequest&) {
+        do_dap_run = true;
+        return dap::ContinueResponse();
+    });
+
+    // The Next request instructs the debugger to single line step for a specific
+    // thread.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Next
+    session->registerHandler([&](const dap::NextRequest&) {
+        do_dap_stepForward = true;
+        return dap::NextResponse();
+    });
+
+    // The StepIn request instructs the debugger to step-in for a specific thread.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_StepIn
+    session->registerHandler([&](const dap::StepInRequest&) {
+        do_dap_stepIn = true;
+        return dap::StepInResponse();
+    });
+
+    // The StepOut request instructs the debugger to step-out for a specific
+    // thread.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_StepOut
+    session->registerHandler([&](const dap::StepOutRequest&) {
+        // Step-out is not supported.
+        return dap::Error("Step-out is not supported");
     });
 }
 
@@ -962,6 +1009,36 @@ void dap_process() {
         }
 
         do_send_thread_info = true;
+    }
+
+    if (do_dap_reset) {
+        do_dap_reset = false;
+
+        dap_reset();
+    }
+
+    if (do_dap_pause) {
+        do_dap_pause = false;
+
+        dap_dbg_break();
+    }
+
+    if (do_dap_run) {
+        do_dap_run = false;
+
+        dap_dbg_continue();
+    }
+
+    if (do_dap_stepForward) {
+        do_dap_stepForward = false;
+
+        dap_dbg_step_next();
+    }
+
+    if (do_dap_stepIn) {
+        do_dap_stepIn = false;
+
+        dap_dbg_step_into();
     }
 
     while (!dap_breakpoints_update.empty()) {
