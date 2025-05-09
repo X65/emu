@@ -76,6 +76,11 @@ const int registerPVariablesReferenceId = 11;
 
 // ---------------------------------------------------------------------------
 
+/// Store address the debugger stopped, to generate stacktrace later.
+/// We cannot just take the PC from the CPU, as the debugger stops AFTER
+/// the instruction has been executed and PC points to the next instruction.
+int dap_event_stopped_addr = -1;
+
 static void dap_dbg_connect(void) {
     if (state.inited) {
         if (state.funcs.dbg_connect) {
@@ -190,6 +195,8 @@ static void dap_dbg_break(void) {
 }
 
 static void dap_dbg_continue(void) {
+    dap_event_stopped_addr = -1;
+
     if (state.inited && state.funcs.dbg_continue) {
         LOG_INFO(DAP_INFO, "dbg_continue() called");
         state.funcs.dbg_continue();
@@ -197,6 +204,8 @@ static void dap_dbg_continue(void) {
 }
 
 static void dap_dbg_step_next(void) {
+    dap_event_stopped_addr = -1;
+
     if (state.inited && state.funcs.dbg_step_next) {
         LOG_INFO(DAP_INFO, "dbg_step_next() called");
         state.funcs.dbg_step_next();
@@ -204,6 +213,8 @@ static void dap_dbg_step_next(void) {
 }
 
 static void dap_dbg_step_into(void) {
+    dap_event_stopped_addr = -1;
+
     if (state.inited && state.funcs.dbg_step_into) {
         LOG_INFO(DAP_INFO, "dbg_step_into() called");
         state.funcs.dbg_step_into();
@@ -271,6 +282,8 @@ static bool dap_input_internal(char* text) {
 void dap_event_stopped(int stop_reason, uint32_t addr) {
     LOG_INFO(DAP_INFO, "dap_event_stopped(stop_reason=%d, addr=%04x) called", stop_reason, addr);
 
+    dap_event_stopped_addr = addr;
+
     if (state.session) {
         auto sess = static_cast<dap::Session*>(state.session);
 
@@ -293,6 +306,8 @@ void dap_event_stopped(int stop_reason, uint32_t addr) {
 
 void dap_event_continued(void) {
     LOG_INFO(DAP_INFO, "dap_event_continued() called");
+
+    dap_event_stopped_addr = -1;
 
     if (state.session) {
         auto sess = static_cast<dap::Session*>(state.session);
@@ -327,7 +342,7 @@ static bool do_dap_boot = false;
 static bool do_send_thread_info = false;
 static bool do_dap_reset = false;
 static bool do_dap_pause = false;
-static bool do_dap_run = false;
+static bool do_dap_continue = false;
 static bool do_dap_stepForward = false;
 static bool do_dap_stepIn = false;
 
@@ -722,8 +737,9 @@ void dap_register_session(dap::Session* session) {
             webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
             assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
-            dap::integer address =
-                (cpu_state.items[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state.items[WEBAPI_CPUSTATE_65816_PC];
+            dap::integer address = dap_event_stopped_addr >= 0
+                ? dap_event_stopped_addr
+                : (cpu_state.items[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state.items[WEBAPI_CPUSTATE_65816_PC];
 
             char buffer[20];
             sprintf(buffer, "$%06lX", address & 0xFFFFFF);
@@ -837,7 +853,7 @@ void dap_register_session(dap::Session* session) {
     // all threads.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Continue
     session->registerHandler([&](const dap::ContinueRequest&) {
-        do_dap_run = true;
+        do_dap_continue = true;
         return dap::ContinueResponse();
     });
 
@@ -1023,8 +1039,8 @@ void dap_process() {
         dap_dbg_break();
     }
 
-    if (do_dap_run) {
-        do_dap_run = false;
+    if (do_dap_continue) {
+        do_dap_continue = false;
 
         dap_dbg_continue();
     }
