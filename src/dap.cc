@@ -116,7 +116,7 @@ static void dap_reset(void) {
 
 static bool dap_is_ready(void) {
     if (state.inited && state.funcs.ready) {
-        LOG_INFO(DAP_INFO, "ready() called");
+        // LOG_INFO(DAP_INFO, "ready() called");
         return state.funcs.ready();
     }
     else {
@@ -570,16 +570,20 @@ void dap_register_session(dap::Session* session) {
         do_dap_boot = true;
 
         dap::InitializeResponse response;
-        response.supportsConfigurationDoneRequest = true;
-        response.supportsEvaluateForHovers = false;
-        response.supportsSetVariable = true;
-        response.supportsTerminateRequest = true;
         response.supportTerminateDebuggee = true;
-        response.supportsRestartRequest = true;
         response.supportSuspendDebuggee = true;
-        response.supportsReadMemoryRequest = true;
-        response.supportsWriteMemoryRequest = false;
+        response.supportsCompletionsRequest = true;
+        response.supportsConfigurationDoneRequest = true;
+        response.supportsDataBreakpoints = true;
         response.supportsDisassembleRequest = true;
+        response.supportsEvaluateForHovers = false;
+        response.supportsInstructionBreakpoints = true;
+        response.supportsReadMemoryRequest = true;
+        response.supportsRestartRequest = true;
+        response.supportsSetVariable = true;
+        response.supportsStepBack = false;
+        response.supportsTerminateRequest = true;
+        response.supportsWriteMemoryRequest = false;
         return response;
     });
 
@@ -741,8 +745,15 @@ void dap_register_session(dap::Session* session) {
                 ? dap_event_stopped_addr
                 : (cpu_state.items[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state.items[WEBAPI_CPUSTATE_65816_PC];
 
-            char buffer[20];
-            sprintf(buffer, "$%06lX", address & 0xFFFFFF);
+            char buffer[64];
+            char* buf = buffer + sprintf(buffer, "%02lX %04lX", (address >> 16) & 0xFF, address & 0xFFFF);
+
+            webapi_dasm_line_t* dasm = dap_dbg_request_disassembly(address & 0xFFFFFF, 0, 1);
+            if (dasm) {
+                *buf++ = ' ';
+                memcpy(buf, dasm->chars, dasm->num_chars);
+                buf[dasm->num_chars] = '\0';
+            }
 
             dap::StackFrame frame;
             frame.name = buffer;
@@ -750,6 +761,8 @@ void dap_register_session(dap::Session* session) {
             frame.line = address;
             /// If attribute `source` is missing or doesn't exist, `column` is 0 and should be ignored by the client.
             frame.column = 0;
+
+            free(dasm);
 
             dap::StackTraceResponse response;
             response.stackFrames.push_back(frame);
@@ -879,6 +892,51 @@ void dap_register_session(dap::Session* session) {
         // Step-out is not supported.
         return dap::Error("Step-out is not supported");
     });
+
+    // The StepOut request instructs the debugger to step-out for a specific
+    // thread.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_StepOut
+    session->registerHandler(
+        [&](const dap::DisassembleRequest& request) -> dap::ResponseOrError<dap::DisassembleResponse> {
+            dap::DisassembleResponse response;
+
+            if (!request.memoryReference.starts_with("0x")) {
+                return dap::Error("Invalid memory reference '%s'", request.memoryReference.c_str());
+            }
+
+            const auto address = std::stoi(request.memoryReference, nullptr, 0);
+
+            auto instrOffset = (int)request.instructionOffset.value(0);
+            auto instrLines = (int)request.instructionCount;
+
+            response.instructions.resize(instrLines);
+
+            char buffer[64];
+            webapi_dasm_line_t* dasm = dap_dbg_request_disassembly(address & 0xFFFFFF, instrOffset, instrLines);
+
+            for (int i = 0; i < instrLines; ++i) {
+                memcpy(buffer, dasm[i].chars, dasm[i].num_chars);
+                buffer[dasm[i].num_chars] = '\0';
+                response.instructions[i].instruction = buffer;
+
+                for (int j = 0; j < dasm[i].num_bytes; ++j) {
+                    sprintf(buffer + 3 * j, "%02X ", dasm[i].bytes[j]);
+                }
+                // remove last space
+                if (dasm[i].num_bytes) buffer[3 * dasm[i].num_bytes - 1] = '\0';
+                response.instructions[i].instructionBytes = buffer;
+
+                sprintf(buffer, "0x%06X", dasm[i].addr);
+                response.instructions[i].address = buffer;
+
+                response.instructions[i].presentationHint =
+                    response.instructions[i].instruction == "???" ? "invalid" : "normal";
+            }
+
+            free(dasm);
+
+            return response;
+        });
 }
 
 void dap_init(const dap_desc_t* desc) {
