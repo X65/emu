@@ -574,10 +574,8 @@ void dap_register_session(dap::Session* session) {
         response.supportSuspendDebuggee = true;
         response.supportsCompletionsRequest = true;
         response.supportsConfigurationDoneRequest = true;
-        response.supportsDataBreakpoints = true;
         response.supportsDisassembleRequest = true;
         response.supportsEvaluateForHovers = false;
-        response.supportsInstructionBreakpoints = true;
         response.supportsReadMemoryRequest = true;
         response.supportsRestartRequest = true;
         response.supportsSetVariable = true;
