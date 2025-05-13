@@ -261,6 +261,7 @@ void app_init(void) {
             .dbg_request_disassembly = web_dbg_request_disassemly,
             .dbg_read_memory = web_dbg_read_memory,
         },
+        .memory = state.x65.ram,
     });
     #endif
 #endif

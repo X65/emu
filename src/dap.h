@@ -10,6 +10,7 @@ typedef struct {
     bool stdio;
     const char* port;
     webapi_interface_t funcs;
+    uint8_t* memory;
 } dap_desc_t;
 
 void dap_init(const dap_desc_t* desc);

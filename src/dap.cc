@@ -32,6 +32,9 @@
     #include <io.h>     // _setmode
 #endif                  // OS_WINDOWS
 
+/// base64 encoder forward declaration
+std::string base64_encode(const std::vector<uint8_t>&);
+
 static struct {
     bool dbg_connect_requested;
 } before_init_state;
@@ -44,6 +47,7 @@ static struct {
     const char* port;  // use TCP port
 
     webapi_interface_t funcs;
+    uint8_t* memory;
 
     void* session;  // DAP session
     void* server;   // DAP TCP server
@@ -898,10 +902,6 @@ void dap_register_session(dap::Session* session) {
         [&](const dap::DisassembleRequest& request) -> dap::ResponseOrError<dap::DisassembleResponse> {
             dap::DisassembleResponse response;
 
-            if (!request.memoryReference.starts_with("0x")) {
-                return dap::Error("Invalid memory reference '%s'", request.memoryReference.c_str());
-            }
-
             const auto address = std::stoi(request.memoryReference, nullptr, 0);
 
             auto instrOffset = (int)request.instructionOffset.value(0);
@@ -935,6 +935,32 @@ void dap_register_session(dap::Session* session) {
 
             return response;
         });
+
+    // Reads bytes from memory at the provided location.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ReadMemory
+    session->registerHandler(
+        [&](const dap::ReadMemoryRequest& request) -> dap::ResponseOrError<dap::ReadMemoryResponse> {
+            dap::ReadMemoryResponse response;
+
+            auto address = std::stoi(request.memoryReference, nullptr, 0);
+            if (request.offset.has_value()) {
+                address += request.offset.value();
+            }
+
+            std::vector<uint8_t> data;
+            for (size_t i = 0; i < (uint32_t)request.count; ++i) {
+                size_t mem_addr = address + i;
+                if (mem_addr > 0xFFFFFF) break;
+                data.push_back(state.memory[mem_addr]);
+            }
+
+            response.data = base64_encode(data);
+            char buffer[64];
+            sprintf(buffer, "0x%06X", address & 0xFFFFFF);
+            response.address = buffer;
+
+            return response;
+        });
 }
 
 void dap_init(const dap_desc_t* desc) {
@@ -943,6 +969,7 @@ void dap_init(const dap_desc_t* desc) {
     state.stdio = desc->stdio;
     state.port = desc->port;
     state.funcs = desc->funcs;
+    state.memory = desc->memory;
     state.inited = true;
 
 #ifdef LOG_TO_FILE
@@ -1132,4 +1159,33 @@ void dap_process() {
             dap_dbg_add_breakpoint(address);
         }
     }
+}
+
+std::string base64_encode(const std::vector<uint8_t>& data) {
+    static const char base64_chars[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/";
+
+    std::string output;
+    int val = 0;
+    int valb = -6;
+    for (uint8_t c : data) {
+        val = (val << 8) | c;
+        valb += 8;
+        while (valb >= 0) {
+            output.push_back(base64_chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+
+    if (valb > -6) {
+        output.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+
+    while (output.size() % 4) {
+        output.push_back('=');
+    }
+
+    return output;
 }
