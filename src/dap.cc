@@ -354,8 +354,8 @@ enum CPURegisterByte { CPU_REG_BYTE_BOTH, CPU_REG_BYTE_LOW, CPU_REG_BYTE_HIGH };
 
 static dap::Variable evaluateCPURegister(uint8_t registerId, CPURegisterByte byte = CPU_REG_BYTE_BOTH) {
     assert(registerId < WEBAPI_CPUSTATE_MAX);
-    webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-    assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+    auto cpu_state = dap_dbg_cpu_state();
+    assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
     dap::VariablePresentationHint regHint;
     regHint.kind = "property";
@@ -367,9 +367,9 @@ static dap::Variable evaluateCPURegister(uint8_t registerId, CPURegisterByte byt
 
     char buffer[20];
     switch (byte) {
-        case CPU_REG_BYTE_BOTH: sprintf(buffer, "$%04X", cpu_state.items[registerId]); break;
-        case CPU_REG_BYTE_LOW: sprintf(buffer, "$%02X", cpu_state.items[registerId] & 0xFF); break;
-        case CPU_REG_BYTE_HIGH: sprintf(buffer, "$%02X", (cpu_state.items[registerId] >> 8) & 0xFF); break;
+        case CPU_REG_BYTE_BOTH: sprintf(buffer, "$%04X", cpu_state[registerId]); break;
+        case CPU_REG_BYTE_LOW: sprintf(buffer, "$%02X", cpu_state[registerId] & 0xFF); break;
+        case CPU_REG_BYTE_HIGH: sprintf(buffer, "$%02X", (cpu_state[registerId] >> 8) & 0xFF); break;
         default: assert(false);
     }
     regVar.value = buffer;
@@ -378,8 +378,8 @@ static dap::Variable evaluateCPURegister(uint8_t registerId, CPURegisterByte byt
 }
 
 static dap::Variable evaluateCPUFlag(uint8_t flagId) {
-    webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-    assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+    auto cpu_state = dap_dbg_cpu_state();
+    assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
     dap::VariablePresentationHint regHint;
     regHint.kind = "property";
@@ -389,7 +389,7 @@ static dap::Variable evaluateCPUFlag(uint8_t flagId) {
     regVar.presentationHint = regHint;
     regVar.variablesReference = 0;
 
-    regVar.value = (cpu_state.items[WEBAPI_CPUSTATE_65816_P] & flagId) ? '1' : '0';
+    regVar.value = (cpu_state[WEBAPI_CPUSTATE_65816_P] & flagId) ? '1' : '0';
     return regVar;
 }
 
@@ -460,11 +460,11 @@ static auto variableEvaluators = std::map<std::string, std::function<dap::Variab
           dap::Variable regVar = evaluateCPURegister(WEBAPI_CPUSTATE_65816_P, CPU_REG_BYTE_LOW);
           regVar.name = "P";
 
-          webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-          assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+          auto cpu_state = dap_dbg_cpu_state();
+          assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
-          const uint8_t f = cpu_state.items[WEBAPI_CPUSTATE_65816_P] & 0xFF;
-          bool emulation = cpu_state.items[WEBAPI_CPUSTATE_65816_E];
+          const uint8_t f = cpu_state[WEBAPI_CPUSTATE_65816_P] & 0xFF;
+          bool emulation = cpu_state[WEBAPI_CPUSTATE_65816_E];
           char f_str[9] = { (f & W65816_NF) ? 'N' : '-',
                             (f & W65816_VF) ? 'V' : '-',
                             emulation ? ((f & W65816_UF) ? '1' : '-') : ((f & W65816_MF) ? 'M' : '-'),
@@ -736,12 +736,12 @@ void dap_register_session(dap::Session* session) {
                 return dap::Error("Unknown threadId '%d'", int(request.threadId));
             }
 
-            webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-            assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+            auto cpu_state = dap_dbg_cpu_state();
+            assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
             dap::integer address = dap_event_stopped_addr >= 0
                 ? dap_event_stopped_addr
-                : (cpu_state.items[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state.items[WEBAPI_CPUSTATE_65816_PC];
+                : (cpu_state[WEBAPI_CPUSTATE_65816_PBR] << 16) | cpu_state[WEBAPI_CPUSTATE_65816_PC];
 
             char buffer[64];
             char* buf = buffer + sprintf(buffer, "%02lX %04lX", (address >> 16) & 0xFF, address & 0xFFFF);
@@ -808,14 +808,14 @@ void dap_register_session(dap::Session* session) {
                 break;
             }
             case registerPVariablesReferenceId: {
-                webapi_cpu_state_t cpu_state = state.funcs.dbg_cpu_state();
-                assert(cpu_state.items[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+                auto cpu_state = dap_dbg_cpu_state();
+                assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
 
                 response.variables.push_back(evaluateVariable("flag.C"));
                 response.variables.push_back(evaluateVariable("flag.Z"));
                 response.variables.push_back(evaluateVariable("flag.I"));
                 response.variables.push_back(evaluateVariable("flag.D"));
-                if (cpu_state.items[WEBAPI_CPUSTATE_65816_E]) {
+                if (cpu_state[WEBAPI_CPUSTATE_65816_E]) {
                     response.variables.push_back(evaluateVariable("flag.B"));
                 }
                 else {
