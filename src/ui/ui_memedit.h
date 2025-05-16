@@ -33,6 +33,7 @@
     ## zlib/libpng license
 
     Copyright (c) 2018 Andre Weissflog
+    Copyright (c) 2025 Tomasz Sterna
     This software is provided 'as-is', without any express or implied warranty.
     In no event will the authors be held liable for any damages arising from the
     use of this software.
@@ -64,8 +65,8 @@ typedef void MemoryEditor;
 #define UI_MEMEDIT_MAX_LAYERS (16)
 
 /* callbacks for reading and writing bytes */
-typedef uint8_t (*ui_memedit_read_t)(int layer, uint32_t addr, void* user_data);
-typedef void (*ui_memedit_write_t)(int layer, uint32_t addr, uint8_t data, void* user_data);
+typedef uint8_t (*ui_memedit_read_t)(int layer, int bank, uint16_t addr, void* user_data);
+typedef void (*ui_memedit_write_t)(int layer, int bank, uint16_t addr, uint8_t data, void* user_data);
 
 /* setup parameters for ui_memedit_init()
 
@@ -73,7 +74,9 @@ typedef void (*ui_memedit_write_t)(int layer, uint32_t addr, uint8_t data, void*
 */
 typedef struct {
     const char* title;  /* window title */
-    const char* layers[UI_MEMEDIT_MAX_LAYERS];   /* memory system layer names */
+    int banks;
+    const char* layers[UI_MEMEDIT_MAX_LAYERS];  /* memory system layer names */
+    int layer_banks[UI_MEMEDIT_MAX_LAYERS];     /* banks in layer */
     ui_memedit_read_t read_cb;
     ui_memedit_write_t write_cb;
     size_t max_addr;
@@ -238,6 +241,9 @@ struct MemoryEditor
     int NumLayers;
     int CurLayer;
     const char* Layers[UI_MEMEDIT_MAX_LAYERS];
+    int NumBanks;
+    int CurBank;
+    int LayerBanks[UI_MEMEDIT_MAX_LAYERS];
     bool OptShowAddrInput;      // = true
     /*--- END ui_memedit.h changes ---*/
 
@@ -316,6 +322,8 @@ struct MemoryEditor
 
         /*--- BEGIN ui_memedit.h changes ---*/
         OptShowAddrInput = true;
+        NumBanks = 0;
+        CurBank = 0;
         NumLayers = 0;
         CurLayer = 0;
         for (int i = 0; i < UI_MEMEDIT_MAX_LAYERS; i++) {
@@ -708,7 +716,9 @@ struct MemoryEditor
     {
         IM_UNUSED(mem_data);
         ImGuiStyle& style = ImGui::GetStyle();
-        const char* format_range = OptUpperCaseHex ? "Range %0*" _PRISizeT "X..%0*" _PRISizeT "X" : "Range %0*" _PRISizeT "x..%0*" _PRISizeT "x";
+        /*--- BEGIN ui_memedit.h changes ---*/
+        const char* format_range = OptUpperCaseHex ? "Range %02X:%0*" _PRISizeT "X..%0*" _PRISizeT "X" : "Range %02X:%0*" _PRISizeT "x..%0*" _PRISizeT "x";
+        /*--- END ui_memedit.h changes ---*/
 
         // Options menu
         if (ImGui::Button("Options"))
@@ -718,7 +728,19 @@ struct MemoryEditor
         if (OptShowAddrInput) {
         /*--- END ui_memedit.h changes ---*/
         ImGui::SameLine();
-        ImGui::Text(format_range, s.AddrDigitsCount, base_display_addr, s.AddrDigitsCount, base_display_addr + mem_size - 1);
+        ImGui::Text(format_range, CurBank, s.AddrDigitsCount, base_display_addr, s.AddrDigitsCount, base_display_addr + mem_size - 1);
+        /*--- BEGIN ui_memedit.h changes */
+        ImGui::SameLine();
+        ImGui::TextDisabled("|");
+        if (NumBanks > 1) {
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(2 * s.GlyphWidth + 2 * ImGui::GetFrameHeight() + style.FramePadding.x * 4.0f);
+            static const int step = 0x1, step_fast = 0x10;
+            ImGui::InputScalar(":", ImGuiDataType_U8, &CurBank, &step, &step_fast, "%02X", ImGuiInputTextFlags_CharsHexadecimal|ImGuiInputTextFlags_CharsUppercase);
+            if (CurBank < 0) CurBank = 0;
+            if (CurBank > NumBanks-1) CurBank = NumBanks-1;
+        }
+        /*--- END ui_memedit.h changes */
         ImGui::SameLine();
         ImGui::SetNextItemWidth((s.AddrDigitsCount + 1) * s.GlyphWidth + style.FramePadding.x * 2.0f);
         if (ImGui::InputText("##addr", AddrInputBuf, IM_ARRAYSIZE(AddrInputBuf), ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_EnterReturnsTrue))
@@ -739,6 +761,7 @@ struct MemoryEditor
             ImGui::SameLine();
             ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::Combo("##layer", &CurLayer, Layers, NumLayers);
+            NumBanks = LayerBanks[CurLayer];
             ImGui::PopItemWidth();
         }
         /*--- END ui_memedit.h changes */
@@ -1011,7 +1034,7 @@ static uint8_t _ui_memedit_readfn(const uint8_t* ptr, size_t off, void* user_dat
     const ui_memedit_t* win = (ui_memedit_t*) user_data;
     CHIPS_ASSERT(win && win->ed);
     if (win->read_cb) {
-        return win->read_cb(win->ed->CurLayer, (uint16_t)off, win->user_data);
+        return win->read_cb(win->ed->CurLayer, win->ed->CurBank, (uint16_t)off, win->user_data);
     }
     else {
         return 0;
@@ -1022,7 +1045,7 @@ static void _ui_memedit_writefn(uint8_t* ptr, size_t off, uint8_t val, void* use
     const ui_memedit_t* win = (ui_memedit_t*) user_data;
     CHIPS_ASSERT(win && win->ed);
     if (win->write_cb) {
-        win->write_cb(win->ed->CurLayer, (uint16_t)off, val, win->user_data);
+        win->write_cb(win->ed->CurLayer, win->ed->CurBank, (uint16_t)off, val, win->user_data);
     }
 }
 
@@ -1051,10 +1074,12 @@ void ui_memedit_init(ui_memedit_t* win, const ui_memedit_desc_t* desc) {
     win->ed->WriteFn = _ui_memedit_writefn;
     win->ed->UserData = win;
     win->ed->OptAddrDigitsCount = 4;
+    win->ed->NumBanks = desc->banks;
     for (int i = 0; i < UI_MEMEDIT_MAX_LAYERS; i++) {
         if (desc->layers[i]) {
             win->ed->NumLayers++;
             win->ed->Layers[i] = desc->layers[i];
+            win->ed->LayerBanks[i] = desc->layer_banks[i];
         }
         else {
             break;

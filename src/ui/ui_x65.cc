@@ -213,45 +213,47 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 }
 
 /* keep disassembler layer at the start */
-#define _UI_X65_MEMLAYER_CPU   (0) /* CPU visible mapping */
-#define _UI_X65_MEMLAYER_RAM00 (1) /* RAM blocks */
-#define _UI_X65_MEMLAYER_RAM01 (2) /* RAM blocks */
-#define _UI_X65_MEMLAYER_RAMFF (3) /* RAM blocks */
-#define _UI_X65_MEMLAYER_VRAM0 (4) /* CGIA VRAM bank 0 */
-#define _UI_X65_MEMLAYER_VRAM1 (5) /* CGIA VRAM bank 1 */
-#define _UI_X65_CODELAYER_NUM  (3) /* number of valid layers for disassembler */
-#define _UI_X65_MEMLAYER_NUM   (6)
+#define _UI_X65_MEMLAYER_CPU  (0) /* CPU visible mapping */
+#define _UI_X65_MEMLAYER_RAM  (1) /* RAM banks */
+#define _UI_X65_MEMLAYER_VRAM (2) /* CGIA VRAM banks */
+#define _UI_X65_MEMLAYER_NUM  (3)
+#define _UI_X65_CODELAYER_NUM (3) /* number of valid layers for disassembler */
 
 static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
-    "CPU Mapped", "RAM Bank 00", "RAM Bank 01", "RAM Bank FF", "VRAM0", "VRAM1",
+    "CPU Mapped",
+    "RAM Bank",
+    "VRAM Cache Bank",
+};
+static const int _ui_x65_memlayer_banks[_UI_X65_MEMLAYER_NUM] = {
+    256,
+    256,
+    2,
 };
 
-static uint8_t _ui_x65_mem_read(int layer, uint32_t addr, void* user_data) {
+static uint8_t _ui_x65_mem_read(int layer, int bank, uint16_t addr, void* user_data) {
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, (addr >> 16) & 0xFF, addr & 0xFFFF);
-        case _UI_X65_MEMLAYER_RAM00: return x65->ram[(0x00 << 16) + addr];
-        case _UI_X65_MEMLAYER_RAM01: return x65->ram[(0x01 << 16) + addr];
-        case _UI_X65_MEMLAYER_RAMFF: return x65->ram[(0xFF << 16) + addr];
-        case _UI_X65_MEMLAYER_VRAM0: return x65->cgia.vram[0][addr];
-        case _UI_X65_MEMLAYER_VRAM1: return x65->cgia.vram[1][addr];
+        case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, (uint8_t)bank, addr);
+        case _UI_X65_MEMLAYER_RAM: return x65->ram[((bank & 0xFF) << 16) | addr];
+        case _UI_X65_MEMLAYER_VRAM: return x65->cgia.vram[bank & 0x1][addr];
         default: return 0xFF;
     }
 }
 
-static void _ui_x65_mem_write(int layer, uint32_t addr, uint8_t data, void* user_data) {
+static uint8_t _ui_x65_mem_read32(int layer, uint32_t addr, void* user_data) {
+    return _ui_x65_mem_read(layer, (uint8_t)(addr >> 16), (uint16_t)addr, user_data);
+}
+
+static void _ui_x65_mem_write(int layer, int bank, uint16_t addr, uint8_t data, void* user_data) {
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
     x65_t* x65 = ui->x65;
     switch (layer) {
-        case _UI_X65_MEMLAYER_CPU: mem_wr(x65, (addr >> 16) & 0xFF, addr & 0xFFFF, data); break;
-        case _UI_X65_MEMLAYER_RAM00: x65->ram[(0x00 << 16) + addr] = data; break;
-        case _UI_X65_MEMLAYER_RAM01: x65->ram[(0x01 << 16) + addr] = data; break;
-        case _UI_X65_MEMLAYER_RAMFF: x65->ram[(0xFF << 16) + addr] = data; break;
-        case _UI_X65_MEMLAYER_VRAM0: x65->cgia.vram[0][addr] = data; break;
-        case _UI_X65_MEMLAYER_VRAM1: x65->cgia.vram[1][addr] = data; break;
+        case _UI_X65_MEMLAYER_CPU: mem_wr(x65, (uint8_t)bank, addr, data); break;
+        case _UI_X65_MEMLAYER_RAM: x65->ram[((bank & 0xFF) << 16) | addr] = data; break;
+        case _UI_X65_MEMLAYER_VRAM: x65->cgia.vram[bank & 0x1][addr] = data; break;
     }
 }
 
@@ -452,7 +454,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.freq_hz = X65_FREQUENCY;
         desc.scanline_ticks = ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
         desc.frame_ticks = MODE_V_TOTAL_LINES * ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
-        desc.read_cb = _ui_x65_mem_read;
+        desc.read_cb = _ui_x65_mem_read32;
         desc.break_cb = _ui_x65_eval_bp;
         desc.texture_cbs = ui_desc->dbg_texture;
         desc.debug_cbs = ui_desc->dbg_debug;
@@ -561,6 +563,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         ui_memedit_desc_t desc = { 0 };
         for (int i = 0; i < _UI_X65_MEMLAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
+            desc.layer_banks[i] = _ui_x65_memlayer_banks[i];
         }
         desc.read_cb = _ui_x65_mem_read;
         desc.write_cb = _ui_x65_mem_write;
@@ -588,7 +591,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
         desc.cpu = &ui->cpu;
         desc.start_addr = mem_rd16(ui->x65, 0, 0xFFFC);
-        desc.read_cb = _ui_x65_mem_read;
+        desc.read_cb = _ui_x65_mem_read32;
         desc.user_data = ui;
         desc.labels = ui_desc->labels;
         static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };
