@@ -420,7 +420,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     bool reset_lo_loaded = false;
     bool reset_hi_loaded = false;
 
-    bool load_bank = 0x00;
+    uint8_t load_bank = 0x00;
 
     // $FFFF is required in first block
     if (ptr[0] != 0xff || ptr[1] != 0xff) {
