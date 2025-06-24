@@ -178,9 +178,11 @@ bool ui_input(const sapp_event* event) {
 ui_texture_t ui_create_texture(int w, int h) {
     return simgui_imtextureid_with_sampler(
         sg_make_image({
+            .usage = {
+                .stream_update = true,
+            },
             .width = w,
             .height = h,
-            .usage = SG_USAGE_STREAM,
             .pixel_format = SG_PIXELFORMAT_RGBA8,
         }),
         state.nearest_sampler);
