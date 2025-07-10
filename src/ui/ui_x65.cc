@@ -242,10 +242,6 @@ static uint8_t _ui_x65_mem_read(int layer, int bank, uint16_t addr, void* user_d
     }
 }
 
-static uint8_t _ui_x65_mem_read32(int layer, uint32_t addr, void* user_data) {
-    return _ui_x65_mem_read(layer, (uint8_t)(addr >> 16), (uint16_t)addr, user_data);
-}
-
 static void _ui_x65_mem_write(int layer, int bank, uint16_t addr, uint8_t data, void* user_data) {
     CHIPS_ASSERT(user_data);
     ui_x65_t* ui = (ui_x65_t*)user_data;
@@ -454,7 +450,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.freq_hz = X65_FREQUENCY;
         desc.scanline_ticks = ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
         desc.frame_ticks = MODE_V_TOTAL_LINES * ui->x65->cgia.h_period / CGIA_FIXEDPOINT_SCALE;
-        desc.read_cb = _ui_x65_mem_read32;
+        desc.read_cb = _ui_x65_mem_read;
         desc.break_cb = _ui_x65_eval_bp;
         desc.texture_cbs = ui_desc->dbg_texture;
         desc.debug_cbs = ui_desc->dbg_debug;
@@ -587,14 +583,15 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         ui_dasm_desc_t desc = { 0 };
         for (int i = 0; i < _UI_X65_CODELAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
+            desc.layer_banks[i] = _ui_x65_memlayer_banks[i];
         }
         desc.cpu_type = UI_DASM_CPUTYPE_W65C816S;
         desc.cpu = &ui->cpu;
         desc.start_addr = mem_rd16(ui->x65, 0, 0xFFFC);
-        desc.read_cb = _ui_x65_mem_read32;
+        desc.read_cb = _ui_x65_mem_read;
         desc.user_data = ui;
         desc.labels = ui_desc->labels;
-        static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #2", "Dissassembler #3" };
+        static const char* titles[4] = { "Disassembler #1", "Disassembler #2", "Disassembler #3", "Disassembler #4" };
         for (int i = 0; i < 4; i++) {
             desc.title = titles[i];
             desc.x = x;

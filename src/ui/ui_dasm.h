@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 /* callback for reading a byte from memory */
-typedef uint8_t (*ui_dasm_read_t)(int layer, uint32_t addr, void* user_data);
+typedef uint8_t (*ui_dasm_read_t)(int layer, int bank, uint16_t addr, void* user_data);
 
 #define UI_DASM_MAX_LAYERS (16)
 #define UI_DASM_MAX_STRLEN (32)
@@ -85,10 +85,13 @@ typedef enum {
 */
 typedef struct {
     const char* title;  /* window title */
-    const char* layers[UI_DASM_MAX_LAYERS];   /* memory system layer names */
+    const char* layers[UI_DASM_MAX_LAYERS];     /* memory system layer names */
+    int layer_banks[UI_DASM_MAX_LAYERS];        /* banks in layer */
     ui_dasm_cputype_t cpu_type;     /* only needed when defining both UI_DASM_CPUTYPE_Z80 and _M6502 */
     void *cpu;
     uint16_t start_addr;
+    int num_banks;
+    int cur_bank;
     ui_dasm_read_t read_cb;
     void* user_data;
     void* labels;
@@ -105,6 +108,8 @@ typedef struct {
     int cur_layer;
     int num_layers;
     const char* layers[UI_DASM_MAX_LAYERS];
+    int layer_banks[UI_DASM_MAX_LAYERS];
+    int num_banks;
     void* user_data;
     float init_x, init_y;
     float init_w, init_h;
@@ -113,6 +118,7 @@ typedef struct {
     bool valid;
     uint16_t start_addr;
     uint16_t cur_addr;
+    int cur_bank;
     int str_pos;
     char str_buf[UI_DASM_MAX_STRLEN];
     int bin_pos;
@@ -177,6 +183,7 @@ void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
         if (desc->layers[i]) {
             win->num_layers++;
             win->layers[i] = desc->layers[i];
+            win->layer_banks[i] = desc->layer_banks[i];
         }
         else {
             break;
@@ -193,7 +200,7 @@ void ui_dasm_discard(ui_dasm_t* win) {
 /* disassembler callback to fetch the next instruction byte */
 static uint8_t _ui_dasm_in_cb(void* user_data) {
     ui_dasm_t* win = (ui_dasm_t*) user_data;
-    uint8_t val = win->read_cb(win->cur_layer, win->cur_addr++, win->user_data);
+    uint8_t val = win->read_cb(win->cur_layer, win->cur_bank, win->cur_addr++, win->user_data);
     if (win->bin_pos < UI_DASM_MAX_BINLEN) {
         win->bin_buf[win->bin_pos++] = val;
     }
@@ -233,7 +240,7 @@ static void _ui_dasm_disasm(ui_dasm_t* win) {
 }
 
 /* check if the current Z80 or m6502 instruction contains a jump target */
-static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr) {
+static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr, uint8_t* out_bank) {
     if (win->cpu_type == UI_DASM_CPUTYPE_Z80) {
         if (win->bin_pos == 3) {
             switch (win->bin_buf[0]) {
@@ -287,12 +294,25 @@ static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr)
                 case 0x20: case 0x4C:
                     *out_addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
                     return true;
+                /* JSL/JMP abs long */
+                case 0x22: case 0x5C:
+                    *out_addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
+                    *out_bank = win->bin_buf[3];
+                    return true;
                 /* JMP ind */
                 case 0x6C:
                     addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
-                    l = win->read_cb(win->cur_layer, addr++, win->user_data);
-                    h = win->read_cb(win->cur_layer, addr++, win->user_data);
+                    l = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
+                    h = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
                     *out_addr = (h<<8) | l;
+                    return true;
+                /* JML ind */
+                case 0xDC:
+                    addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
+                    l = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
+                    h = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
+                    *out_addr = (h<<8) | l;
+                    *out_bank = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
                     return true;
             }
         }
@@ -319,8 +339,8 @@ static bool _ui_dasm_jumptarget(ui_dasm_t* win, uint16_t pc, uint16_t* out_addr)
                 /* JMP ind */
                 case 0x6C:
                     addr = (win->bin_buf[2] << 8) | win->bin_buf[1];
-                    l = win->read_cb(win->cur_layer, addr++, win->user_data);
-                    h = win->read_cb(win->cur_layer, addr++, win->user_data);
+                    l = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
+                    h = win->read_cb(win->cur_layer, win->cur_bank, addr++, win->user_data);
                     *out_addr = (h<<8) | l;
                     return true;
             }
@@ -380,8 +400,6 @@ static const char* _ui_dasm_get_label(ui_dasm_t* win, uint32_t addr) {
 
 /* draw the address entry field and layer combo */
 static void _ui_dasm_draw_controls(ui_dasm_t* win) {
-    win->start_addr = ui_util_input_u16("##addr", win->start_addr);
-    ImGui::SameLine();
     uint32_t addr = 0;
     if (ImGui::ArrowButton("##back", ImGuiDir_Left)) {
         if (_ui_dasm_stack_back(win, &addr)) {
@@ -392,9 +410,20 @@ static void _ui_dasm_draw_controls(ui_dasm_t* win) {
         ImGui::SetTooltip("Goto %04X", win->stack[win->stack_pos]);
     }
     ImGui::SameLine();
+    if (win->num_banks > 1) {
+        ImGuiStyle& style = ImGui::GetStyle();
+        ImGui::SetNextItemWidth(2 * ImGui::CalcTextSize("F").x + 1 + 2 * ImGui::GetFrameHeight() + style.FramePadding.x * 4.0f);
+        static const int step = 0x1, step_fast = 0x10;
+        ImGui::InputScalar(":", ImGuiDataType_U8, &win->cur_bank, &step, &step_fast, "%02X", ImGuiInputTextFlags_CharsHexadecimal|ImGuiInputTextFlags_CharsUppercase);
+        if (win->cur_bank < 0) win->cur_bank = 0;
+        if (win->cur_bank >= win->num_banks) win->cur_bank = win->num_banks-1;
+        ImGui::SameLine();
+    }
+    win->start_addr = ui_util_input_u16("##addr", win->start_addr);
     ImGui::SameLine();
     ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::Combo("##layer", &win->cur_layer, win->layers, win->num_layers);
+    win->num_banks = win->layer_banks[win->cur_layer];
     ImGui::PopItemWidth();
 }
 
@@ -421,7 +450,7 @@ static void _ui_dasm_draw_disasm(ui_dasm_t* win) {
 
     /* visible items */
     for (int line_i = clipper.DisplayStart; line_i < clipper.DisplayEnd; line_i++) {
-        const uint16_t op_addr = win->cur_addr;
+        const uint32_t op_addr = (win->cur_bank << 16) | win->cur_addr;
         _ui_dasm_disasm(win);
         const int num_bytes = win->bin_pos;
 
@@ -433,7 +462,7 @@ static void _ui_dasm_draw_disasm(ui_dasm_t* win) {
         }
 
         /* address */
-        ImGui::Text("%04X: ", op_addr);
+        ImGui::Text("%04X: ", op_addr & 0xFFFF);
         ImGui::SameLine();
 
         /* instruction bytes */
@@ -453,7 +482,8 @@ static void _ui_dasm_draw_disasm(ui_dasm_t* win) {
 
         /* check for jump instruction and draw an arrow  */
         uint16_t jump_addr = 0;
-        if (_ui_dasm_jumptarget(win, win->cur_addr, &jump_addr)) {
+        uint8_t jump_bank = win->cur_bank;
+        if (_ui_dasm_jumptarget(win, win->cur_addr, &jump_addr, &jump_bank)) {
             ImGui::SameLine(line_start_x + cell_width*4 + glyph_width*2 + glyph_width*20);
             ImGui::PushID(line_i);
             if (ImGui::ArrowButton("##btn", ImGuiDir_Right)) {
@@ -462,8 +492,8 @@ static void _ui_dasm_draw_disasm(ui_dasm_t* win) {
                 _ui_dasm_stack_push(win, op_addr);
             }
             if (ImGui::IsItemHovered()) {
-                const char* label = _ui_dasm_get_label(win, jump_addr);
-                ImGui::SetTooltip(label ? "Goto %04X %s" : "Goto %04X", jump_addr, label);
+                const char* label = _ui_dasm_get_label(win, (jump_bank << 16) | jump_addr);
+                ImGui::SetTooltip(label ? "Goto %02X:%04X %s" : "Goto %02X:%04X", jump_bank, jump_addr, label);
                 win->highlight_addr = jump_addr;
             }
             ImGui::PopID();

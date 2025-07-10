@@ -142,7 +142,7 @@ typedef struct ui_dbg_user_breaktype_t {
 /* forward decl */
 struct ui_dbg_t;
 /* callback for reading a byte from memory */
-typedef uint8_t (*ui_dbg_read_t)(int layer, uint32_t addr, void* user_data);
+typedef uint8_t (*ui_dbg_read_t)(int layer, int bank, uint16_t addr, void* user_data);
 /* callback for evaluating uer breakpoints, return breakpoint index, or -1 */
 typedef int (*ui_dbg_user_break_t)(struct ui_dbg_t* win, int trap_id, uint64_t pins, void* user_data);
 /* a callback to create a dynamic-update RGBA8 UI texture, needs to return an ImTextureID handle */
@@ -421,12 +421,12 @@ static inline const char* _ui_dbg_str_or_def(const char* str, const char* def) {
 }
 
 static inline uint8_t _ui_dbg_read_byte(ui_dbg_t* win, uint32_t addr) {
-    return win->read_cb(win->read_layer, addr, win->user_data);
+    return win->read_cb(win->read_layer, addr>>16, addr & 0xFFFF, win->user_data);
 }
 
 static inline uint16_t _ui_dbg_read_word(ui_dbg_t* win, uint32_t addr) {
-    uint8_t l = win->read_cb(win->read_layer, addr, win->user_data);
-    uint8_t h = win->read_cb(win->read_layer, addr+1, win->user_data);
+    uint8_t l = win->read_cb(win->read_layer, addr>>16, addr & 0xFFFF, win->user_data);
+    uint8_t h = win->read_cb(win->read_layer, addr>>16, (addr+1) & 0xFFFF, win->user_data);
     return (uint16_t) (h<<8)|l;
 }
 

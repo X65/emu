@@ -738,7 +738,7 @@ struct MemoryEditor
             static const int step = 0x1, step_fast = 0x10;
             ImGui::InputScalar(":", ImGuiDataType_U8, &CurBank, &step, &step_fast, "%02X", ImGuiInputTextFlags_CharsHexadecimal|ImGuiInputTextFlags_CharsUppercase);
             if (CurBank < 0) CurBank = 0;
-            if (CurBank > NumBanks-1) CurBank = NumBanks-1;
+            if (CurBank >= NumBanks) CurBank = NumBanks-1;
         }
         /*--- END ui_memedit.h changes */
         ImGui::SameLine();
