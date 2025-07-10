@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
             memset(dasm_buffer, 0, sizeof(dasm_buffer));
             w65816dasm_op(
                 (uint16_t)addr,
-                w65816_p(&cpu) | (w65816_e(&cpu) ? 0x30 : 0),
+                w65816_p(&cpu) | (w65816_e(&cpu) ? W65816_UF : 0),
                 dasm_in_cb,
                 dasm_out_cb,
                 &dasm_context);

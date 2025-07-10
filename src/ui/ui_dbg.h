@@ -462,7 +462,7 @@ static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint32_t addr) {
     #elif defined(UI_DBG_USE_M6502)
         m6502dasm_op(addr, _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
     #elif defined(UI_DBG_USE_W65C816S)
-        w65816dasm_op(addr, w65816_p(win->dbg.w65816) | (w65816_e(win->dbg.w65816) ? 0x30 : 0), _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
+        w65816dasm_op(addr, w65816_p(win->dbg.w65816) | (w65816_e(win->dbg.w65816) ? W65816_UF : 0), _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
     #endif
     uint16_t next_addr = win->dasm_line.addr;
     win->dasm_line.addr = addr;

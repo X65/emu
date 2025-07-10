@@ -79,6 +79,12 @@ typedef enum {
     UI_DASM_CPUTYPE_W65C816S = 2,
 } ui_dasm_cputype_t;
 
+typedef enum {
+    UI_DASM_REG_WIDTH_AUTO = 0,
+    UI_DASM_REG_WIDTH_8BIT = 1,
+    UI_DASM_REG_WIDTH_16BIT = 2,
+} ui_dasm_reg_width_t;
+
 /* setup parameters for ui_dasm_init()
 
     NOTE: all strings must be static!
@@ -119,6 +125,8 @@ typedef struct {
     uint16_t start_addr;
     uint16_t cur_addr;
     int cur_bank;
+    ui_dasm_reg_width_t acc_width;
+    ui_dasm_reg_width_t idx_width;
     int str_pos;
     char str_buf[UI_DASM_MAX_STRLEN];
     int bin_pos;
@@ -161,6 +169,50 @@ void* ui_dasm_load_labels(ui_dasm_t* win, const char* file, void* labels, bool c
 #include <string>
 #include <sstream>
 #include <map>
+
+#include "imgui_internal.h"
+
+void _reg_width_toggle(const char* str_id, ui_dasm_reg_width_t* val, ui_dasm_reg_width_t base_val) {
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    float height = ImGui::GetFrameHeight();
+    float width = height * 1.55f;
+    float radius = height * 0.50f;
+
+    ImGui::InvisibleButton(str_id, ImVec2(width, height));
+    if (ImGui::IsItemClicked()) {
+        if (*val == UI_DASM_REG_WIDTH_AUTO)
+            *val = base_val == UI_DASM_REG_WIDTH_8BIT ? UI_DASM_REG_WIDTH_16BIT : UI_DASM_REG_WIDTH_8BIT;
+        else
+            *val = UI_DASM_REG_WIDTH_AUTO;
+    }
+
+    ui_dasm_reg_width_t disp_val = *val == UI_DASM_REG_WIDTH_AUTO ? base_val : *val;
+    float t = disp_val == UI_DASM_REG_WIDTH_16BIT ? 1.0f : 0.0f;
+
+    ImGuiContext& g = *GImGui;
+    float ANIM_SPEED = 0.08f;
+    if (g.LastActiveId == g.CurrentWindow->GetID(str_id)) {
+        float t_anim = ImSaturate(g.LastActiveIdTimer / ANIM_SPEED);
+        t = disp_val == UI_DASM_REG_WIDTH_16BIT ? (t_anim) : (1.0f - t_anim);
+    }
+
+    ImU32 col_bg;
+    if (ImGui::IsItemHovered())
+        col_bg = ImGui::GetColorU32(
+            *val == UI_DASM_REG_WIDTH_AUTO ? g.Style.Colors[ImGuiCol_FrameBgHovered]
+                                           : g.Style.Colors[ImGuiCol_ButtonHovered]);
+    else
+        col_bg = ImGui::GetColorU32(
+            *val == UI_DASM_REG_WIDTH_AUTO ? g.Style.Colors[ImGuiCol_FrameBg] : g.Style.Colors[ImGuiCol_ButtonActive]);
+
+    draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), col_bg, height * 0.5f);
+    draw_list->AddCircleFilled(
+        ImVec2(p.x + radius + t * (width - radius * 2.0f), p.y + radius),
+        radius - g.Style.FramePadding.y * 1.5f,
+        ImGui::GetColorU32(g.Style.Colors[ImGuiCol_Text]));
+}
 
 void ui_dasm_init(ui_dasm_t* win, const ui_dasm_desc_t* desc) {
     CHIPS_ASSERT(win && desc);
@@ -216,6 +268,21 @@ static void _ui_dasm_out_cb(char c, void* user_data) {
     }
 }
 
+#if defined(UI_DASM_USE_W65C816S)
+static uint8_t _ui_dasm_w65c816s_p(ui_dasm_t* win) {
+    uint8_t p = w65816_p((w65816_t*)win->cpu);
+    if (w65816_e((w65816_t*)win->cpu))
+        p |= W65816_UF;
+    else {
+        if (win->acc_width == UI_DASM_REG_WIDTH_8BIT) p |= W65816_MF;
+        if (win->acc_width == UI_DASM_REG_WIDTH_16BIT) p &= ~W65816_MF;
+        if (win->idx_width == UI_DASM_REG_WIDTH_8BIT) p |= W65816_XF;
+        if (win->idx_width == UI_DASM_REG_WIDTH_16BIT) p &= ~W65816_XF;
+    }
+    return p;
+}
+#endif
+
 /* disassemble the next instruction */
 static void _ui_dasm_disasm(ui_dasm_t* win) {
     win->str_pos = 0;
@@ -225,7 +292,7 @@ static void _ui_dasm_disasm(ui_dasm_t* win) {
         z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     else if (win->cpu_type == UI_DASM_CPUTYPE_W65C816S) {
-        w65816dasm_op(win->cur_addr, w65816_p((w65816_t*)win->cpu) | (w65816_e((w65816_t*)win->cpu) ? 0x30 : 0), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+        w65816dasm_op(win->cur_addr, _ui_dasm_w65c816s_p(win), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     }
     else {
         m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
@@ -233,7 +300,7 @@ static void _ui_dasm_disasm(ui_dasm_t* win) {
     #elif defined(UI_DASM_USE_Z80)
     z80dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #elif defined(UI_DASM_USE_W65C816S)
-    w65816dasm_op(win->cur_addr, w65816_p((w65816_t*)win->cpu) | (w65816_e((w65816_t*)win->cpu) ? 0x30 : 0), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
+    w65816dasm_op(win->cur_addr, _ui_dasm_w65c816s_p(win), _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #else
     m6502dasm_op(win->cur_addr, _ui_dasm_in_cb, _ui_dasm_out_cb, win);
     #endif
@@ -400,6 +467,7 @@ static const char* _ui_dasm_get_label(ui_dasm_t* win, uint32_t addr) {
 
 /* draw the address entry field and layer combo */
 static void _ui_dasm_draw_controls(ui_dasm_t* win) {
+    const float glyph_width = ImGui::CalcTextSize("F").x + 1;
     uint32_t addr = 0;
     if (ImGui::ArrowButton("##back", ImGuiDir_Left)) {
         if (_ui_dasm_stack_back(win, &addr)) {
@@ -412,19 +480,43 @@ static void _ui_dasm_draw_controls(ui_dasm_t* win) {
     ImGui::SameLine();
     if (win->num_banks > 1) {
         ImGuiStyle& style = ImGui::GetStyle();
-        ImGui::SetNextItemWidth(2 * ImGui::CalcTextSize("F").x + 1 + 2 * ImGui::GetFrameHeight() + style.FramePadding.x * 4.0f);
+        ImGui::SetNextItemWidth(2 * glyph_width + 2 * ImGui::GetFrameHeight() + style.FramePadding.x * 4.0f);
         static const int step = 0x1, step_fast = 0x10;
         ImGui::InputScalar(":", ImGuiDataType_U8, &win->cur_bank, &step, &step_fast, "%02X", ImGuiInputTextFlags_CharsHexadecimal|ImGuiInputTextFlags_CharsUppercase);
         if (win->cur_bank < 0) win->cur_bank = 0;
-        if (win->cur_bank >= win->num_banks) win->cur_bank = win->num_banks-1;
+        if (win->cur_bank >= win->num_banks) win->cur_bank = win->num_banks - 1;
         ImGui::SameLine();
     }
     win->start_addr = ui_util_input_u16("##addr", win->start_addr);
     ImGui::SameLine();
-    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+    float combo_width = ImGui::GetContentRegionAvail().x;
+#if defined(UI_DASM_USE_W65C816S)
+    combo_width -= glyph_width * 24;
+#endif
+    if (combo_width < 100.0f) combo_width = 100.0f;
+    ImGui::PushItemWidth(combo_width);
     ImGui::Combo("##layer", &win->cur_layer, win->layers, win->num_layers);
     win->num_banks = win->layer_banks[win->cur_layer];
     ImGui::PopItemWidth();
+#if defined(UI_DASM_USE_W65C816S)
+    const uint8_t p = w65816_p((w65816_t*)win->cpu);
+    ImGui::SameLine();
+    ImGui::Text("A8");
+    ImGui::SameLine();
+    ui_dasm_reg_width_t acc_width = p & W65816_MF ? UI_DASM_REG_WIDTH_8BIT : UI_DASM_REG_WIDTH_16BIT;
+    _reg_width_toggle("##acc_width", &win->acc_width, acc_width);
+    ImGui::SameLine();
+    ImGui::Text("A16");
+    ImGui::SameLine();
+    ImGui::TextDisabled("|");
+    ImGui::SameLine();
+    ImGui::Text("I8");
+    ImGui::SameLine();
+    ui_dasm_reg_width_t idx_width = p & W65816_XF ? UI_DASM_REG_WIDTH_8BIT : UI_DASM_REG_WIDTH_16BIT;
+    _reg_width_toggle("##idx_width", &win->idx_width, idx_width);
+    ImGui::SameLine();
+    ImGui::Text("I16");
+#endif
 }
 
 /* draw the disassembly column */
