@@ -300,18 +300,18 @@ def enc_addr(op, addr_mode, mem_access):
     elif addr_mode == A_DIL:
         # [d]
         op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->AD=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD)&0xFF):c->D+c->AD);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+2)&0xFF):c->D+c->AD+2);c->AD|=_GD()<<8;')
+        op.t('c->DO=_GD();_SA(c->PC++);')
+        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->DO=_GD();_SA(_E(c)?((c->AD)&0xFF):c->D+c->DO);')
+        op.t('_VDA(0);_SA(_E(c)?((c->DO+1)&0xFF):c->D+c->DO+1);c->AD=_GD();')
+        op.t('_VDA(0);_SA(_E(c)?((c->DO+2)&0xFF):c->D+c->DO+2);c->AD|=_GD()<<8;')
         op.t('_VDA(_GD());_SA(c->AD);')
     elif addr_mode == A_DLY:
         # [d],y
         op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->AD=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD)&0xFF):c->D+c->AD);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+2)&0xFF):c->D+c->AD+2);c->AD|=_GD()<<8;')
+        op.t('c->DO=_GD();_SA(c->PC++);')
+        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->DO=_GD();_SA(_E(c)?((c->DO)&0xFF):c->D+c->DO);')
+        op.t('_VDA(0);_SA(_E(c)?((c->DO+1)&0xFF):c->D+c->DO+1);c->AD=_GD();')
+        op.t('_VDA(0);_SA(_E(c)?((c->DO+2)&0xFF):c->D+c->DO+2);c->AD|=_GD()<<8;')
         op.t('_VDA(_GD());_SA(c->AD+_Y(c));')
     elif addr_mode == A_STR:
         # d,s
