@@ -38,7 +38,7 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
        and the frequency of how the tick function is called must be
        communicated to the init function
     */
-    int64_t tmp = ((int64_t)MODE_H_TOTAL_PIXELS * desc->tick_hz * CGIA_FIXEDPOINT_SCALE) / (MODE_BIT_CLK_KHZ * 1000);
+    int64_t tmp = ((int64_t)desc->tick_hz * CGIA_FIXEDPOINT_SCALE) / (MODE_V_FREQ_HZ * MODE_V_TOTAL_LINES);
     vpu->h_period = (int)tmp;
 
     vpu->hwcolors = cgia_rgb_palette;
