@@ -95,7 +95,7 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             }
         }
         else {
-            vpu->regs[CGIA_REG_RASTER] = 0;
+            vpu->chip[CGIA_REG_RASTER] = 0;
         }
     }
 
@@ -774,7 +774,7 @@ void cgia_mem_wr(cgia_t* vpu, uint32_t addr, uint8_t data) {
 }
 
 static void _copy_internal_regs(cgia_t* vpu) {
-    vpu->regs = (uint8_t*)&CGIA;
+    vpu->chip = (uint8_t*)&CGIA;
     for (int i = 0; i < CGIA_PLANES; ++i) {
         vpu->internal[i].memory_scan = plane_int[i].memory_scan;
         vpu->internal[i].colour_scan = plane_int[i].colour_scan;

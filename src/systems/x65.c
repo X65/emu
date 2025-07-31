@@ -269,7 +269,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
             return 0xFF;
         }
         else if (addr >= 0xFF00) {
-            return sys->cgia.regs[addr & 0x7F];
+            return cgia_reg_read((uint8_t)addr);
         }
     }
     return sys->ram[(bank << 16) | addr];
@@ -285,7 +285,7 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
             return;
         }
         else if (addr >= 0xFF00) {
-            sys->cgia.regs[addr & 0x7F] = data;
+            cgia_reg_write((uint8_t)addr, data);
             return;
         }
     }

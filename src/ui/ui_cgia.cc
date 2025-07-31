@@ -73,7 +73,7 @@ static void _ui_cgia_draw_rgb(const char* label, uint32_t val) {
 
 static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
     if (ImGui::CollapsingHeader("Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+        const fwcgia_t* chip = (fwcgia_t*)win->cgia->chip;
         ui_util_b8("mode  : ", chip->mode);
         ui_util_b8("planes: ", chip->planes);
 
@@ -118,7 +118,7 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
         ImGui::Text("V Counter:   %4d", win->cgia->v_count);
         ImGui::Text("V Period:    %4d", MODE_V_TOTAL_LINES - 1);
         ImGui::Text("Scan Line:   %4d", win->cgia->scan_line);
-        const fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+        const fwcgia_t* chip = (fwcgia_t*)win->cgia->chip;
         ImGui::Text("Raster Line: %4d", chip->raster);
     }
 }
@@ -192,7 +192,7 @@ static void _ui_cgia_decode_BG_flags(uint8_t flags) {
 }
 
 static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
-    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->chip;
     ImGui::Text(
         "MS:%04x CS:%04x BS:%04x CG:%04x",
         win->cgia->internal[p].memory_scan,
@@ -250,7 +250,7 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
 }
 
 static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
-    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->chip;
     if (win->cgia->internal[p].sprites_need_update) {
         ImGui::SameLine();
         ImGui::Text(" Need update");
@@ -310,7 +310,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
 }
 
 static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
-    fwcgia_t* chip = (fwcgia_t*)win->cgia->regs;
+    fwcgia_t* chip = (fwcgia_t*)win->cgia->chip;
     for (int i = 0; i < CGIA_PLANES; i++) {
         ImGui::PushID(i);
         bool plane_active = chip->planes & (1u << i);
@@ -351,8 +351,8 @@ static void _ui_cgia_draw_beepers(const ui_cgia_t* win) {
             ImGui::Text("  Duty:    %.1f%% (%02x)", (float)cgia->pwm[i].duty * 100.0 / 255.0, cgia->pwm[i].duty);
             ImGui::Text(
                 "  Freq:    %4dHz",
-                (uint16_t)((uint16_t)(cgia->regs[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
-                           | ((uint16_t)(cgia->regs[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
+                (uint16_t)((uint16_t)(cgia->chip[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
+                           | ((uint16_t)(cgia->chip[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
         }
     }
 }

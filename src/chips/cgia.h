@@ -193,8 +193,8 @@ typedef struct {
 
     uint scan_line;  // currently rendered physical scan line
 
-    // CGIA registers
-    uint8_t* regs;
+    // CGIA internal registers
+    uint8_t* chip;
 
     // copy of CGIA internal registers
     struct cgia_internal {
@@ -249,6 +249,10 @@ void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
 void cgia_mem_wr(cgia_t* vpu, uint32_t addr, uint8_t data);
 // copy VRAM - after fastload
 void cgia_mirror_vram(cgia_t* vpu);
+// read CGIA register value
+uint8_t cgia_reg_read(uint8_t reg_no);
+// write CGIA register
+void cgia_reg_write(uint8_t reg_no, uint8_t value);
 
 #ifdef __cplusplus
 }  // extern "C"
