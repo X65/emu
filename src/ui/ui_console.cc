@@ -94,7 +94,7 @@ void ui_console_draw(ui_console_t* win) {
         // TODO: display items starting from the bottom
 
         if (ImGui::SmallButton("Clear")) {
-            term_state_clear(&term_96);
+            term_out_RIS(&term_96);
         }
         ImGui::SameLine();
         bool copy_to_clipboard = ImGui::SmallButton("Copy");
@@ -103,7 +103,7 @@ void ui_console_draw(ui_console_t* win) {
 
         if (ImGui::BeginChild("ScrollingRegion", ImVec2(), 0, ImGuiWindowFlags_HorizontalScrollbar)) {
             if (ImGui::BeginPopupContextWindow()) {
-                if (ImGui::Selectable("Clear")) term_state_clear(&term_96);
+                if (ImGui::Selectable("Clear")) term_out_RIS(&term_96);
                 ImGui::EndPopup();
             }
 
