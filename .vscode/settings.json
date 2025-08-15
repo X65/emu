@@ -7,5 +7,6 @@
   "cmake.launchBehavior": "breakAndReuseTerminal",
   "cmake.parallelJobs": 0,
   "cmake.parseBuildDiagnostics": true,
-  "cmake.saveBeforeBuild": true
+  "cmake.saveBeforeBuild": true,
+  "sonarlint.pathToCompileCommands": "${workspaceFolder}/build/compile_commands.json"
 }
