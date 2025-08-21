@@ -340,23 +340,6 @@ static void _ui_cgia_draw_planes(const ui_cgia_t* win) {
     }
 }
 
-static void _ui_cgia_draw_beepers(const ui_cgia_t* win) {
-    if (ImGui::CollapsingHeader("PWM audio")) {
-        const cgia_t* cgia = win->cgia;
-
-        for (int i = 0; i < 2; ++i) {
-            ImGui::Text("PWM%d:", i);
-            ImGui::Text("  Period:  %4d", cgia->pwm[i].period);
-            ImGui::Text("  Counter: %4d", cgia->pwm[i].counter);
-            ImGui::Text("  Duty:    %.1f%% (%02x)", (float)cgia->pwm[i].duty * 100.0 / 255.0, cgia->pwm[i].duty);
-            ImGui::Text(
-                "  Freq:    %4dHz",
-                (uint16_t)((uint16_t)(cgia->chip[i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ])
-                           | ((uint16_t)(cgia->chip[(i ? CGIA_REG_PWM_1_FREQ : CGIA_REG_PWM_0_FREQ) + 1]) << 8)));
-        }
-    }
-}
-
 void ui_cgia_draw(ui_cgia_t* win) {
     CHIPS_ASSERT(win && win->valid);
     ui_util_handle_window_open_dirty(&win->open, &win->last_open);
@@ -375,7 +358,6 @@ void ui_cgia_draw(ui_cgia_t* win) {
         _ui_cgia_draw_registers(win);
         _ui_cgia_draw_raster_unit(win);
         _ui_cgia_draw_planes(win);
-        _ui_cgia_draw_beepers(win);
         ImGui::EndChild();
     }
     ImGui::End();

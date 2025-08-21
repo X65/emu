@@ -5,6 +5,8 @@
 #include "firmware/src/ria/cgia/cgia.h"
 #undef cgia_init
 
+#include "firmware/src/ria/main.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,7 +21,7 @@
 
 // used to access regs from firmware render function which expects global symbol
 static cgia_t* CGIA_vpu;
-static uint8_t vram_cache[2][256 * 256];
+static bool NMI_flag = false;
 
 static void _copy_internal_regs(cgia_t* vpu);
 
@@ -27,7 +29,7 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CHIPS_ASSERT(vpu && desc);
     CHIPS_ASSERT(desc->framebuffer.ptr && (desc->framebuffer.size == CGIA_FRAMEBUFFER_SIZE_BYTES));
     CHIPS_ASSERT(desc->fetch_cb);
-    CHIPS_ASSERT((desc->tick_hz > 0) && (desc->tick_hz < (MODE_BIT_CLK_KHZ * 1000)));
+    CHIPS_ASSERT((desc->tick_hz > 0) && (desc->tick_hz < MODE_BIT_CLK_HZ));
 
     memset(vpu, 0, sizeof(*vpu));
     vpu->fb = desc->framebuffer.ptr;
@@ -50,17 +52,12 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
 
     fwcgia_init();
     _copy_internal_regs(vpu);
-
-    pwm_init(&vpu->pwm[0], desc->tick_hz);
-    pwm_init(&vpu->pwm[1], desc->tick_hz);
 }
 
 void cgia_reset(cgia_t* vpu) {
     CHIPS_ASSERT(vpu);
     vpu->h_count = 0;
     vpu->v_count = 0;
-    pwm_reset(&vpu->pwm[0]);
-    pwm_reset(&vpu->pwm[1]);
 }
 
 static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
@@ -122,17 +119,7 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
 
     _copy_internal_regs(vpu);
 
-    pwm_tick(&vpu->pwm[0]);
-    pwm_tick(&vpu->pwm[1]);
-    pins &= ~(CGIA_PWM0 | CGIA_PWM0);
-    if (pwm_get_state(&vpu->pwm[0])) {
-        pins |= CGIA_PWM0;
-    }
-    if (pwm_get_state(&vpu->pwm[1])) {
-        pins |= CGIA_PWM1;
-    }
-
-    if (cgia_reg_read(CGIA_REG_INT_STATUS)) {
+    if (NMI_flag) {
         pins |= CGIA_INT;
     }
 
@@ -152,6 +139,12 @@ void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* vpu) {
     snapshot->fetch_cb = vpu->fetch_cb;
     snapshot->user_data = vpu->user_data;
     snapshot->fb = vpu->fb;
+}
+
+static inline void gpio_put(uint gpio, bool value) {
+    switch (gpio) {
+        case RIA_NMIB_PIN: NMI_flag = !value;  // on Emu side NMI is active HIGH
+    }
 }
 
 // ---- now comes rendering parts directly from RP816 firmware ----
@@ -736,16 +729,6 @@ void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_da
             ++line_data;
         }
     }
-}
-
-void aud_pwm_set_channel(size_t channel, uint16_t freq, uint8_t duty) {
-    assert(CGIA_vpu);
-    pwm_set_freq(&CGIA_vpu->pwm[channel], freq);
-    pwm_set_duty(&CGIA_vpu->pwm[channel], duty);
-}
-void aud_pwm_set_channel_duty(size_t channel, uint8_t duty) {
-    assert(CGIA_vpu);
-    pwm_set_duty(&CGIA_vpu->pwm[channel], duty);
 }
 
 #define cgia_init fwcgia_init

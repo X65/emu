@@ -410,26 +410,24 @@ static const ui_chip_pin_t _ui_x65_ymf262_pins[] = {
 };
 
 static const ui_chip_pin_t _ui_x65_cgia_pins[] = {
-    { "D0",   0,  CGIA_D0   },
-    { "D1",   1,  CGIA_D1   },
-    { "D2",   2,  CGIA_D2   },
-    { "D3",   3,  CGIA_D3   },
-    { "D4",   4,  CGIA_D4   },
-    { "D5",   5,  CGIA_D5   },
-    { "D6",   6,  CGIA_D6   },
-    { "D7",   7,  CGIA_D7   },
-    { "PWM0", 9,  CGIA_PWM0 },
-    { "PWM1", 10, CGIA_PWM1 },
-    { "A0",   11, CGIA_A0   },
-    { "A1",   12, CGIA_A1   },
-    { "A2",   13, CGIA_A2   },
-    { "A3",   14, CGIA_A3   },
-    { "A4",   15, CGIA_A4   },
-    { "A5",   16, CGIA_A5   },
-    { "A6",   18, CGIA_A6   },
-    { "CS",   19, CGIA_CS   },
-    { "RW",   20, CGIA_RW   },
-    { "INT",  21, CGIA_INT  },
+    { "D0",  0,  CGIA_D0  },
+    { "D1",  1,  CGIA_D1  },
+    { "D2",  2,  CGIA_D2  },
+    { "D3",  3,  CGIA_D3  },
+    { "D4",  4,  CGIA_D4  },
+    { "D5",  5,  CGIA_D5  },
+    { "D6",  6,  CGIA_D6  },
+    { "D7",  7,  CGIA_D7  },
+    { "INT", 9,  CGIA_INT },
+    { "A0",  10, CGIA_A0  },
+    { "A1",  11, CGIA_A1  },
+    { "A2",  12, CGIA_A2  },
+    { "A3",  13, CGIA_A3  },
+    { "A4",  14, CGIA_A4  },
+    { "A5",  15, CGIA_A5  },
+    { "A6",  16, CGIA_A6  },
+    { "CS",  18, CGIA_CS  },
+    { "RW",  19, CGIA_RW  },
 };
 
 void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
@@ -528,7 +526,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.cgia = &ui->x65->cgia;
         desc.x = x;
         desc.y = y;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "CGIA", 22, _ui_x65_cgia_pins);
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "CGIA", 20, _ui_x65_cgia_pins);
         ui_cgia_init(&ui->cgia, &desc);
     }
     x += dx;

@@ -203,12 +203,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    // tick the audio beepers
-    beeper_set(&sys->beeper[0], pwm_get_state(&sys->cgia.pwm[0]));
-    beeper_tick(&sys->beeper[0]);
-    beeper_set(&sys->beeper[1], pwm_get_state(&sys->cgia.pwm[1]));
-    beeper_tick(&sys->beeper[1]);
-
     // tick the FM chip
     {
         opl3_pins = ymf262_tick(&sys->opl3, opl3_pins);

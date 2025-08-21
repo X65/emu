@@ -13,6 +13,9 @@ static inline absolute_time_t get_absolute_time(void) {
     uint64_t us = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
     return us;
 }
+static absolute_time_t make_timeout_time_us(uint64_t us) {
+    return get_absolute_time() + us;
+}
 static inline int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to) {
     return (int64_t)(to - from);
 }

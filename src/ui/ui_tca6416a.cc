@@ -67,7 +67,7 @@
 void ui_tca6416a_init(ui_tca6416a_t* win, const ui_tca6416a_desc_t* desc) {
     CHIPS_ASSERT(win && desc);
     CHIPS_ASSERT(desc->title);
-    CHIPS_ASSERT(desc->cia);
+    CHIPS_ASSERT(desc->gpio);
     memset(win, 0, sizeof(ui_tca6416a_t));
     win->title = desc->title;
     win->gpio = desc->gpio;

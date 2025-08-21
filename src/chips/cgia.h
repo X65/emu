@@ -121,8 +121,6 @@ extern "C" {
 #define CGIA_RW      (1ULL << CGIA_PIN_RW)
 #define CGIA_CS      (1ULL << CGIA_PIN_CS)
 #define CGIA_INT     (1ULL << CGIA_PIN_INT)
-#define CGIA_PWM0    (1ULL << CGIA_PIN_PWM0)
-#define CGIA_PWM1    (1ULL << CGIA_PIN_PWM1)
 
 // helper macros to set and extract address and data to/from pin mask
 
@@ -230,9 +228,6 @@ typedef struct {
     uint8_t* vram[2];
     // rasterizer linebuffer
     uint32_t linebuffer[CGIA_LINEBUFFER_WIDTH];
-
-    // audio output
-    pwm_t pwm[2];
 } cgia_t;
 
 // initialize a new cgia_t instance
