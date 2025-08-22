@@ -25,7 +25,7 @@ jobs:
       # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
         os: [ubuntu-latest, windows-latest, ubuntu-24.04-arm]
-        build_type: [Release]
+        build_type: [Release, Debug]
         c_compiler: [gcc, clang]
         include:
           - bin: emu
@@ -91,6 +91,7 @@ jobs:
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
+        if: matrix.build_type == 'Release'
         with:
           name: emu_${{ steps.strings.outputs.os }}_${{ steps.strings.outputs.arch }}_${{ matrix.c_compiler }}
           path: ${{ steps.strings.outputs.build-output-dir }}/${{ matrix.bin }}
