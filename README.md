@@ -34,6 +34,13 @@ Ubuntu:
 
 Build using CMake and a modern C/C++ compiler.
 
+> [!TIP]
+> This repository uses submodules.
+> You need to do `git submodule update --init --recursive` after cloning
+> or clone recursively:
+
+    > git clone --recursive https://github.com/X65/emu.git
+
 ### WASM
 
 Install [Emscripten][3] toolchain. Next, run the following commands:
