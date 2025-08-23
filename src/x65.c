@@ -160,6 +160,7 @@ void app_init(void) {
             joy_type = X65_JOYSTICKTYPE_DIGITAL_12;
         }
     }
+
     x65_desc_t desc = x65_desc(joy_type);
     x65_init(&state.x65, &desc);
     gfx_init(&(gfx_desc_t){
@@ -277,6 +278,14 @@ void app_init(void) {
     if (!delay_input) {
         if (sargs_exists("input")) {
             keybuf_put(sargs_value("input"));
+        }
+    }
+    if (sargs_exists("break")) {
+        int opcode;
+        if (sscanf(sargs_value("break"),"%x",&opcode) == 1) {
+            ui_dbg_control_opcode_break(&state.ui.dbg,true,opcode);
+        } else {
+            fprintf(stderr,"Bad breakpoint opcode %s\n",sargs_value("break"));
         }
     }
 }

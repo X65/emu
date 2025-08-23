@@ -36,7 +36,6 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 'o': args->output_file = arg; break;
         case 'd': args->dap = 1; break;
         case 'p': args->dap_port = arg; break;
-
         case 'l': app_load_labels(arg, false); break;
 
         case ARGP_KEY_ARG:

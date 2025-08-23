@@ -235,6 +235,8 @@ typedef struct ui_dbg_state_t {
     int delete_breakpoint_index;
     int num_breakpoints;
     ui_dbg_breakpoint_t breakpoints[UI_DBG_MAX_BREAKPOINTS];
+    bool opcodeDebugEnabled;    // True when opcode debug is enabled.
+    uint8_t opcodeDebugByte;    // Opcode debug value.
 } ui_dbg_state_t;
 
 /* a displayed line */
@@ -398,6 +400,8 @@ void ui_dbg_step_next(ui_dbg_t* win);
 void ui_dbg_step_into(ui_dbg_t* win);
 // request a disassembly at start address
 void ui_dbg_disassemble(ui_dbg_t* win, const ui_dbg_dasm_request_t* request);
+// enable opcode debugging
+void ui_dbg_control_opcode_break(ui_dbg_t* win,bool enable,uint8_t byteValue);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -718,6 +722,11 @@ static void _ui_dbg_dbgstate_reset(ui_dbg_t* win) {
     dbg->step_mode = UI_DBG_STEPMODE_NONE;
     dbg->cur_op_pc = 0;
     dbg->last_trap_id = 0;
+}
+
+void ui_dbg_control_opcode_break(ui_dbg_t *dbg,bool enable,uint8_t byteValue) {
+    dbg->dbg.opcodeDebugEnabled = enable;
+    dbg->dbg.opcodeDebugByte = byteValue;
 }
 
 static void _ui_dbg_dbgstate_reboot(ui_dbg_t* win) {
@@ -2151,6 +2160,13 @@ void ui_dbg_tick(ui_dbg_t* win, uint64_t pins) {
         _ui_dbg_history_push(win, pc);
         win->dbg.cur_op_ticks = 0;
         win->dbg.cur_op_pc = pc;
+
+        if (win->dbg.opcodeDebugEnabled) {
+            if (_ui_dbg_read_byte(win, win->dbg.cur_op_pc) == win->dbg.opcodeDebugByte) {
+                win->dbg.stopped = true;
+            }
+        }
+
     }
     if (win->dbg.step_mode == UI_DBG_STEPMODE_NONE) {
         trap_id = _ui_dbg_eval_tick_breakpoints(win, trap_id, pins);

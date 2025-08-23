@@ -32,7 +32,7 @@ Ubuntu:
 
 [![CMake on multiple platforms](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml)
 
-Build using CMake and a modern C/C++ compiler.
+Build using CMake and a modern C/C++ compiler. 
 
 > [!TIP]
 > This repository uses submodules.
@@ -64,3 +64,9 @@ Linux
 Windows
 
     > build/emu.exe file=roms/SOTB.xex
+
+### Opcode Breakpoints
+
+The emulator supports opcode based breakpoints, if an specified opcode is executed, the emulator will stop. Possible breakpoint values are EA (NOP) 42 (WDM #xx) and B8 (CLV).
+
+    > build/emu.exe file=roms/SOTB.xex break=EA
