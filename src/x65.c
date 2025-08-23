@@ -279,6 +279,14 @@ void app_init(void) {
             keybuf_put(sargs_value("input"));
         }
     }
+    if (sargs_exists("break")) {
+        int opcode;
+        if (sscanf(sargs_value("break"),"%x",&opcode) == 1) {
+            ui_dbg_control_opcode_break(&state.ui.dbg,true,opcode);
+        } else {
+            fprintf(stderr,"Bad breakpoint opcode %s\n",sargs_value("break"));
+        }
+    }
 }
 
 static void handle_file_loading(void);

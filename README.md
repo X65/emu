@@ -64,3 +64,9 @@ Linux
 Windows
 
     > build/emu.exe file=roms/SOTB.xex
+
+### Opcode Breakpoints
+
+The emulator supports opcode based breakpoints, if an specified opcode is executed, the emulator will stop. Possible breakpoint values are EA (NOP) 42 (WDM #xx) and B8 (CLV).
+
+    > build/emu.exe file=roms/SOTB.xex break=EA
