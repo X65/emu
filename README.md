@@ -12,9 +12,6 @@ Emu is based on [chip emulators][2] by Andre Weissflog.
 > A complete emulated computer then more or less just wires those chip emulators
 > together just like on a breadboard.
 
-This emulator started as a hard fork of C64 emulator example
-and it shows in places - it is still a work-in-progress.
-
 [1]: https://x65.zone/
 [2]: https://github.com/floooh/chips
 
