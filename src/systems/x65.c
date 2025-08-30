@@ -11,6 +11,9 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
+// declare function to sync RAM writes to CGIA L1 cache
+void cgia_ram_write(uint32_t addr, uint8_t data);
+
 static uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data);
 static void _x65_api_call(uint8_t data, void* user_data);
 
@@ -241,13 +244,11 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     if (mem_access) {
         if (pins & W65816_RW) {
             // memory read
-            W65816_SET_DATA(pins, sys->ram[addr]);
+            W65816_SET_DATA(pins, mem_ram_read(sys, addr));
         }
         else {
             // memory write
-            uint8_t data = W65816_GET_DATA(pins);
-            sys->ram[addr] = data;
-            cgia_mem_wr(&sys->cgia, addr, data);
+            mem_ram_write(sys, addr, W65816_GET_DATA(pins));
         }
     }
     return pins;
@@ -283,9 +284,17 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
             return;
         }
     }
-    const uint32_t full_addr = (bank << 16) | addr;
-    sys->ram[full_addr] = data;
-    cgia_mem_wr(&sys->cgia, full_addr, data);
+    // else
+    mem_ram_write(sys, (bank << 16) | addr, data);
+}
+
+void mem_ram_write(x65_t* sys, uint32_t addr, uint8_t data) {
+    sys->ram[addr] = data;
+    cgia_ram_write(addr, data);
+}
+
+uint8_t mem_ram_read(x65_t* sys, uint32_t addr) {
+    return sys->ram[addr];
 }
 
 uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
@@ -299,15 +308,15 @@ void _x65_api_call(uint8_t data, void* user_data) {
         case 0x10: {  // RIA_API_GET_CHARGEN
             uint8_t value;
             if (!rb_get(&sys->ria.api_stack, &value)) break;
-            uint16_t mem_addr = (uint16_t)value;
+            uint32_t mem_addr = (uint32_t)value;
             if (!rb_get(&sys->ria.api_stack, &value)) break;
-            mem_addr |= (uint16_t)value << 8;
-            uint8_t bank;
-            if (!rb_get(&sys->ria.api_stack, &bank)) break;
+            mem_addr |= (uint32_t)value << 8;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint32_t)value << 16;
 
             // copy chargen to memory
             for (size_t i = 0; i < sizeof(font8_data); ++i)
-                mem_wr(sys, bank, mem_addr++, font8_data[i]);
+                mem_ram_write(sys, mem_addr++, font8_data[i]);
             break;
         }
         case 0xFF:  // STOP CPU
@@ -452,7 +461,31 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
             while (addr <= end_addr && addr >= start_addr) {
                 if (addr == 0xfffc) reset_lo_loaded = true;
                 if (addr == 0xfffd) reset_hi_loaded = true;
-                mem_wr(sys, load_bank, addr++, *ptr++);
+                switch (addr) {
+                    case 0xffff:
+                    case 0xfffe:
+                    case 0xfffd:
+                    case 0xfffc:
+                    case 0xfffb:
+                    case 0xfffa:
+                    case 0xfff9:
+                    case 0xfff8:
+                    case 0xfff5:
+                    case 0xfff4:
+                    case 0xffef:
+                    case 0xffee:
+                    case 0xffeb:
+                    case 0xffea:
+                    case 0xffe9:
+                    case 0xffe8:
+                    case 0xffe7:
+                    case 0xffe6:
+                    case 0xffe5:
+                    case 0xffe4:  // sync interrupt vectors
+                        mem_wr(sys, load_bank, addr, *ptr);
+                }
+
+                mem_ram_write(sys, (load_bank << 16) | addr++, *ptr++);
             }
         }
     }

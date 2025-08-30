@@ -191,9 +191,13 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst);
 bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src);
 
 // ---- memory access functions ----------------------------------------------
-/* read a byte at 16-bit address */
+/* write a byte to (PS)RAM, mirroring to CGIA L1 cache */
+void mem_ram_write(x65_t* sys, uint32_t addr, uint8_t data);
+/* read a byte from (PS)RAM */
+uint8_t mem_ram_read(x65_t* sys, uint32_t addr);
+/* read a byte like a CPU */
 uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr);
-/* write a byte to 16-bit address */
+/* write a byte like a CPU */
 void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data);
 /* helper method to write a 16-bit value, does 2 mem_wr() */
 static inline void mem_wr16(x65_t* sys, uint8_t bank, uint16_t addr, uint16_t data) {
