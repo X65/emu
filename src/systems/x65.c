@@ -302,30 +302,6 @@ uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
     return sys->ram[addr & 0xFFFFFF];
 }
 
-void _x65_api_call(uint8_t data, void* user_data) {
-    x65_t* sys = (x65_t*)user_data;
-    switch (data) {
-        case 0x10: {  // RIA_API_GET_CHARGEN
-            uint8_t value;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            uint32_t mem_addr = (uint32_t)value;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            mem_addr |= (uint32_t)value << 8;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            mem_addr |= (uint32_t)value << 16;
-
-            // copy chargen to memory
-            for (size_t i = 0; i < sizeof(font8_data); ++i)
-                mem_ram_write(sys, mem_addr++, font8_data[i]);
-            break;
-        }
-        case 0xFF:  // STOP CPU
-            sys->running = false;
-            break;
-        default: fprintf(stderr, "Unhandled RIA API call: %02x\n", data);
-    }
-}
-
 uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
     CHIPS_ASSERT(sys && sys->valid);
     uint32_t num_ticks = clk_us_to_ticks(X65_FREQUENCY, micro_seconds);
@@ -461,31 +437,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
             while (addr <= end_addr && addr >= start_addr) {
                 if (addr == 0xfffc) reset_lo_loaded = true;
                 if (addr == 0xfffd) reset_hi_loaded = true;
-                switch (addr) {
-                    case 0xffff:
-                    case 0xfffe:
-                    case 0xfffd:
-                    case 0xfffc:
-                    case 0xfffb:
-                    case 0xfffa:
-                    case 0xfff9:
-                    case 0xfff8:
-                    case 0xfff5:
-                    case 0xfff4:
-                    case 0xffef:
-                    case 0xffee:
-                    case 0xffeb:
-                    case 0xffea:
-                    case 0xffe9:
-                    case 0xffe8:
-                    case 0xffe7:
-                    case 0xffe6:
-                    case 0xffe5:
-                    case 0xffe4:  // sync interrupt vectors
-                        mem_wr(sys, load_bank, addr, *ptr);
-                }
-
-                mem_ram_write(sys, (load_bank << 16) | addr++, *ptr++);
+                mem_wr(sys, load_bank, addr++, *ptr++);
             }
         }
     }
@@ -546,4 +498,44 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     ymf262_snapshot_onload(&im.opl3, &sys->opl3);
     *sys = im;
     return true;
+}
+
+#include "firmware/src/ria/api/api.h"
+
+volatile uint8_t __regs[0x40];
+uint8_t xstack[XSTACK_SIZE + 1];
+size_t volatile xstack_ptr;
+
+void _x65_api_call(uint8_t data, void* user_data) {
+    x65_t* sys = (x65_t*)user_data;
+
+    // sync RIA regs
+    memcpy(__regs, sys->ria.reg, sizeof(__regs));
+
+    switch (data) {
+        case API_OP_ZXSTACK: {
+            api_zxstack();
+        } break;
+        case API_OP_OEM_GET_CHARGEN: {
+            // FIXME: use mem.h defined 512 bytes xstack
+            uint8_t value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            uint32_t mem_addr = (uint32_t)value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint32_t)value << 8;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint32_t)value << 16;
+
+            // copy chargen to memory
+            for (size_t i = 0; i < sizeof(font8_data); ++i)
+                mem_ram_write(sys, mem_addr++, font8_data[i]);
+        } break;
+        case API_OP_HALT:  // STOP CPU
+            sys->running = false;
+            break;
+        default: fprintf(stderr, "Unhandled RIA API call: %02x\n", data);
+    }
+
+    // sync RIA regs back
+    memcpy(sys->ria.reg, __regs, sizeof(__regs));
 }
