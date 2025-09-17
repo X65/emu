@@ -284,7 +284,7 @@ extern "C" {
 #define W65816_DF    (1<<3)  /* Decimal mode */
 #define W65816_BF    (1<<4)  /* BRK command (Emulation) */
 #define W65816_XF    (1<<4)  /* Index Register Select (Native) */
-#define W65816_UF    (1<<5)  /* Unused (Emulated) */
+#define W65816_UF    (1<<5)  /* Unused (Emulation) */
 #define W65816_MF    (1<<5)  /* Memory Select (Native) */
 #define W65816_VF    (1<<6)  /* Overflow */
 #define W65816_NF    (1<<7)  /* Negative */
