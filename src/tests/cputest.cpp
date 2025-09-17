@@ -418,7 +418,7 @@ TEST_CASE("16 bit arithmetic carries") {
         0x80,  // sbc #$9000  ; CC
         0x81,  // sec
         0x81,  // lda #$8000
-        0x01,  // sbc #$4000  ; CS
+        0x41,  // sbc #$4000  ; CS
     };
 
     size_t code_ptr = 0;
@@ -431,7 +431,7 @@ TEST_CASE("16 bit arithmetic carries") {
         }
 
         pins = w65816_tick(&cpu, pins);
-        printf("%zu: %016lx %02x\n", code_ptr - 1, pins, cpu.P);
+        // printf("%zu: %016lx %02x\n", code_ptr - 1, pins, cpu.P);
 
         if ((pins & W65816_VPA) && (pins & W65816_VDA)) {
             // if this is a next instruction fetch, check status register
@@ -443,7 +443,7 @@ TEST_CASE("16 bit arithmetic carries") {
                 (cpu.P & W65816_ZF) ? 'Z' : '-',   (cpu.P & W65816_CF) ? 'C' : '-', '\0'
             };
             CAPTURE(p_str);
-            printf(" >> %s / %zd\n", p_str, inst_ptr);
+            // printf(" >> %s / %zd : %04X\n", p_str, inst_ptr, cpu.C);
             CHECK(cpu.P == flags[inst_ptr++]);
         }
     }

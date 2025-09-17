@@ -520,7 +520,7 @@ static inline void _w65816_adc16(w65816_t* cpu, uint16_t val) {
     }
     else {
         /* default mode */
-        uint16_t sum = _C(cpu) + val + (cpu->P & W65816_CF ? 1:0);
+        uint32_t sum = _C(cpu) + val + (cpu->P & W65816_CF ? 1:0);
         cpu->P &= ~(W65816_VF|W65816_CF);
         cpu->P = _W65816_NZ16(cpu->P,sum);
         if (~(_C(cpu)^val) & (_C(cpu)^sum) & 0x8000) {
@@ -565,7 +565,7 @@ static inline void _w65816_sbc(w65816_t* cpu, uint8_t val) {
         /* default mode */
         uint16_t diff = _A(cpu) - val - (cpu->P & W65816_CF ? 0 : 1);
         cpu->P &= ~(W65816_VF|W65816_CF);
-        cpu->P = _W65816_NZ(cpu->P, (uint8_t)diff);
+        cpu->P = _W65816_NZ(cpu->P, diff);
         if ((_A(cpu)^val) & (_A(cpu)^diff) & 0x80) {
             cpu->P |= W65816_VF;
         }
@@ -581,7 +581,7 @@ static inline void _w65816_sbc16(w65816_t* cpu, uint16_t val) {
         /* decimal mode (credit goes to MAME) */
         uint8_t c = cpu->P & W65816_CF ? 0 : 1;
         cpu->P &= ~(W65816_NF|W65816_VF|W65816_ZF|W65816_CF);
-        uint16_t diff = _C(cpu) - val - c;
+        uint32_t diff = _C(cpu) - val - c;
         uint8_t al = (_A(cpu) & 0x0F) - (val & 0x0F) - c;
         if ((int8_t)al < 0) {
             al -= 6;
@@ -614,9 +614,9 @@ static inline void _w65816_sbc16(w65816_t* cpu, uint16_t val) {
     }
     else {
         /* default mode */
-        uint16_t diff = _C(cpu) - val - (cpu->P & W65816_CF ? 0 : 1);
+        uint32_t diff = _C(cpu) - val - (cpu->P & W65816_CF ? 0 : 1);
         cpu->P &= ~(W65816_VF|W65816_CF);
-        cpu->P = _W65816_NZ16(cpu->P, (uint8_t)diff);
+        cpu->P = _W65816_NZ16(cpu->P, diff);
         if ((_C(cpu)^val) & (_C(cpu)^diff) & 0x8000) {
             cpu->P |= W65816_VF;
         }
