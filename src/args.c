@@ -11,7 +11,9 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 #define FULL_NAME "X65 microcomputer emulator"
 const char full_name[] = FULL_NAME;
 
-struct arguments arguments = { NULL, 0, 0, "-" };
+struct arguments arguments = {
+    NULL, 0, 0, "-", false, false, NULL,
+};
 static char args_doc[] = "[ROM.xex]";
 
 #ifdef USE_ARGP
@@ -21,6 +23,7 @@ static struct argp_option options[] = {
     { "silent", 's', 0, OPTION_ALIAS },
     { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
     { "labels", 'l', "LABELS_FILE", 0, "Load VICE compatible global labels file" },
+    { "joy", 'j', 0, 0, "Enable Joystick 0 emulation" },
     { "dap", 'd', 0, 0, "Enable Debug Adapter Protocol over stdin/stdout" },
     { "dap-port", 'p', "PORT", 0, "Enable Debug Adapter Protocol over TCP port" },
     { 0 }
@@ -34,6 +37,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 's': args->silent = 1; break;
         case 'v': args->verbose = 1; break;
         case 'o': args->output_file = arg; break;
+        case 'j': args->joy = 1; break;
         case 'd': args->dap = 1; break;
         case 'p': args->dap_port = arg; break;
 

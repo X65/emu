@@ -13,6 +13,7 @@ extern struct arguments {
     const char* rom;
     int silent, verbose;
     const char* output_file;
+    bool joy;
     bool dap;
     const char* dap_port;
 } arguments;
