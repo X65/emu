@@ -148,7 +148,7 @@ void app_init(void) {
     saudio_setup(&(saudio_desc){
         .logger.func = slog_func,
     });
-    x65_joystick_type_t joy_type = X65_JOYSTICKTYPE_NONE;
+    x65_joystick_type_t joy_type = arguments.joy ? X65_JOYSTICKTYPE_DIGITAL_1 : X65_JOYSTICKTYPE_NONE;
     if (sargs_exists("joystick")) {
         if (sargs_equals("joystick", "digital_1")) {
             joy_type = X65_JOYSTICKTYPE_DIGITAL_1;
@@ -281,10 +281,11 @@ void app_init(void) {
     }
     if (sargs_exists("break")) {
         int opcode;
-        if (sscanf(sargs_value("break"),"%x",&opcode) == 1) {
-            ui_dbg_control_opcode_break(&state.ui.dbg,true,opcode);
-        } else {
-            fprintf(stderr,"Bad breakpoint opcode %s\n",sargs_value("break"));
+        if (sscanf(sargs_value("break"), "%x", &opcode) == 1) {
+            ui_dbg_control_opcode_break(&state.ui.dbg, true, opcode);
+        }
+        else {
+            fprintf(stderr, "Bad breakpoint opcode %s\n", sargs_value("break"));
         }
     }
 }
