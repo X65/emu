@@ -57,7 +57,10 @@ static struct {
 // write all DAP communications to the given path.
 //
 // #define LOG_TO_FILE "<path-to-log-file>"
-#define LOG_TO_FILE "dap.log"
+// #define LOG_TO_FILE "dap.log"
+
+#undef LOG_INFO
+#define LOG_INFO(...) {};
 
 std::shared_ptr<dap::Writer> log;
 
