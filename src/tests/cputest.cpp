@@ -473,15 +473,16 @@ TEST_CASE("JSL instruction correctly sets PBR and PC") {
     cpu.PBR = 0x00;
     cpu.S = 0x01FF;  // Stack pointer
 
-    size_t code_ptr = 0;
     int cycle = 0;
 
-    // Run for 8 cycles (JSL takes 8 cycles)
+    // Run for 8 cycles (JSL takes 8 cycles according to W65C816S datasheet)
     while (cycle < 8) {
         if (pins & W65816_RW) {
             // memory read
-            uint32_t addr = W65816_GET_ADDR(pins);
-            uint8_t bank = (pins >> 32) & 0xFF;
+            // Get the full 24-bit address (bank:address)
+            uint32_t full_addr = W65816_GET_ADDR(pins);
+            uint8_t bank = (full_addr >> 16) & 0xFF;
+            uint16_t addr = full_addr & 0xFFFF;
             
             // Read from our test memory
             if (bank == 0 && addr < sizeof(memory)) {
