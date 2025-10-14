@@ -448,3 +448,58 @@ TEST_CASE("16 bit arithmetic carries") {
         }
     }
 }
+
+TEST_CASE("JSL instruction correctly sets PBR and PC") {
+    w65816_t cpu;
+    w65816_desc_t desc = {};
+    uint64_t pins = w65816_init(&cpu, &desc);
+
+    // skip RESET
+    pins &= ~(W65816_RW | W65816_RES);
+    cpu.PINS = pins;
+
+    // Test code: JSL $123456
+    // This tests that the middle byte ($34) is not lost
+    uint8_t asm_code[] = {
+        0x22, 0x56, 0x34, 0x12,  // JSL $123456
+    };
+
+    // Memory for storing the code
+    uint8_t memory[0x10000] = {0};
+    memcpy(memory, asm_code, sizeof(asm_code));
+
+    // Set initial PC to 0x0000, PBR to 0x00
+    cpu.PC = 0x0000;
+    cpu.PBR = 0x00;
+    cpu.S = 0x01FF;  // Stack pointer
+
+    size_t code_ptr = 0;
+    int cycle = 0;
+
+    // Run for 8 cycles (JSL takes 8 cycles)
+    while (cycle < 8) {
+        if (pins & W65816_RW) {
+            // memory read
+            uint32_t addr = W65816_GET_ADDR(pins);
+            uint8_t bank = (pins >> 32) & 0xFF;
+            
+            // Read from our test memory
+            if (bank == 0 && addr < sizeof(memory)) {
+                W65816_SET_DATA(pins, memory[addr]);
+            } else {
+                W65816_SET_DATA(pins, 0xEA);  // NOP
+            }
+        }
+
+        pins = w65816_tick(&cpu, pins);
+        cycle++;
+    }
+
+    // After JSL $123456, we expect:
+    // - PBR = 0x12
+    // - PC = 0x3456
+    CAPTURE(cpu.PBR);
+    CAPTURE(cpu.PC);
+    CHECK(cpu.PBR == 0x12);
+    CHECK(cpu.PC == 0x3456);
+}
