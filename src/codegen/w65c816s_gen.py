@@ -731,11 +731,11 @@ def i_jsrx(o):
 def i_jsl(o):
     cmt(o,'JSL')
     # write Program Bank Register to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)),c->PBR);_WR();')
+    o.to('_VDA(0);c->AD=(_GD()<<8)|c->AD;_SAD(_SP(_S(c)),c->PBR);_WR();')
     # put SP on addr bus, next cycle is a junk read
-    o.t('_SA(_SP(_S(c)--));c->AD=(_GD()<<8)|c->AD;')
+    o.t('_SA(_SP(_S(c)--));')
     # read bank of target address
-    o.t('_VPA();_SA(c->PC++);')
+    o.t('_VPA();_SA(c->PC);')
     # write PC high byte to stack
     o.t('_VDA(0);c->PBR=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack

@@ -448,3 +448,70 @@ TEST_CASE("16 bit arithmetic carries") {
         }
     }
 }
+
+TEST_CASE("JSL jumps long") {
+    w65816_t cpu;
+    w65816_desc_t desc = {};
+    uint64_t pins = w65816_init(&cpu, &desc);
+
+    // skip RESET
+    pins &= ~(W65816_RW | W65816_RES);
+    cpu.PINS = pins;
+
+    // Test code: JSL $123456
+    uint8_t memory[] = {
+        0x22,
+        0x56,
+        0x34,
+        0x12,
+    };
+
+    // Set initial PC to 0x0000, PBR to 0x00
+    cpu.PC = 0x0000;
+    cpu.PBR = 0x00;
+    cpu.S = 0x01FF;  // Stack pointer
+    // CPU reads first instruction
+    pins |= W65816_RW | W65816_VPA | W65816_VDA;
+
+    std::vector<uint8_t> stack;
+
+    int cycle = 0;
+
+    // Run for 8 cycles (JSL takes 8 cycles according to W65C816S datasheet)
+    while (cycle < 8) {
+        if (pins & W65816_RW) {
+            // memory read
+            uint32_t full_addr = W65816_GET_ADDR(pins);
+            uint8_t bank = (full_addr >> 16) & 0xFF;
+            uint16_t addr = full_addr & 0xFFFF;
+
+            if (bank == 0 && addr < sizeof(memory)) {
+                W65816_SET_DATA(pins, memory[addr]);
+            }
+            else {
+                W65816_SET_DATA(pins, 0xEA);  // NOP
+            }
+        }
+        else {
+            // writes push to the stack
+            stack.push_back((pins >> 16) & 0xFF);
+        }
+
+        pins = w65816_tick(&cpu, pins);
+        cycle++;
+    }
+
+    CAPTURE(stack.size());
+    CAPTURE(cpu.PBR);
+    CAPTURE(cpu.PC);
+    // After JSL $123456, we expect:
+    // - PBR = 0x12
+    // - PC = 0x3456
+    CHECK(cpu.PBR == 0x12);
+    CHECK(cpu.PC == 0x3456);
+    // and the return address (0x000003) is pushed to the stack
+    REQUIRE(stack.size() == 3);
+    CHECK(stack[0] == 0x00);  // PBR
+    CHECK(stack[1] == 0x00);  // PCH
+    CHECK(stack[2] == 0x03);  // PCL
+}
