@@ -473,7 +473,7 @@ TEST_CASE("JSL jumps long") {
     // CPU reads first instruction
     pins |= W65816_RW | W65816_VPA | W65816_VDA;
 
-    static std::vector<uint8_t> stack;
+    std::vector<uint8_t> stack;
 
     int cycle = 0;
 
