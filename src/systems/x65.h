@@ -110,6 +110,8 @@ typedef enum {
 #define X65_IO_TIMERS_BASE (0xFF88)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
+#define X65_RAM_SIZE_BYTES (1 << 24)  // 16 MBytes of RAM
+
 // config parameters for x65_init()
 typedef struct {
     x65_joystick_type_t joystick_type;  // default is X65_JOYSTICK_NONE
@@ -145,7 +147,7 @@ typedef struct {
         float sample_buffer[X65_MAX_AUDIO_SAMPLES];
     } audio;
 
-    uint8_t ram[1 << 24];  // 16 MBytes of general RAM
+    alignas(64) uint8_t ram[X65_RAM_SIZE_BYTES];
     alignas(64) uint32_t fb[CGIA_FRAMEBUFFER_SIZE_BYTES / 4];
 } x65_t;
 
