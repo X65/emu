@@ -183,7 +183,10 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         TCA6416A_SET_P01(gpio_pins, p0, p1);
         gpio_pins = tca6416a_tick(&sys->gpio, gpio_pins);
         if (gpio_pins & TCA6416A_INT) {
-            ria_pins |= RIA816_INT1;
+            sys->ria.int_status |= X65_INT_GPIO;
+        }
+        else {
+            sys->ria.int_status &= ~X65_INT_GPIO;
         }
         if ((gpio_pins & (TCA6416A_CS | TCA6416A_RW)) == (TCA6416A_CS | TCA6416A_RW)) {
             pins = W65816_COPY_DATA(pins, gpio_pins);
@@ -196,6 +199,12 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         ria_pins = ria816_tick(&sys->ria, ria_pins);
         if ((ria_pins & (RIA816_CS | RIA816_RW)) == (RIA816_CS | RIA816_RW)) {
             pins = W65816_COPY_DATA(pins, ria_pins);
+        }
+        if (ria_pins & RIA816_IRQ) {
+            sys->ria.int_status |= X65_INT_RIA;
+        }
+        else {
+            sys->ria.int_status &= ~X65_INT_RIA;
         }
     }
 
@@ -234,13 +243,12 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    /* Merge interrupts
-       FIXME: implement PCF8574A interrupts controller
-    */
+    /* NAND gate in interrupt "controller"
+     */
     {
-        if (ria_pins & RIA816_IRQ) pins |= W65816_IRQ;
-        // if (sd1_pins & YMF825_IRQ) pins |= W65816_IRQ;
-        if (opl3_pins & YMF262_IRQ) pins |= W65816_IRQ;
+        if (sys->ria.int_status) {
+            pins |= W65816_IRQ;
+        }
     }
 
     /* remaining CPU IO and memory accesses, those don't fit into the

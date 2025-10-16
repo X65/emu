@@ -332,30 +332,23 @@ static const ui_chip_pin_t _ui_x65_cpu65816_pins[] = {
 };
 
 static const ui_chip_pin_t _ui_x65_ria_pins[] = {
-    { "D0",   0,  RIA816_D0   },
-    { "D1",   1,  RIA816_D1   },
-    { "D2",   2,  RIA816_D2   },
-    { "D3",   3,  RIA816_D3   },
-    { "D4",   4,  RIA816_D4   },
-    { "D5",   5,  RIA816_D5   },
-    { "D6",   6,  RIA816_D6   },
-    { "D7",   7,  RIA816_D7   },
-    { "RW",   10, RIA816_RW   },
-    { "CS",   11, RIA816_CS   },
-    { "IRQ",  12, RIA816_IRQ  },
-    { "RS0",  14, RIA816_RS0  },
-    { "RS1",  15, RIA816_RS1  },
-    { "RS2",  16, RIA816_RS2  },
-    { "RS3",  17, RIA816_RS3  },
-    { "RS4",  18, RIA816_RS4  },
-    { "RS5",  19, RIA816_RS5  },
-    { "INT0", 21, RIA816_INT0 },
-    { "INT1", 22, RIA816_INT1 },
-    { "INT2", 23, RIA816_INT2 },
-    { "INT3", 24, RIA816_INT3 },
-    { "INT4", 25, RIA816_INT4 },
-    { "INT5", 26, RIA816_INT5 },
-    { "INT6", 27, RIA816_INT6 },
+    { "D0",  0,  RIA816_D0  },
+    { "D1",  1,  RIA816_D1  },
+    { "D2",  2,  RIA816_D2  },
+    { "D3",  3,  RIA816_D3  },
+    { "D4",  4,  RIA816_D4  },
+    { "D5",  5,  RIA816_D5  },
+    { "D6",  6,  RIA816_D6  },
+    { "D7",  7,  RIA816_D7  },
+    { "RW",  9,  RIA816_RW  },
+    { "CS",  10, RIA816_CS  },
+    { "RS0", 11, RIA816_RS0 },
+    { "RS1", 12, RIA816_RS1 },
+    { "RS2", 13, RIA816_RS2 },
+    { "RS3", 14, RIA816_RS3 },
+    { "RS4", 15, RIA816_RS4 },
+    { "RS5", 16, RIA816_RS5 },
+    { "IRQ", 19, RIA816_IRQ },
 };
 
 static const ui_chip_pin_t _ui_x65_gpio_pins[] = {
@@ -492,7 +485,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.ria = &ui->x65->ria;
         desc.x = x;
         desc.y = y;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "RIA816", 28, _ui_x65_ria_pins);
+        UI_CHIP_INIT_DESC(&desc.chip_desc, "RIA816", 20, _ui_x65_ria_pins);
         ui_ria816_init(&ui->ria, &desc);
     }
     x += dx;

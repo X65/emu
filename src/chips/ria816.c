@@ -105,8 +105,8 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
         case RIA816_HW_RNG:
         case RIA816_HW_RNG + 1: data = (uint8_t)rand(); break;
 
-        case RIA816_IRQ_STATUS: data = c->irq.status; break;
-        case RIA816_IRQ_ENABLE: data = c->irq.enable; break;
+        case RIA816_IRQ_ENABLE: data = c->irq_enable; break;
+        case RIA816_IRQ_STATUS: data = ~(c->int_status); break;
 
         case RIA816_API_STACK: rb_get(&c->api_stack, &data); break;
 
@@ -119,11 +119,8 @@ static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
     switch (addr) {
         case RIA816_UART_TX_RX: rb_put(&c->uart_tx, data); break;
 
-        case RIA816_IRQ_STATUS:
-            c->irq.interrupt = false;
-            c->irq.status = 0;
-            break;
-        case RIA816_IRQ_ENABLE: c->irq.enable = data; break;
+        case RIA816_IRQ_STATUS: break;
+        case RIA816_IRQ_ENABLE: c->irq_enable = (data && 0x01); break;
 
         case RIA816_API_STACK: rb_put(&c->api_stack, data); break;
         case RIA816_API_OP:
@@ -135,15 +132,11 @@ static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
 }
 
 static uint64_t _ria816_update_irq(ria816_t* c, uint64_t pins) {
-    uint8_t ints = RIA816_GET_INTS(pins) & c->irq.enable;
+    pins &= ~RIA816_IRQ;
 
-    if (c->irq.status != (ints | c->irq.status)) {
-        c->irq.interrupt = true;
+    if (c->cia.pins & M6526_IRQ && c->irq_enable & RIA816_INT_CIA_MASK) {
+        pins |= RIA816_IRQ;
     }
-
-    c->irq.status = ints;
-
-    if (c->irq.interrupt) pins |= RIA816_IRQ;
     return pins;
 }
 
@@ -174,7 +167,6 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
         }
     }
 
-    if (c->cia.pins & M6526_IRQ) pins |= RIA816_INT0;
     pins = _ria816_update_irq(c, pins);
 
     c->pins = pins;

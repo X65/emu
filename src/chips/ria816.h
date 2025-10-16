@@ -89,15 +89,8 @@ extern "C" {
 #define RIA816_PIN_TIMERS_CS (41)
 #define RIA816_PIN_IRQ       (42)
 
-// interrupt controller sources
-#define RIA816_PIN_INT0 (48)
-#define RIA816_PIN_INT1 (49)
-#define RIA816_PIN_INT2 (50)
-#define RIA816_PIN_INT3 (51)
-#define RIA816_PIN_INT4 (51)
-#define RIA816_PIN_INT5 (53)
-#define RIA816_PIN_INT6 (54)
-#define RIA816_PIN_INT_ (55)  // cannot be used with MCP23008
+// interrupt sources
+#define RIA816_INT_CIA_MASK (0x01)  // CIA interrupt
 
 // pin bit masks
 #define RIA816_RS0       (1ULL << RIA816_PIN_RS0)
@@ -121,13 +114,6 @@ extern "C" {
 #define RIA816_TIMERS_CS (1ULL << RIA816_PIN_TIMERS_CS)
 #define RIA816_TIMERS_RS (RIA816_RS4 | RIA816_RS3 | RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
 #define RIA816_IRQ       (1ULL << RIA816_PIN_IRQ)
-#define RIA816_INT0      (1ULL << RIA816_PIN_INT0)
-#define RIA816_INT1      (1ULL << RIA816_PIN_INT1)
-#define RIA816_INT2      (1ULL << RIA816_PIN_INT2)
-#define RIA816_INT3      (1ULL << RIA816_PIN_INT3)
-#define RIA816_INT4      (1ULL << RIA816_PIN_INT4)
-#define RIA816_INT5      (1ULL << RIA816_PIN_INT5)
-#define RIA816_INT6      (1ULL << RIA816_PIN_INT6)
 
 // register indices
 #define RIA816_MATH_OPERA     (0x00)  // Operand A for multiplication and division.
@@ -152,8 +138,8 @@ extern "C" {
 #define RIA816_CPU_N_BRK      (0x26)  // 65816 vector.
 #define RIA816_CPU_N_ABORTB   (0x28)  // 65816 vector.
 #define RIA816_CPU_N_NMIB     (0x2A)  // 65816 vector.
-#define RIA816_IRQ_STATUS     (0x2C)  // Interrupt Controller Status
-#define RIA816_IRQ_ENABLE     (0x2D)  // Interrupt Controller Enable Mask
+#define RIA816_IRQ_ENABLE     (0x2C)  // RIA interrupts enable
+#define RIA816_IRQ_STATUS     (0x2D)  // Interrupt Controller status
 #define RIA816_CPU_N_IRQB     (0x2E)  // 65816 vector.
 #define RIA816_API_STACK      (0x30)  // 512 bytes for passing call parameters.
 #define RIA816_API_OP         (0x31)  // Write the API operation id here to begin a kernel call.
@@ -167,13 +153,6 @@ extern "C" {
 #define RIA816_CPU_E_RESETB   (0x3C)  // 6502 vector.
 #define RIA816_CPU_E_IRQB_BRK (0x3E)  // 6502 vector.
 #define RIA816_NUM_REGS       (64)
-
-typedef struct {
-    uint8_t pins;
-    uint8_t enable;
-    uint8_t status;
-    bool interrupt;
-} ria816_interrupt_t;
 
 // a memory-fetch callback, used to read video memory bytes into the CGIA
 typedef void (*ria816_api_call_t)(uint8_t data, void* user_data);
@@ -194,8 +173,9 @@ typedef struct {
     ring_buffer_t uart_rx;
     ring_buffer_t uart_tx;
     m6526_t cia;
-    ria816_interrupt_t irq;
-    uint64_t us;  // monotonic clock
+    uint8_t int_status;  // interrupts "controller"
+    uint8_t irq_enable;  // RIA interrupts enable [. . . . . . . TIMERS]
+    uint64_t us;         // monotonic clock
     int ticks_per_ms;
     int ticks_counter;
     uint64_t pins;
@@ -211,9 +191,6 @@ typedef struct {
 // merge 8-bit data bus value into 64-bit pins
 #define RIA816_SET_DATA(p, d) \
     { p = (((p) & ~0xFF0000ULL) | (((d) << 16) & 0xFF0000ULL)); }
-
-// extract 8-bit of interrupt sources from 64-bit pins
-#define RIA816_GET_INTS(p) ((uint8_t)((p) >> 48))
 
 #define RIA816_REG16(regs, ADDR) (uint16_t)((uint16_t)(regs[ADDR]) | ((uint16_t)(regs[ADDR + 1]) << 8))
 
