@@ -47,7 +47,7 @@ extern "C" {
 // bump snapshot version when x65_t memory layout changes
 #define X65_SNAPSHOT_VERSION (1)
 
-#define X65_FREQUENCY             (1736600)  // clock frequency in Hz
+#define X65_FREQUENCY             (1796300)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (1024)     // max number of audio samples in internal sample buffer
 #define X65_DEFAULT_AUDIO_SAMPLES (128)      // default number of samples in internal sample buffer
 
@@ -111,6 +111,16 @@ typedef enum {
 #define X65_IO_RIA_BASE    (0xFFC0)
 
 #define X65_RAM_SIZE_BYTES (1 << 24)  // 16 MBytes of RAM
+
+// interrupt "controller" lines
+#define X65_INT_RIA  (1 << 0)  // RIA interrupt
+#define X65_INT_GPIO (1 << 1)  // GPIO interrupt
+#define X65_INT_AUD  (1 << 2)  // AUD interrupt
+#define X65_INT_I2C  (1 << 3)  // I2C interrupt
+#define X65_INT_IO0  (1 << 4)  // IO0 interrupt
+#define X65_INT_IO1  (1 << 5)  // IO1 interrupt
+#define X65_INT_IO2  (1 << 6)  // IO2 interrupt
+#define X65_INT_IO3  (1 << 7)  // IO3 interrupt
 
 // config parameters for x65_init()
 typedef struct {
