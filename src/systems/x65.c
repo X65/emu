@@ -1,4 +1,5 @@
 #include "./x65.h"
+#include "../args.h"
 
 #include "chips/clk.h"
 
@@ -27,9 +28,10 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     }
 
     memset(sys, 0, sizeof(x65_t));
-    for (int i = 0; i < X65_RAM_SIZE_BYTES; i++) {
-        sys->ram[i] = rand() & 0xFF;  // fill RAM with random data
-    }
+    if (!arguments.zeromem)
+        for (int i = 0; i < X65_RAM_SIZE_BYTES; i++) {
+            sys->ram[i] = rand() & 0xFF;  // fill RAM with random data
+        }
 
     sys->valid = true;
     sys->running = false;
