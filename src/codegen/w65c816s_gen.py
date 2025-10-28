@@ -752,10 +752,10 @@ def i_rts(o):
     o.t('_VDA(0);_SA(_SP(++_S(c)));')
     # load return address high byte from stack
     o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
-    # put return address in PC, this is one byte before next op, do junk read from Stack
-    o.t('c->PC=(_GD()<<8)|c->AD;_SA(c->PC++);')
+    # put return address in PC, this is one byte before next op, do junk read from stack
+    o.t('_SA(_SP(_S(c)));c->PC=(_GD()<<8)|c->AD;')
     # next tick is opcode fetch
-    o.t('');
+    o.t('++c->PC;');
 
 #-------------------------------------------------------------------------------
 def i_rtl(o):
@@ -769,7 +769,7 @@ def i_rtl(o):
     # put return address in PC, read PBR from stack
     o.t('_VDA(0);_SA(_SP(++_S(c)));c->PC=(_GD()<<8)|c->AD;')
     # next tick is opcode fetch
-    o.t('c->PBR=_GD();');
+    o.t('c->PBR=_GD();++c->PC;');
 
 #-------------------------------------------------------------------------------
 def i_rti(o):
