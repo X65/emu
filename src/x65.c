@@ -720,15 +720,31 @@ void app_load_labels(const char* file, bool clear) {
 #endif
 }
 
-void log_func(uint32_t log_level, uint32_t log_id, uint32_t line_nr, const char* filename, const char* fmt, ...) {
+static unsigned long djb2(const char* s) {
+    unsigned long h = 5381;
+    int c;
+    while ((c = *s++))
+        h = ((h << 5) + h) + c;  // h * 33 + c
+    return h;
+}
+
+void log_func(uint32_t log_level, const char* log_id, const char* filename, uint32_t line_nr, const char* fmt, ...) {
     char message[512];
+
+    char* short_filename = strstr(filename, "src/");
+    if (short_filename) {
+        short_filename += 4;
+    }
+
+    uint32_t log_item = djb2(log_id);
 
     va_list args;
     va_start(args, fmt);
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
-    slog_func(NULL, log_level, log_id, message, line_nr, filename, NULL);
+    slog_func("Emu", log_level, log_item, message, line_nr, short_filename, NULL);
+    ui_app_log_add(log_level, log_item, log_id, message);
 }
 
 char app_version[256];

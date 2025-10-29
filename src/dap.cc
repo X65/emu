@@ -64,13 +64,6 @@ static struct {
 
 std::shared_ptr<dap::Writer> log;
 
-enum {
-    DAP_INFO = 1000,
-    DAP_NETWORK,
-    DAP_SESSION_ERROR,
-    DAP_NETWORK_ERROR,
-};
-
 #define EMU_RAM_SIZE (1 << 24)  // 16MB
 
 // Hard-coded identifiers for the one thread, frame, variable and source.
@@ -91,7 +84,7 @@ int dap_event_stopped_addr = -1;
 static void dap_dbg_connect(void) {
     if (state.inited) {
         if (state.funcs.dbg_connect) {
-            LOG_INFO(DAP_INFO, "dbg_connect() called");
+            LOG_INFO("dbg_connect() called");
             state.funcs.dbg_connect();
         }
     }
@@ -102,28 +95,28 @@ static void dap_dbg_connect(void) {
 
 static void dap_dbg_disconnect(void) {
     if (state.inited && state.funcs.dbg_disconnect) {
-        LOG_INFO(DAP_INFO, "dbg_disconnect() called");
+        LOG_INFO("dbg_disconnect() called");
         state.funcs.dbg_disconnect();
     }
 }
 
 static void dap_boot(void) {
     if (state.inited && state.funcs.boot) {
-        LOG_INFO(DAP_INFO, "dap_boot() called");
+        LOG_INFO("dap_boot() called");
         state.funcs.boot();
     }
 }
 
 static void dap_reset(void) {
     if (state.inited && state.funcs.reset) {
-        LOG_INFO(DAP_INFO, "reset() called");
+        LOG_INFO("reset() called");
         state.funcs.reset();
     }
 }
 
 static bool dap_is_ready(void) {
     if (state.inited && state.funcs.ready) {
-        // LOG_INFO(DAP_INFO, "ready() called");
+        // LOG_INFO("ready() called");
         return state.funcs.ready();
     }
     else {
@@ -133,7 +126,7 @@ static bool dap_is_ready(void) {
 
 static bool dap_load(void* ptr, int size) {
     if (state.inited && state.funcs.load && ptr && ((size_t)size > sizeof(webapi_fileheader_t))) {
-        LOG_INFO(DAP_INFO, "load(%p, %d) called", ptr, size);
+        LOG_INFO("load(%p, %d) called", ptr, size);
         const webapi_fileheader_t* hdr = (webapi_fileheader_t*)ptr;
         if ((hdr->magic[0] != 'C') || (hdr->magic[1] != 'H') || (hdr->magic[2] != 'I') || (hdr->magic[3] != 'P')) {
             return false;
@@ -145,7 +138,7 @@ static bool dap_load(void* ptr, int size) {
 
 static bool dap_load_file_internal(char* file) {
     if (state.funcs.load_file != NULL) {
-        LOG_INFO(DAP_INFO, "load_file(%s) called", file);
+        LOG_INFO("load_file(%s) called", file);
         return state.funcs.load_file(file);
     }
     else {
@@ -155,7 +148,7 @@ static bool dap_load_file_internal(char* file) {
 
 static bool dap_unload_file() {
     if (state.funcs.unload_file != NULL) {
-        LOG_INFO(DAP_INFO, "unload_file() called");
+        LOG_INFO("unload_file() called");
         return state.funcs.unload_file();
     }
     else {
@@ -165,7 +158,7 @@ static bool dap_unload_file() {
 
 static bool dap_load_snapshot(size_t index) {
     if (state.funcs.load_snapshot != NULL) {
-        LOG_INFO(DAP_INFO, "load_snapshot(%zu) called", index);
+        LOG_INFO("load_snapshot(%zu) called", index);
         return state.funcs.load_snapshot(index);
     }
     else {
@@ -175,28 +168,28 @@ static bool dap_load_snapshot(size_t index) {
 
 static void dap_save_snapshot(size_t index) {
     if (state.funcs.save_snapshot != NULL) {
-        LOG_INFO(DAP_INFO, "save_snapshot(%zu) called", index);
+        LOG_INFO("save_snapshot(%zu) called", index);
         state.funcs.save_snapshot(index);
     }
 }
 
 static void dap_dbg_add_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_add_breakpoint) {
-        LOG_INFO(DAP_INFO, "dap_dbg_add_breakpoint(%d) called", addr);
+        LOG_INFO("dap_dbg_add_breakpoint(%d) called", addr);
         state.funcs.dbg_add_breakpoint(addr);
     }
 }
 
 static void dap_dbg_remove_breakpoint(uint32_t addr) {
     if (state.inited && state.funcs.dbg_remove_breakpoint) {
-        LOG_INFO(DAP_INFO, "dap_dbg_remove_breakpoint(%d) called", addr);
+        LOG_INFO("dap_dbg_remove_breakpoint(%d) called", addr);
         state.funcs.dbg_remove_breakpoint(addr);
     }
 }
 
 static void dap_dbg_break(void) {
     if (state.inited && state.funcs.dbg_break) {
-        LOG_INFO(DAP_INFO, "dbg_break() called");
+        LOG_INFO("dbg_break() called");
         state.funcs.dbg_break();
     }
 }
@@ -205,7 +198,7 @@ static void dap_dbg_continue(void) {
     dap_event_stopped_addr = -1;
 
     if (state.inited && state.funcs.dbg_continue) {
-        LOG_INFO(DAP_INFO, "dbg_continue() called");
+        LOG_INFO("dbg_continue() called");
         state.funcs.dbg_continue();
     }
 }
@@ -214,7 +207,7 @@ static void dap_dbg_step_next(void) {
     dap_event_stopped_addr = -1;
 
     if (state.inited && state.funcs.dbg_step_next) {
-        LOG_INFO(DAP_INFO, "dbg_step_next() called");
+        LOG_INFO("dbg_step_next() called");
         state.funcs.dbg_step_next();
     }
 }
@@ -223,7 +216,7 @@ static void dap_dbg_step_into(void) {
     dap_event_stopped_addr = -1;
 
     if (state.inited && state.funcs.dbg_step_into) {
-        LOG_INFO(DAP_INFO, "dbg_step_into() called");
+        LOG_INFO("dbg_step_into() called");
         state.funcs.dbg_step_into();
     }
 }
@@ -232,7 +225,7 @@ static void dap_dbg_step_into(void) {
 static uint16_t* dap_dbg_cpu_state(void) {
     static webapi_cpu_state_t res;
     if (state.inited && state.funcs.dbg_cpu_state) {
-        LOG_INFO(DAP_INFO, "dbg_cpu_state() called");
+        LOG_INFO("dbg_cpu_state() called");
         res = state.funcs.dbg_cpu_state();
     }
     else {
@@ -249,7 +242,7 @@ static webapi_dasm_line_t* dap_dbg_request_disassembly(uint32_t addr, int offset
     }
     if (state.inited && state.funcs.dbg_request_disassembly) {
         webapi_dasm_line_t* out_lines = (webapi_dasm_line_t*)calloc((size_t)num_lines, sizeof(webapi_dasm_line_t));
-        LOG_INFO(DAP_INFO, "dbg_request_disassembly() called");
+        LOG_INFO("dbg_request_disassembly() called");
         state.funcs.dbg_request_disassembly(addr, offset_lines, num_lines, out_lines);
         return out_lines;
     }
@@ -263,7 +256,7 @@ static webapi_dasm_line_t* dap_dbg_request_disassembly(uint32_t addr, int offset
 static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
     if (state.inited && state.funcs.dbg_read_memory) {
         uint8_t* ptr = (uint8_t*)calloc((size_t)num_bytes, 1);
-        LOG_INFO(DAP_INFO, "dbg_read_memory() called");
+        LOG_INFO("dbg_read_memory() called");
         state.funcs.dbg_read_memory(addr, num_bytes, ptr);
         return ptr;
     }
@@ -274,7 +267,7 @@ static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
 
 static bool dap_input_internal(char* text) {
     if (state.funcs.input != NULL && text != NULL) {
-        LOG_INFO(DAP_INFO, "input() called");
+        LOG_INFO("input() called");
         state.funcs.input(text);
         return true;
     }
@@ -287,7 +280,7 @@ static bool dap_input_internal(char* text) {
 
 // stop_reason is UI_DBG_STOP_REASON_xxx
 void dap_event_stopped(int stop_reason, uint32_t addr) {
-    LOG_INFO(DAP_INFO, "dap_event_stopped(stop_reason=%d, addr=%04x) called", stop_reason, addr);
+    LOG_INFO("dap_event_stopped(stop_reason=%d, addr=%04x) called", stop_reason, addr);
 
     dap_event_stopped_addr = addr;
 
@@ -312,7 +305,7 @@ void dap_event_stopped(int stop_reason, uint32_t addr) {
 }
 
 void dap_event_continued(void) {
-    LOG_INFO(DAP_INFO, "dap_event_continued() called");
+    LOG_INFO("dap_event_continued() called");
 
     dap_event_stopped_addr = -1;
 
@@ -328,7 +321,7 @@ void dap_event_continued(void) {
 }
 
 void dap_event_reboot(void) {
-    LOG_INFO(DAP_INFO, "dap_event_reboot() called");
+    LOG_INFO("dap_event_reboot() called");
 
 #if defined(__EMSCRIPTEN__)
     dap_js_event_reboot();
@@ -336,7 +329,7 @@ void dap_event_reboot(void) {
 }
 
 void dap_event_reset(void) {
-    LOG_INFO(DAP_INFO, "dap_event_reset() called");
+    LOG_INFO("dap_event_reset() called");
 
 #if defined(__EMSCRIPTEN__)
     dap_js_event_reset();
@@ -564,7 +557,7 @@ void dap_register_session(dap::Session* session) {
     // Handle errors reported by the Session. These errors include protocol
     // parsing errors and receiving messages with no handler.
     session->onError([&](const char* msg) {
-        LOG_ERROR(DAP_SESSION_ERROR, "%s", msg);
+        LOG_ERROR("%s", msg);
         // sapp_request_quit();
     });
 
@@ -572,7 +565,7 @@ void dap_register_session(dap::Session* session) {
     // the response reports debugger capabilities.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Initialize
     session->registerHandler([&](const dap::InitializeRequest& request) {
-        LOG_INFO(DAP_INFO, "Client '%s' initialize", request.clientName.value("unknown").c_str());
+        LOG_INFO("Client '%s' initialize", request.clientName.value("unknown").c_str());
 
         do_dap_boot = true;
 
@@ -596,10 +589,10 @@ void dap_register_session(dap::Session* session) {
     // to start the debuggee. This request contains the launch arguments.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Launch
     session->registerHandler([&](const dap::LaunchRequest& request) {
-        LOG_INFO(DAP_INFO, "Launch request")
+        LOG_INFO("Launch request")
 
         if (request.noDebug.value(false)) {
-            LOG_INFO(DAP_INFO, "Launching debuggee without debugging");
+            LOG_INFO("Launching debuggee without debugging");
             state.enabled = false;
         }
 
@@ -610,10 +603,10 @@ void dap_register_session(dap::Session* session) {
 
     // Handler for disconnect requests
     session->registerHandler([&](const dap::DisconnectRequest& request) {
-        LOG_INFO(DAP_INFO, "Disconnect request");
+        LOG_INFO("Disconnect request");
 
         if (request.terminateDebuggee.value(false)) {
-            LOG_INFO(DAP_INFO, "Terminating debuggee");
+            LOG_INFO("Terminating debuggee");
             sapp_request_quit();
         }
         else {
@@ -626,7 +619,7 @@ void dap_register_session(dap::Session* session) {
     // Handler for terminate requests
     session->registerHandler([&](const dap::TerminateRequest& request) {
         const bool restart = request.restart.value(false);
-        LOG_INFO(DAP_INFO, "%s request", restart ? "Restart" : "Terminate");
+        LOG_INFO("%s request", restart ? "Restart" : "Terminate");
         if (restart) {
             do_dap_reset = true;
         }
@@ -639,7 +632,7 @@ void dap_register_session(dap::Session* session) {
     // Handler for restarts requests
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Restart
     session->registerHandler([&](const dap::RestartRequest&) {
-        LOG_INFO(DAP_INFO, "Restart request");
+        LOG_INFO("Restart request");
         do_dap_reset = true;
         return dap::RestartResponse();
     });
@@ -667,7 +660,7 @@ void dap_register_session(dap::Session* session) {
             dap::SetBreakpointsResponse response;
 
             if (!request.lines.has_value()) {
-                LOG_ERROR(DAP_SESSION_ERROR, "Lines not provided in SetBreakpointsRequest");
+                LOG_ERROR("Lines not provided in SetBreakpointsRequest");
                 return dap::Error("Lines not provided in SetBreakpointsRequest");
             }
 
@@ -675,7 +668,7 @@ void dap_register_session(dap::Session* session) {
             response.breakpoints.resize(breakpoints.size());
 
             if (!request.source.sourceReference.has_value()) {
-                LOG_ERROR(DAP_SESSION_ERROR, "Source reference not provided in SetBreakpointsRequest");
+                LOG_ERROR("Source reference not provided in SetBreakpointsRequest");
 
                 for (size_t i = 0; i < breakpoints.size(); i++) {
                     response.breakpoints[i].verified = false;
@@ -688,7 +681,7 @@ void dap_register_session(dap::Session* session) {
             dap::integer source = request.source.sourceReference.value();
 
             if (dap_breakpoints_update.find(source) != dap_breakpoints_update.end()) {
-                LOG_ERROR(DAP_SESSION_ERROR, "SetBreakpointsRequest is coming too fast");
+                LOG_ERROR("SetBreakpointsRequest is coming too fast");
                 return dap::Error("SetBreakpointsRequest is coming too fast");
             }
 
@@ -1045,11 +1038,11 @@ void dap_init(const dap_desc_t* desc) {
             // client.
             std::unique_lock<std::mutex> lock(mutex);
             cv.wait_for(lock, std::chrono::seconds(5), [&] { return terminate; });
-            LOG_INFO(DAP_INFO, "Server closing connection");
+            LOG_INFO("Server closing connection");
         };
 
         // Error handler
-        auto onError = [&](const char* msg) { LOG_ERROR(DAP_NETWORK_ERROR, "%s", msg); };
+        auto onError = [&](const char* msg) { LOG_ERROR("%s", msg); };
 
         // Create the network server
         auto server = dap::net::Server::create();

@@ -129,39 +129,19 @@ struct UiAppLog {
     }
 };
 
-// Demonstrate creating a simple log window with basic filtering.
-static void ShowExampleAppLog(bool* p_open) {
-    static UiAppLog log;
-
-    // For the demo: add a debug button _BEFORE_ the normal log window contents
-    // We take advantage of a rarely used feature: multiple calls to Begin()/End() are appending to the _same_ window.
-    // Most of the contents of the window will be added by the log.Draw() call.
-    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Example: Log", p_open);
-    if (ImGui::SmallButton("[Debug] Add 5 entries")) {
-        static int counter = 0;
-        const char* categories[3] = { "info", "warn", "error" };
-        const char* words[] = { "Bumfuzzled",   "Cattywampus", "Snickersnee", "Abibliophobia",
-                                "Absquatulate", "Nincompoop",  "Pauciloquent" };
-        for (int n = 0; n < 5; n++) {
-            const char* category = categories[counter % IM_ARRAYSIZE(categories)];
-            const char* word = words[counter % IM_ARRAYSIZE(words)];
-            log.AddLog(
-                "[%05d] [%s] Hello, current time is %.1f, here's a word: '%s'\n",
-                ImGui::GetFrameCount(),
-                category,
-                ImGui::GetTime(),
-                word);
-            counter++;
-        }
-    }
-    ImGui::End();
-
-    // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
-    log.Draw("Example: Log", p_open);
-}
-
 static UiAppLog app_log;
+
+void ui_app_log_add(uint32_t log_level, uint32_t log_item, const char* log_id, const char* message) {
+    const char* log_level_str;
+    switch (log_level) {
+        case 0: log_level_str = "panic"; break;
+        case 1: log_level_str = "error"; break;
+        case 2: log_level_str = "warning"; break;
+        default: log_level_str = "info"; break;
+    }
+
+    app_log.AddLog("[%s][%u] %s() %s\n", log_level_str, log_item, log_id, message);
+}
 
 void ui_app_log_init(ui_app_log_t* win, const ui_app_log_desc_t* desc) {
     CHIPS_ASSERT(win && desc);

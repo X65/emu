@@ -30,6 +30,7 @@ typedef struct {
 void ui_app_log_init(ui_app_log_t* win, const ui_app_log_desc_t* desc);
 void ui_app_log_discard(ui_app_log_t* win);
 void ui_app_log_draw(ui_app_log_t* win);
+void ui_app_log_add(uint32_t log_level, uint32_t log_item, const char* log_id, const char* message);
 void ui_app_log_save_settings(ui_app_log_t* win, ui_settings_t* settings);
 void ui_app_log_load_settings(ui_app_log_t* win, const ui_settings_t* settings);
 

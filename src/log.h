@@ -5,13 +5,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void log_func(uint32_t log_level, uint32_t log_id, uint32_t line_nr, const char* filename, const char* fmt, ...)
+void log_func(uint32_t log_level, const char* log_id, const char* filename, uint32_t line_nr, const char* fmt, ...)
     __attribute__((format(printf, 5, 6)));
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
-#define LOG_PANIC(id, message, ...)   log_func(0, id, __LINE__, __FILE__, message, ##__VA_ARGS__);
-#define LOG_ERROR(id, message, ...)   log_func(1, id, __LINE__, __FILE__, message, ##__VA_ARGS__);
-#define LOG_WARNING(id, message, ...) log_func(2, id, __LINE__, __FILE__, message, ##__VA_ARGS__);
-#define LOG_INFO(id, message, ...)    log_func(3, id, __LINE__, __FILE__, message, ##__VA_ARGS__);
+#define LOG_PANIC(message, ...)   log_func(0, __func__, __FILE__, __LINE__, message, ##__VA_ARGS__);
+#define LOG_ERROR(message, ...)   log_func(1, __func__, __FILE__, __LINE__, message, ##__VA_ARGS__);
+#define LOG_WARNING(message, ...) log_func(2, __func__, __FILE__, __LINE__, message, ##__VA_ARGS__);
+#define LOG_INFO(message, ...)    log_func(3, __func__, __FILE__, __LINE__, message, ##__VA_ARGS__);
