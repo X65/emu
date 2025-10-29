@@ -51,6 +51,11 @@ extern "C" {
 // Dear ImGui compatible texture handle
 typedef uint64_t ui_texture_t;
 
+// injected callbacks
+typedef struct {
+    void (*menu_cb)(void);
+} ui_inject_t;
+
 // draw an 16-bit hex text input field
 uint16_t ui_util_input_u16(const char* label, uint16_t val);
 // draw an 8-bit hex text input field
@@ -202,7 +207,7 @@ void ui_util_options_menu(void) {
         }
         ImGui::EndMenu();
     }
-    ImGui::SameLine(ImGui::GetWindowWidth() - 120);
+    // ImGui::SameLine(ImGui::GetWindowWidth() - 120);
 }
 
 void ui_util_handle_window_open_dirty(const bool* cur_open, bool* last_open) {

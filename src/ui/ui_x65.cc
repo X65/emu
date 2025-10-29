@@ -108,6 +108,9 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
         if (ImGui::BeginMenu("Tools")) {
             ImGui::MenuItem("About...", NULL, &ui->show_about);
             ui_util_options_menu();
+            if (ui->inject.menu_cb) {
+                ui->inject.menu_cb();
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -431,8 +434,8 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     CHIPS_ASSERT(ui_desc->boot_cb);
     ui->x65 = ui_desc->x65;
     ui->boot_cb = ui_desc->boot_cb;
+    ui->inject = ui_desc->inject;
     ui_snapshot_init(&ui->snapshot, &ui_desc->snapshot);
-    ui->show_about = false;
     int x = 20, y = 20, dx = 10, dy = 10;
     {
         ui_dbg_desc_t desc = { 0 };

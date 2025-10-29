@@ -85,8 +85,9 @@ typedef void (*ui_x65_boot_cb)(x65_t* sys);
 
 // setup params for ui_x65_init()
 typedef struct {
-    x65_t* x65;                              // pointer to x65_t instance to track
-    ui_x65_boot_cb boot_cb;                  // reboot callback function
+    x65_t* x65;              // pointer to x65_t instance to track
+    ui_x65_boot_cb boot_cb;  // reboot callback function
+    ui_inject_t inject;
     ui_dbg_texture_callbacks_t dbg_texture;  // texture create/update/destroy callbacks
     ui_dbg_debug_callbacks_t dbg_debug;
     ui_dbg_keys_desc_t dbg_keys;  // user-defined hotkeys for ui_dbg_t
@@ -98,6 +99,7 @@ typedef struct {
     x65_t* x65;
     int dbg_scanline;
     ui_x65_boot_cb boot_cb;
+    ui_inject_t inject;
     ui_w65816_t cpu;
     ui_ria816_t ria;
     ui_tca6416a_t gpio;
