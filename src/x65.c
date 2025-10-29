@@ -137,6 +137,7 @@ static void app_load_rom_labels(const char* rom_file) {
             strcpy(&buf[path_len - 4], ".lbl");
 
             if (access(buf, R_OK) == 0) {
+                LOG_INFO("Loading labels file: %s", buf);
                 app_load_labels(buf, true);
             }
         }
@@ -272,6 +273,7 @@ void app_init(void) {
     bool delay_input = false;
     if (arguments.rom) {
         delay_input = true;
+        LOG_INFO("Loading ROM: %s", arguments.rom);
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
         app_load_rom_labels(arguments.rom);
     }
@@ -482,6 +484,7 @@ static void ui_boot_cb(x65_t* sys) {
     x65_desc_t desc = x65_desc(sys->joystick_type);
     x65_init(sys, &desc);
     if (arguments.rom) {
+        LOG_INFO("Loading ROM: %s", arguments.rom);
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
         app_load_rom_labels(arguments.rom);
     }

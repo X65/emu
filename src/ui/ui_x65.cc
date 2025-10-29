@@ -1,4 +1,5 @@
 #include "./ui_x65.h"
+#include "../log.h"
 
 #include "imgui.h"
 #include "IconsLucide.h"
@@ -32,10 +33,12 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::EndTooltip();
         }
         if (ImGui::SmallButton(ICON_LC_ROTATE_CCW)) {
+            LOG_INFO("=== RESET ===");
             x65_reset(ui->x65);
             ui_dbg_reset(&ui->dbg);
         }
         if (ImGui::SmallButton(ICON_LC_POWER)) {
+            LOG_INFO("=== COLD BOOT ===");
             ui->boot_cb(ui->x65);
             ui_dbg_reboot(&ui->dbg);
         }
@@ -45,10 +48,12 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             }
             ui_snapshot_menus(&ui->snapshot);
             if (ImGui::MenuItem(ICON_LC_ROTATE_CCW " Reset")) {
+                LOG_INFO("=== RESET ===");
                 x65_reset(ui->x65);
                 ui_dbg_reset(&ui->dbg);
             }
             if (ImGui::MenuItem(ICON_LC_POWER " Cold Boot")) {
+                LOG_INFO("=== COLD BOOT ===");
                 ui->boot_cb(ui->x65);
                 ui_dbg_reboot(&ui->dbg);
             }
