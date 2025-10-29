@@ -107,6 +107,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
         }
         if (ImGui::BeginMenu("Tools")) {
             ImGui::MenuItem("About...", NULL, &ui->show_about);
+            ImGui::MenuItem(ICON_LC_LOGS " Log", 0, &ui->app_log.open);
             ui_util_options_menu();
             if (ui->inject.menu_cb) {
                 ui->inject.menu_cb();
@@ -597,6 +598,15 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
             y += dy;
         }
     }
+    x += dx;
+    y += dy;
+    {
+        ui_app_log_desc_t desc = { 0 };
+        desc.title = "Log messages";
+        desc.x = x;
+        desc.y = y;
+        ui_app_log_init(&ui->app_log, &desc);
+    }
 }
 
 void ui_x65_discard(ui_x65_t* ui) {
@@ -614,6 +624,7 @@ void ui_x65_discard(ui_x65_t* ui) {
         ui_dasm_discard(&ui->dasm[i]);
     }
     ui_dbg_discard(&ui->dbg);
+    ui_app_log_discard(&ui->app_log);
     ui->x65 = 0;
 }
 
@@ -634,6 +645,7 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
         ui_dasm_draw(&ui->dasm[i]);
     }
     ui_dbg_draw(&ui->dbg);
+    ui_app_log_draw(&ui->app_log);
 }
 
 chips_debug_t ui_x65_get_debug(ui_x65_t* ui) {
@@ -662,6 +674,7 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
         ui_dasm_save_settings(&ui->dasm[i], settings);
     }
     ui_dbg_save_settings(&ui->dbg, settings);
+    ui_app_log_save_settings(&ui->app_log, settings);
 }
 
 void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
@@ -681,6 +694,7 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
         ui_dasm_load_settings(&ui->dasm[i], settings);
     }
     ui_dbg_load_settings(&ui->dbg, settings);
+    ui_app_log_load_settings(&ui->app_log, settings);
 }
 #ifdef __clang__
     #pragma clang diagnostic pop

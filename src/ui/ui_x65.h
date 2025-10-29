@@ -59,6 +59,7 @@
 #define UI_DASM_USE_W65C816S
 #include "ui/ui_settings.h"
 #include "ui/ui_util.h"
+#include "ui/ui_app_log.h"
 #include "ui/ui_audio.h"
 #include "ui/ui_chip.h"
 #include "ui/ui_console.h"
@@ -111,6 +112,7 @@ typedef struct {
     ui_memedit_t memedit[4];
     ui_dasm_t dasm[4];
     ui_dbg_t dbg;
+    ui_app_log_t app_log;
     ui_snapshot_t snapshot;
     bool show_about;
 } ui_x65_t;
