@@ -1,5 +1,6 @@
 #include "./x65.h"
 #include "../args.h"
+#include "../log.h"
 
 #include "chips/clk.h"
 
@@ -407,6 +408,7 @@ void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask) {
 bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     CHIPS_ASSERT(sys && sys->valid && data.ptr);
     if (data.size < 2) {
+        LOG_ERROR("File too small");
         return false;
     }
     const uint8_t* ptr = (uint8_t*)data.ptr;
@@ -418,12 +420,14 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
 
     // $FFFF is required in first block
     if (ptr[0] != 0xff || ptr[1] != 0xff) {
+        LOG_ERROR("Missing $FFFF header");
         return false;
     }
 
     while (ptr < ((uint8_t*)data.ptr + data.size)) {
         size_t data_left = (uint8_t*)data.ptr + data.size - ptr;
         if (data_left < 4) {
+            LOG_ERROR("File truncated");
             return false;
         }
         if (ptr[0] == 0xff && ptr[1] == 0xff) {
@@ -431,6 +435,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
             ptr += 2;
             data_left -= 2;
             if (data_left < 4) {
+                LOG_ERROR("File truncated");
                 return false;
             }
         }
@@ -439,13 +444,16 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         ptr += 2;
         const uint16_t end_addr = ptr[1] << 8 | ptr[0];
         ptr += 2;
+        LOG_INFO("Loading block: %04X-%04X", start_addr, end_addr);
 
         data_left = (uint8_t*)data.ptr + data.size - ptr;
         if (data_left < (end_addr - start_addr + 1) || start_addr > end_addr) {
+            LOG_ERROR("Block truncated");
             return false;
         }
         if (start_addr == end_addr && start_addr == 0xFFFE) {
             load_bank = *ptr++;
+            LOG_INFO("Loading to bank: %d", load_bank);
         }
         else {
             uint16_t addr = start_addr;
@@ -458,6 +466,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     }
 
     if (reset_lo_loaded && reset_hi_loaded) {
+        LOG_INFO("Reset vector set - running")
         x65_set_running(sys, true);
     }
 

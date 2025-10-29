@@ -736,14 +736,16 @@ void log_func(uint32_t log_level, const char* log_id, const char* filename, uint
         short_filename += 4;
     }
 
-    uint32_t log_item = djb2(log_id);
+    unsigned long log_id_hash = djb2(log_id);
+    uint32_t log_item = (log_id_hash >> 32) ^ (log_id_hash & 0xFFFFFFFF);
 
     va_list args;
     va_start(args, fmt);
     vsnprintf(message, sizeof(message), fmt, args);
+    message[sizeof(message) - 1] = '\0';
     va_end(args);
 
-    slog_func("Emu", log_level, log_item, message, line_nr, short_filename, NULL);
+    slog_func(log_id, log_level, log_item, message, line_nr, short_filename, NULL);
     ui_app_log_add(log_level, log_item, log_id, message);
 }
 

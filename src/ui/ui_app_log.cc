@@ -140,7 +140,7 @@ void ui_app_log_add(uint32_t log_level, uint32_t log_item, const char* log_id, c
         default: log_level_str = "info"; break;
     }
 
-    app_log.AddLog("[%s][%u] %s() %s\n", log_level_str, log_item, log_id, message);
+    app_log.AddLog("[%s][%u] %s: %s\n", log_level_str, log_item, log_id, message);
 }
 
 void ui_app_log_init(ui_app_log_t* win, const ui_app_log_desc_t* desc) {
