@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["../../os-816/build/os-816.xex"],
+      "args": ["-z", "roms/multibank.xex"],
       "preLaunchTask": "CMake: build"
     },
     {
