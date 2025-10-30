@@ -229,8 +229,8 @@ typedef struct ui_dbg_state_t {
     uint64_t last_tick_pins;    // cpu pins in last tick
     uint32_t frame_id;          // used in trap callback to detect when a new frame has started
     uint32_t cur_op_ticks;
-    uint16_t cur_op_pc;         // PC of current instruction
-    uint16_t stepover_pc;
+    uint32_t cur_op_pc;         // PC of current instruction
+    uint32_t stepover_pc;
     int last_trap_id;           // can be used to identify breakpoint which caused trap
     int delete_breakpoint_index;
     int num_breakpoints;
@@ -306,13 +306,13 @@ typedef struct ui_dbg_heatmap_t {
     int scale;
     int cur_y;
     bool popup_addr_valid;
-    uint16_t popup_addr;
-    ui_dbg_heatmapitem_t items[1<<16];     /* execution counter map */
-    uint32_t pixels[1<<16];    /* execution counters converted to pixel data */
+    uint32_t popup_addr;
+    ui_dbg_heatmapitem_t items[1<<24];     /* execution counter map */
+    uint32_t pixels[1<<24];    /* execution counters converted to pixel data */
 } ui_dbg_heatmap_t;
 
 typedef struct ui_dbg_history_t {
-    uint16_t pc[UI_DBG_NUM_HISTORY_ITEMS];
+    uint32_t pc[UI_DBG_NUM_HISTORY_ITEMS];
     uint16_t pos;
 } ui_dbg_history_t;
 
@@ -434,7 +434,7 @@ static inline uint16_t _ui_dbg_read_word(ui_dbg_t* win, uint32_t addr) {
     return (uint16_t) (h<<8)|l;
 }
 
-static inline uint16_t _ui_dbg_get_pc(ui_dbg_t* win) {
+static inline uint32_t _ui_dbg_get_pc(ui_dbg_t* win) {
     return win->dbg.cur_op_pc;
 }
 
@@ -458,7 +458,7 @@ static void _ui_dbg_dasm_out_cb(char c, void* user_data) {
 }
 
 // disassemble instruction at address
-static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint32_t addr) {
+static inline uint32_t _ui_dbg_disasm(ui_dbg_t* win, uint32_t addr) {
     memset(&win->dasm_line, 0, sizeof(win->dasm_line));
     win->dasm_line.addr = addr;
     #if defined(UI_DBG_USE_Z80)
@@ -468,7 +468,7 @@ static inline uint16_t _ui_dbg_disasm(ui_dbg_t* win, uint32_t addr) {
     #elif defined(UI_DBG_USE_W65C816S)
         w65816dasm_op(addr, w65816_p(win->dbg.w65816) | (w65816_e(win->dbg.w65816) ? W65816_UF : 0), _ui_dbg_dasm_in_cb, _ui_dbg_dasm_out_cb, win);
     #endif
-    uint16_t next_addr = win->dasm_line.addr;
+    uint32_t next_addr = win->dasm_line.addr;
     win->dasm_line.addr = addr;
     return next_addr;
 }
@@ -594,7 +594,7 @@ static void _ui_dbg_step_into(ui_dbg_t* win) {
 static void _ui_dbg_step_over(ui_dbg_t* win) {
     win->dbg.stopped = false;
     win->ui.request_scroll = true;
-    uint16_t next_pc = _ui_dbg_disasm(win, _ui_dbg_get_pc(win));
+    uint32_t next_pc = _ui_dbg_disasm(win, _ui_dbg_get_pc(win));
     if (_ui_dbg_is_stepover_op(win->dasm_line.bytes[0])) {
         win->dbg.step_mode = UI_DBG_STEPMODE_OVER;
         win->dbg.stepover_pc = next_pc;
@@ -618,12 +618,12 @@ static void _ui_dbg_history_reboot(ui_dbg_t* win) {
     _ui_dbg_history_reset(win);
 }
 
-static void _ui_dbg_history_push(ui_dbg_t* win, uint16_t pc) {
+static void _ui_dbg_history_push(ui_dbg_t* win, uint32_t pc) {
     win->history.pc[win->history.pos] = pc;
     win->history.pos = (win->history.pos + 1) & (UI_DBG_NUM_HISTORY_ITEMS-1);
 }
 
-static uint16_t _ui_dbg_history_get(ui_dbg_t* win, uint16_t rel_pos) {
+static uint32_t _ui_dbg_history_get(ui_dbg_t* win, uint16_t rel_pos) {
     uint16_t index = (win->history.pos - rel_pos - 1) & (UI_DBG_NUM_HISTORY_ITEMS-1);
     return win->history.pc[index];
 }
@@ -656,7 +656,7 @@ static void _ui_dbg_history_draw(ui_dbg_t* win) {
             }
 
             /* get history PC */
-            uint16_t pc = _ui_dbg_history_get(win, line_i);
+            uint32_t pc = _ui_dbg_history_get(win, line_i);
             uint32_t addr = _ui_dbg_disasm(win, pc);
             const int num_bytes = addr - pc;
 
@@ -687,7 +687,7 @@ static void _ui_dbg_history_draw(ui_dbg_t* win) {
             /* tick count */
             x += glyph_width * 17;
             if (win->ui.show_ticks) {
-                int ticks = win->heatmap.items[pc].ticks;
+                int ticks = win->heatmap.items[pc&0xFFFFFF].ticks;
                 ImGui::SameLine(x);
                 ImGui::Text("%d", ticks);
             }
@@ -734,7 +734,7 @@ static void _ui_dbg_dbgstate_reboot(ui_dbg_t* win) {
 }
 
 // evaluate per-opcode breakpoints, called at the start of a new instrucion
-static int _ui_dbg_eval_op_breakpoints(ui_dbg_t* win, int trap_id, uint16_t pc) {
+static int _ui_dbg_eval_op_breakpoints(ui_dbg_t* win, int trap_id, uint32_t pc) {
     if (win->dbg.step_mode != UI_DBG_STEPMODE_NONE) {
         switch (win->dbg.step_mode) {
             case UI_DBG_STEPMODE_INTO:
@@ -1062,8 +1062,8 @@ static void _ui_dbg_bp_draw(ui_dbg_t* win) {
             ImGui::PopItemWidth();
             if (bt->show_addr) {
                 ImGui::SameLine();
-                uint16_t old_addr = bp->addr;
-                bp->addr = ui_util_input_u16("##addr", old_addr);
+                uint32_t old_addr = bp->addr;
+                bp->addr = ui_util_input_u24("##addr", old_addr);
                 if (upd_val || (old_addr != bp->addr)) {
                     /* if breakpoint type or address has changed, update the breakpoint's value from memory */
                     switch (bp->type) {
@@ -1188,16 +1188,16 @@ static void _ui_dbg_heatmap_clear_all(ui_dbg_t* win) {
 }
 
 static void _ui_dbg_heatmap_clear_rw(ui_dbg_t* win) {
-    for (int i = 0; i < (1<<16); i++) {
+    for (int i = 0; i < (1<<24); i++) {
         win->heatmap.items[i].state &= ~(UI_DBG_HEATMAP_ITEM_READ|UI_DBG_HEATMAP_ITEM_WRITE);
     }
 }
 
-static void _ui_dbg_heatmap_record_op(ui_dbg_t* win, uint16_t pc) {
+static void _ui_dbg_heatmap_record_op(ui_dbg_t* win, uint32_t pc) {
     // record per-op heatmap events
-    win->heatmap.items[pc].state |= UI_DBG_HEATMAP_ITEM_OPCODE;
+    win->heatmap.items[pc&0xFFFFFF].state |= UI_DBG_HEATMAP_ITEM_OPCODE;
     // update last instruction's ticks
-    win->heatmap.items[win->dbg.cur_op_pc].ticks = win->dbg.cur_op_ticks;
+    win->heatmap.items[win->dbg.cur_op_pc&0xFFFFFF].ticks = win->dbg.cur_op_ticks;
 }
 
 static void _ui_dbg_heatmap_record_tick(ui_dbg_t* win, uint64_t pins) {
@@ -1220,23 +1220,23 @@ static void _ui_dbg_heatmap_record_tick(ui_dbg_t* win, uint64_t pins) {
         const uint32_t addr = W65816_GET_ADDR(pins);
         // FIXME: handle 24-bit address
         if (0 != (pins & W65816_RW)) {
-            win->heatmap.items[addr].state |= UI_DBG_HEATMAP_ITEM_READ;
+            win->heatmap.items[addr&0xFFFFFF].state |= UI_DBG_HEATMAP_ITEM_READ;
         } else {
-            win->heatmap.items[addr].state |= UI_DBG_HEATMAP_ITEM_WRITE;
+            win->heatmap.items[addr&0xFFFFFF].state |= UI_DBG_HEATMAP_ITEM_WRITE;
         }
     #endif
 }
 
-static inline bool _ui_dbg_heatmap_is_opcode(ui_dbg_t* win, uint16_t addr) {
-    return 0 != (win->heatmap.items[addr].state & UI_DBG_HEATMAP_ITEM_OPCODE);
+static inline bool _ui_dbg_heatmap_is_opcode(ui_dbg_t* win, uint32_t addr) {
+    return 0 != (win->heatmap.items[addr&0xFFFFFF].state & UI_DBG_HEATMAP_ITEM_OPCODE);
 }
 
-static inline bool _ui_dbg_heatmap_is_read(ui_dbg_t* win, uint16_t addr) {
-    return 0 != (win->heatmap.items[addr].state & UI_DBG_HEATMAP_ITEM_READ);
+static inline bool _ui_dbg_heatmap_is_read(ui_dbg_t* win, uint32_t addr) {
+    return 0 != (win->heatmap.items[addr&0xFFFFFF].state & UI_DBG_HEATMAP_ITEM_READ);
 }
 
-static inline bool _ui_dbg_heatmap_is_write(ui_dbg_t* win, uint16_t addr) {
-    return 0 != (win->heatmap.items[addr].state & UI_DBG_HEATMAP_ITEM_WRITE);
+static inline bool _ui_dbg_heatmap_is_write(ui_dbg_t* win, uint32_t addr) {
+    return 0 != (win->heatmap.items[addr&0xFFFFFF].state & UI_DBG_HEATMAP_ITEM_WRITE);
 }
 
 static void _ui_dbg_heatmap_update(ui_dbg_t* win) {
@@ -1251,13 +1251,13 @@ static void _ui_dbg_heatmap_update(ui_dbg_t* win) {
             if (_ui_dbg_get_pc(win) == i) {
                 p |= 0xFF00FFFF;
             }
-            if (win->heatmap.show_ops && _ui_dbg_heatmap_is_opcode(win, (uint16_t)i)) {
+            if (win->heatmap.show_ops && _ui_dbg_heatmap_is_opcode(win, i&0xFFFFFF)) {
                 p |= 0xFF0000FF;
             }
-            if (win->heatmap.show_writes && _ui_dbg_heatmap_is_write(win, (uint16_t)i)) {
+            if (win->heatmap.show_writes && _ui_dbg_heatmap_is_write(win, i&0xFFFFFF)) {
                 p |= 0xFF008800;
             }
-            if (win->heatmap.show_reads && _ui_dbg_heatmap_is_read(win, (uint16_t)i)) {
+            if (win->heatmap.show_reads && _ui_dbg_heatmap_is_read(win, i&0xFFFFFF)) {
                 p |= 0xFF880000;
             }
             win->heatmap.pixels[i] = p;
@@ -1328,7 +1328,7 @@ static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
             if (_ui_dbg_heatmap_is_opcode(win, addr)) {
                 _ui_dbg_disasm(win, addr);
                 ImGui::SetTooltip("%04X: %s (ticks: %d)\n(right-click for options)",
-                    addr, win->dasm_line.chars, hm->items[addr].ticks);
+                    addr, win->dasm_line.chars, hm->items[addr&0xFFFFFF].ticks);
             } else {
                 ImGui::SetTooltip("%04X: %02X %02X %02X %02X\n(right-click for options)", addr,
                     _ui_dbg_read_byte(win, addr),
@@ -1771,8 +1771,8 @@ typedef struct {
 
 static _ui_dbg_disasm_backscan_result_t _ui_dbg_disasm_backscan(ui_dbg_t* win, uint32_t addr) {
     bool is_known_op = false;
-    uint16_t bs_addr = addr - 1;
-    uint16_t scan_addr = bs_addr;
+    uint32_t bs_addr = addr - 1;
+    uint32_t scan_addr = bs_addr;
     for (int i = 0; i < 4; i++, scan_addr--) {
         if (_ui_dbg_heatmap_is_opcode(win, scan_addr)) {
             // Z80: prefixed instruction?
@@ -1810,7 +1810,7 @@ static void _ui_dbg_update_line_array(ui_dbg_t* win, uint32_t addr) {
     /* one half is backtraced from current PC, the other half is
        'forward tracked' from current PC
     */
-    uint16_t bs_addr = addr;
+    uint32_t bs_addr = addr;
     int line_idx;
     for (line_idx = 0; line_idx < UI_DBG_NUM_BACKTRACE_LINES; line_idx++) {
         // scan backwards for op start in blocks of 4 bytes (== max length of an instruction)
@@ -1835,8 +1835,8 @@ static void _ui_dbg_update_line_array(ui_dbg_t* win, uint32_t addr) {
     executed before.
 */
 static bool _ui_dbg_addr_inside_line_array(ui_dbg_t* win, uint32_t addr) {
-    uint16_t first_addr = win->ui.line_array[UI_DBG_NUM_BACKTRACE_LINES].addr;
-    uint16_t last_addr = win->ui.line_array[UI_DBG_NUM_LINES-16].addr;
+    uint32_t first_addr = win->ui.line_array[UI_DBG_NUM_BACKTRACE_LINES].addr;
+    uint32_t last_addr = win->ui.line_array[UI_DBG_NUM_LINES-16].addr;
     if (first_addr == last_addr) {
         return false;
     } else if (first_addr < last_addr) {
@@ -1886,7 +1886,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
     const ImU32 ctrlflow_color = 0x44888888;
 
     /* update the line array if PC is outside or its content has become outdated */
-    const uint16_t pc = _ui_dbg_get_pc(win);
+    const uint32_t pc = _ui_dbg_get_pc(win);
     bool force_scroll = false;
     if (_ui_dbg_line_array_needs_update(win, pc)) {
         _ui_dbg_update_line_array(win, pc);
@@ -1925,7 +1925,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
         uint32_t addr = win->ui.line_array[line_i].addr;
         bool is_pc_line = (addr == pc);
         bool show_dasm = (line_i >= UI_DBG_NUM_BACKTRACE_LINES) || _ui_dbg_heatmap_is_opcode(win, addr);
-        const uint16_t start_addr = addr;
+        const uint32_t start_addr = addr;
         if (show_dasm) {
             addr = _ui_dbg_disasm(win, addr);
         } else {
@@ -2017,7 +2017,7 @@ static void _ui_dbg_draw_main(ui_dbg_t* win) {
         /* tick count */
         x += glyph_width * (is_pc_line ? 18:20);
         if (win->ui.show_ticks) {
-            int ticks = win->heatmap.items[start_addr].ticks;
+            int ticks = win->heatmap.items[start_addr&0xFFFFFF].ticks;
             ImGui::SameLine(x);
             if (ticks > 0) {
                 if (is_pc_line) {
@@ -2148,13 +2148,15 @@ void ui_dbg_tick(ui_dbg_t* win, uint64_t pins) {
     // evaluate per-op breakpoints
     #if defined(UI_DBG_USE_M6502)
         const bool new_op = pins & M6502_SYNC;
+        const uint16_t pc = pins & 0xFFFF;
     #elif defined(UI_DBG_USE_W65C816S)
         const bool new_op = (pins & W65816_VPA) && (pins & W65816_VDA);
+        const uint32_t pc = W65816_GET_ADDR(pins);
     #elif defined(UI_DBG_USE_Z80)
         const bool new_op = z80_opdone(win->dbg.z80);
+        const uint16_t pc = pins & 0xFFFF;
     #endif
     if (new_op) {
-        const uint16_t pc = pins & 0xFFFF;
         trap_id = _ui_dbg_eval_op_breakpoints(win, trap_id, pc);
         _ui_dbg_heatmap_record_op(win, pc);
         _ui_dbg_history_push(win, pc);
@@ -2267,7 +2269,7 @@ void ui_dbg_disassemble(ui_dbg_t* win, const ui_dbg_dasm_request_t* request) {
     // NOTE: this code uses the same strategy as _ui_dbg_update_line_array()
     // it will first scan backward and look for known instructions
     // in the heatmap, and then scan forward
-    uint16_t bs_addr = request->addr;
+    uint32_t bs_addr = request->addr;
     int line_idx = 0;
     // optional backwards scan
     if (request->offset_lines < 0) {
@@ -2295,7 +2297,7 @@ void ui_dbg_disassemble(ui_dbg_t* win, const ui_dbg_dasm_request_t* request) {
         }
     }
 
-    uint16_t fwd_addr = request->addr;
+    uint32_t fwd_addr = request->addr;
     // if the offset is > 0, skip disassembled instructions
     if (request->offset_lines > 0) {
         for (int i = 0; i < request->offset_lines; i++) {

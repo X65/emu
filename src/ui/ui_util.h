@@ -56,6 +56,8 @@ typedef struct {
     void (*menu_cb)(void);
 } ui_inject_t;
 
+// draw an 24-bit hex text input field
+uint32_t ui_util_input_u24(const char* label, uint32_t val);
 // draw an 16-bit hex text input field
 uint16_t ui_util_input_u16(const char* label, uint16_t val);
 // draw an 8-bit hex text input field
@@ -98,6 +100,26 @@ void ui_util_handle_window_open_dirty(const bool* cur_open, bool* last_open);
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)
 #endif
+
+uint32_t ui_util_input_u24(const char* label, uint32_t val) {
+    char buf[7];
+    for (int i = 0; i < 6; i++) {
+        buf[i] = "0123456789ABCDEF"[val>>((5-i)*4) & 0xF];
+    }
+    buf[6] = 0;
+    const int flags = ImGuiInputTextFlags_CharsHexadecimal|
+        ImGuiInputTextFlags_CharsUppercase|
+        ImGuiInputTextFlags_EnterReturnsTrue;
+    ImGui::PushItemWidth(54);
+    if (ImGui::InputText(label, buf, sizeof(buf), flags)) {
+        int res;
+        if (sscanf(buf, "%X", &res) == 1) {
+            val = (uint32_t) res & 0xFFFFFF;
+        }
+    }
+    ImGui::PopItemWidth();
+    return val;
+}
 
 uint16_t ui_util_input_u16(const char* label, uint16_t val) {
     char buf[5];
