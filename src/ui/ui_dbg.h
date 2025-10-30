@@ -301,6 +301,7 @@ typedef struct ui_dbg_heatmap_t {
     int tex_width_uicombo_state;
     int next_tex_width;
     ui_texture_t texture;
+    uint8_t bank;
     bool show_ops, show_reads, show_writes;
     int autoclear_interval; /* 0: no autoclear */
     int scale;
@@ -1247,17 +1248,18 @@ static void _ui_dbg_heatmap_update(ui_dbg_t* win) {
     for (int y = y0; y < y1; y++) {
         for (int x = 0; x < 256; x++) {
             const int i = y * 256 + x;
+            const uint32_t addr = ((win->heatmap.bank << 16) | i) & 0xFFFFFF;
             uint32_t p = 0;
-            if (_ui_dbg_get_pc(win) == i) {
+            if (_ui_dbg_get_pc(win) == addr) {
                 p |= 0xFF00FFFF;
             }
-            if (win->heatmap.show_ops && _ui_dbg_heatmap_is_opcode(win, i&0xFFFFFF)) {
+            if (win->heatmap.show_ops && _ui_dbg_heatmap_is_opcode(win, addr)) {
                 p |= 0xFF0000FF;
             }
-            if (win->heatmap.show_writes && _ui_dbg_heatmap_is_write(win, i&0xFFFFFF)) {
+            if (win->heatmap.show_writes && _ui_dbg_heatmap_is_write(win, addr)) {
                 p |= 0xFF008800;
             }
-            if (win->heatmap.show_reads && _ui_dbg_heatmap_is_read(win, i&0xFFFFFF)) {
+            if (win->heatmap.show_reads && _ui_dbg_heatmap_is_read(win, addr)) {
                 p |= 0xFF880000;
             }
             win->heatmap.pixels[i] = p;
@@ -1300,6 +1302,8 @@ static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
         ImGui::PushStyleColor(ImGuiCol_Text, 0xFF00FF00);
         ImGui::Checkbox("W", &hm->show_writes);
         ImGui::PopStyleColor(3);
+        static const int step = 0x1, step_fast = 0x10;
+        ImGui::InputScalar("Bank", ImGuiDataType_U8, &hm->bank, &step, &step_fast, "%02X", ImGuiInputTextFlags_CharsHexadecimal|ImGuiInputTextFlags_CharsUppercase);
         if (ImGui::Combo("Size", &hm->tex_width_uicombo_state,
             "16 x 4096 bytes\0"
             "32 x 2048 bytes\0"
