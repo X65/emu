@@ -19,11 +19,11 @@ Emu is based on [chip emulators][2] by Andre Weissflog.
 
 Fedora:
 
-    dnf install libX11-devel libXi-devel libXcursor-devel mesa-libEGL-devel alsa-lib-devel
+    dnf install libX11-devel libXi-devel libXcursor-devel mesa-libEGL-devel alsa-lib-devel libunwind-devel
 
 Ubuntu:
 
-    apt install libx11-dev libxi-dev libxcursor-dev libegl1-mesa-dev libasound2-dev
+    apt install libx11-dev libxi-dev libxcursor-dev libegl1-mesa-dev libasound2-dev libunwind-dev
 
 ## Build
 

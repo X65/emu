@@ -36,6 +36,7 @@ add_executable(emu
     src/chips/ria816.c
     src/chips/tca6416a.c
     src/chips/ymf262.c
+    src/chips/ymf825.c
     src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
