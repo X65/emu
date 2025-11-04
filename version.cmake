@@ -14,7 +14,7 @@ if ("${GIT_REV}" STREQUAL "")
     set(GIT_BRANCH "N/A")
 else()
     execute_process(
-        COMMAND bash -c "git diff --quiet --exit-code || echo +"
+        COMMAND bash -c "git diff --exit-code >/dev/null || echo +"
         OUTPUT_VARIABLE GIT_DIFF)
     execute_process(
         COMMAND git describe --exact-match --tags
