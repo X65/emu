@@ -731,30 +731,9 @@ void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_da
     }
 }
 
-static void store_back(uint32_t* rgbbuf, uint32_t columns);
-static uint32_t* restore_back(uint32_t* rgbbuf, uint32_t columns);
-
 #define cgia_init fwcgia_init
 #include "firmware/src/ria/cgia/cgia.c"
 #undef cgia_init
-
-static void store_back(uint32_t* rgbbuf, uint32_t columns) {
-    uint32_t* dst = stored_line_data;
-    uint pixels = columns * CGIA_COLUMN_PX;
-    while (pixels) {
-        *dst++ = *rgbbuf++;
-        --pixels;
-    }
-}
-static uint32_t* restore_back(uint32_t* rgbbuf, uint32_t columns) {
-    uint32_t* src = stored_line_data;
-    uint pixels = columns * CGIA_COLUMN_PX;
-    while (pixels) {
-        *rgbbuf++ = *src++;
-        --pixels;
-    }
-    return rgbbuf;
-}
 
 static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
     for (size_t i = 0; i < 256 * 256; ++i) {
