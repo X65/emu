@@ -289,6 +289,176 @@ static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t c
 
 #include "firmware/src/ria/cgia/cgia_encode.h"
 
+uint32_t* cgia_encode_mode_0(
+    uint32_t* rgbbuf,
+    uint32_t columns,
+    uint8_t* character_generator,
+    uint32_t char_shift,
+    uint8_t shared_colors[8],
+    uint8_t bpp,
+    bool doubled,
+    bool mapped) {
+    while (columns) {
+        const uintptr_t chr_addr = interp_pop_lane_result(interp0, 0);
+        uint8_t chr = *((uint8_t*)chr_addr);
+
+        uint8_t color_idx = chr >> (8 - bpp) & 0b00001110;
+        chr = chr & ((1 << (9 - bpp)) - 1);
+
+        uint8_t bits = character_generator[chr << char_shift];
+        for (int shift = 7; shift >= 0; shift--) {
+            if (mapped) {
+                uint8_t idx = color_idx | ((bits >> shift) & 0b1);
+                uint8_t color = shared_colors[idx & 0b00000111];
+                if (idx > 7) {
+                    // toggle bit 2 for half-bright - move forward or backward by 4 colors
+                    color ^= 0b00000100;
+                }
+                *rgbbuf++ = cgia_rgb_palette[color];
+                if (doubled) *rgbbuf++ = cgia_rgb_palette[color];
+            }
+            else {
+                rgbbuf++;  // transparent pixel
+                if (doubled) rgbbuf++;
+            }
+        }
+        --columns;
+    }
+
+    return rgbbuf;
+}
+
+CGIA_ENCODE_MODE_0(_1bpp, , _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 1, false, false);
+}
+CGIA_ENCODE_MODE_0(_1bpp, , _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 1, false, true);
+}
+CGIA_ENCODE_MODE_0(_1bpp, _doubled, _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 1, true, false);
+}
+CGIA_ENCODE_MODE_0(_1bpp, _doubled, _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 1, true, true);
+}
+CGIA_ENCODE_MODE_0(_2bpp, , _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 2, false, false);
+}
+CGIA_ENCODE_MODE_0(_2bpp, , _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 2, false, true);
+}
+CGIA_ENCODE_MODE_0(_2bpp, _doubled, _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 2, true, false);
+}
+CGIA_ENCODE_MODE_0(_2bpp, _doubled, _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 2, true, true);
+}
+CGIA_ENCODE_MODE_0(_3bpp, , _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 3, false, false);
+}
+CGIA_ENCODE_MODE_0(_3bpp, , _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 3, false, true);
+}
+CGIA_ENCODE_MODE_0(_3bpp, _doubled, _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 3, true, false);
+}
+CGIA_ENCODE_MODE_0(_3bpp, _doubled, _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 3, true, true);
+}
+CGIA_ENCODE_MODE_0(_4bpp, , _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 4, false, false);
+}
+CGIA_ENCODE_MODE_0(_4bpp, , _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 4, false, true);
+}
+CGIA_ENCODE_MODE_0(_4bpp, _doubled, _shared) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 4, true, false);
+}
+CGIA_ENCODE_MODE_0(_4bpp, _doubled, _mapped) {
+    return cgia_encode_mode_0(rgbbuf, columns, character_generator, char_shift, shared_colors, 4, true, true);
+}
+
+uint32_t* cgia_encode_mode_1(
+    uint32_t* rgbbuf,
+    uint32_t columns,
+    uint8_t shared_colors[8],
+    uint8_t bpp,
+    bool doubled,
+    bool mapped) {
+    while (columns) {
+        uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
+        uint8_t bits = *((uint8_t*)bits_addr);
+        for (int shift = 7; shift >= 0; shift--) {
+            uint bit_set = (bits >> shift) & 0b1;
+            if (bit_set) {
+                *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+                if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+            }
+            else {
+                if (mapped) {
+                    *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                }
+                else {
+                    rgbbuf++;  // transparent pixel
+                    if (doubled) rgbbuf++;
+                }
+            }
+        }
+        --columns;
+    }
+
+    return rgbbuf;
+}
+
+CGIA_ENCODE_MODE_1(_1bpp, , _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 1, false, false);
+}
+CGIA_ENCODE_MODE_1(_1bpp, , _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 1, false, true);
+}
+CGIA_ENCODE_MODE_1(_1bpp, _doubled, _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 1, true, false);
+}
+CGIA_ENCODE_MODE_1(_1bpp, _doubled, _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 1, true, true);
+}
+CGIA_ENCODE_MODE_1(_2bpp, , _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 2, false, false);
+}
+CGIA_ENCODE_MODE_1(_2bpp, , _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 2, false, true);
+}
+CGIA_ENCODE_MODE_1(_2bpp, _doubled, _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 2, true, false);
+}
+CGIA_ENCODE_MODE_1(_2bpp, _doubled, _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 2, true, true);
+}
+CGIA_ENCODE_MODE_1(_3bpp, , _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 3, false, false);
+}
+CGIA_ENCODE_MODE_1(_3bpp, , _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 3, false, true);
+}
+CGIA_ENCODE_MODE_1(_3bpp, _doubled, _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 3, true, false);
+}
+CGIA_ENCODE_MODE_1(_3bpp, _doubled, _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 3, true, true);
+}
+CGIA_ENCODE_MODE_1(_4bpp, , _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 4, false, false);
+}
+CGIA_ENCODE_MODE_1(_4bpp, , _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 4, false, true);
+}
+CGIA_ENCODE_MODE_1(_4bpp, _doubled, _shared) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 4, true, false);
+}
+CGIA_ENCODE_MODE_1(_4bpp, _doubled, _mapped) {
+    return cgia_encode_mode_1(rgbbuf, columns, shared_colors, 4, true, true);
+}
+
 uint32_t*
 cgia_encode_mode_2(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift, bool mapped) {
     while (columns) {
