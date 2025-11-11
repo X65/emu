@@ -1658,7 +1658,7 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 50);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 58);
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 42);
-            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 80);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 128);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             w65816_set_c(c, ui_util_input_u16("C", w65816_c(c))); ImGui::TableNextColumn();
@@ -1674,7 +1674,7 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
 
             const uint8_t p = w65816_p(c);
             const uint8_t e = w65816_e(c);
-            char p_str[11] = {
+            char p_str[9] = {
                 (p & W65816_NF) ? 'N':'-',
                 (p & W65816_VF) ? 'V':'-',
                 e ? ((p & W65816_UF) ? '1':'-') : ((p & W65816_MF) ? 'M':'-'),
@@ -1683,12 +1683,13 @@ void _ui_dbg_draw_regs(ui_dbg_t* win) {
                 (p & W65816_IF) ? 'I':'-',
                 (p & W65816_ZF) ? 'Z':'-',
                 (p & W65816_CF) ? 'C':'-',
-                ' ',
-                e ? 'E':' ',
                 0,
             };
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%s", p_str);
+            ImGui::Text("%s %s %s",
+                p_str,
+                e ? " E" : ((p & W65816_MF) ? " A8" : "A16"),
+                e ? "" : ((p & W65816_XF) ? "I8 " : "I16"));
             ImGui::EndTable();
         }
     #endif

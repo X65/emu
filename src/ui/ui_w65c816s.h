@@ -143,7 +143,7 @@ static void _ui_w65816_regs(ui_w65816_t* win) {
     };
     ImGui::Text("P:  %02X %s %s %s", f, f_str,
         cpu->emulation ? "" : ((f & W65816_MF) ? " A8" : "A16"),
-        cpu->emulation ? "" : ((f & W65816_XF) ? " I8" : "I16"));
+        cpu->emulation ? "" : ((f & W65816_XF) ? "I8 " : "I16"));
     ImGui::Text("PC: %04X", cpu->PC);
     ImGui::Text("PB: %02X", cpu->PBR);
     ImGui::Text("DB: %02X", cpu->DBR);
