@@ -214,7 +214,7 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
     for (int c = 0; c < 2; ++c) {
         ImGui::SameLine();
         ImGui::PushID(c);
-        _ui_cgia_draw_color(win, "", chip->plane[p].bckgnd.shared_color[c]);
+        _ui_cgia_draw_color(win, "", chip->plane[p].bckgnd.color[c]);
         ImGui::PopID();
     }
     ImGui::SameLine();
@@ -222,7 +222,7 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
     for (int c = 2; c < 8; ++c) {
         ImGui::SameLine();
         ImGui::PushID(c);
-        _ui_cgia_draw_color(win, "", chip->plane[p].ham.base_color[c]);
+        _ui_cgia_draw_color(win, "", chip->plane[p].ham.color[c]);
         ImGui::PopID();
     }
     ImGui::Text("scroll_x: %03d", chip->plane[p].bckgnd.scroll_x);
