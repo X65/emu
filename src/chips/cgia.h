@@ -227,7 +227,8 @@ typedef struct {
     // VRAM banks
     uint8_t* vram[2];
     // rasterizer linebuffer
-    uint32_t linebuffer[CGIA_LINEBUFFER_WIDTH];
+    uint32_t linebuffer[2][CGIA_LINEBUFFER_WIDTH];
+    uint8_t linebuffer_idx;
 } cgia_t;
 
 // initialize a new cgia_t instance

@@ -73,13 +73,14 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             vpu->v_count = 0;
         }
 
-        uint32_t* src = vpu->linebuffer + CGIA_LINEBUFFER_PADDING;
-
         if (vpu->v_count >= MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
             vpu->scan_line = vpu->v_count - (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH);
 
+            uint32_t* src = vpu->linebuffer[vpu->linebuffer_idx] + CGIA_LINEBUFFER_PADDING;
             if (vpu->scan_line % FB_V_REPEAT == 0) {
                 // rasterize new line
+                vpu->linebuffer_idx ^= 1;
+                src = vpu->linebuffer[vpu->linebuffer_idx] + CGIA_LINEBUFFER_PADDING;
                 cgia_render((uint16_t)(vpu->scan_line / FB_V_REPEAT), src);
             }
 
