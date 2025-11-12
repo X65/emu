@@ -314,8 +314,8 @@ uint32_t* cgia_encode_mode_0(
             uint8_t bits = character_generator[chr << char_shift];
 
             for (int shift = 6; shift >= 0; shift -= 2) {
-                if (mapped) {
-                    uint8_t idx = color_idx | ((bits >> shift) & 0b11);
+                uint8_t idx = color_idx | ((bits >> shift) & 0b11);
+                if (mapped || idx) {
                     uint8_t color = shared_colors[idx & 0b00000111];
                     *rgbbuf++ = cgia_rgb_palette[color];
                     if (doubled) *rgbbuf++ = cgia_rgb_palette[color];
@@ -435,26 +435,46 @@ uint32_t* cgia_encode_mode_1(
     uint8_t bpp,
     bool doubled,
     bool mapped) {
+    uintptr_t addr;
+    uint32_t chunk;
+
     while (columns) {
-        uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
-        uint8_t bits = *((uint8_t*)bits_addr);
+        addr = interp_pop_lane_result(interp0, 0);
+        chunk = *((uint8_t*)addr);
+        if (bpp > 1) {
+            chunk <<= 8;
+            addr = interp_pop_lane_result(interp0, 0);
+            chunk |= *((uint8_t*)addr);
+        }
+        if (bpp > 2) {
+            chunk <<= 8;
+            addr = interp_pop_lane_result(interp0, 0);
+            chunk |= *((uint8_t*)addr);
+        }
+        if (bpp > 3) {
+            chunk <<= 8;
+            addr = interp_pop_lane_result(interp0, 0);
+            chunk |= *((uint8_t*)addr);
+        }
+        const uint8_t mask = (uint8_t)((1 << bpp) - 1);
+
         for (int shift = 7; shift >= 0; shift--) {
-            uint bit_set = (bits >> shift) & 0b1;
-            if (bit_set) {
-                *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
-                if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+            uint8_t idx = (chunk >> (shift * bpp)) & mask;
+            if (mapped || idx) {
+                uint8_t color = shared_colors[idx & 0b00000111];
+                if (idx > 7) {
+                    // toggle bit 2 for half-bright - move forward or backward by 4 colors
+                    color ^= 0b00000100;
+                }
+                *rgbbuf++ = cgia_rgb_palette[color];
+                if (doubled) *rgbbuf++ = cgia_rgb_palette[color];
             }
             else {
-                if (mapped) {
-                    *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
-                    if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
-                }
-                else {
-                    rgbbuf++;  // transparent pixel
-                    if (doubled) rgbbuf++;
-                }
+                rgbbuf++;  // transparent pixel
+                if (doubled) rgbbuf++;
             }
         }
+
         --columns;
     }
 
@@ -607,7 +627,13 @@ inline __attribute__((always_inline)) CGIA_ENCODE_MODE_2(_multi, _doubled, _mapp
     return cgia_encode_mode_2(rgbbuf, columns, character_generator, char_shift, shared_colors, true, true, true);
 }
 
-uint32_t* cgia_encode_mode_3(uint32_t* rgbbuf, uint32_t columns, bool mapped) {
+uint32_t* cgia_encode_mode_3(
+    uint32_t* rgbbuf,
+    uint32_t columns,
+    uint8_t shared_colors[8],
+    bool multi,
+    bool doubled,
+    bool mapped) {
     while (columns) {
         uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
         uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
@@ -615,68 +641,53 @@ uint32_t* cgia_encode_mode_3(uint32_t* rgbbuf, uint32_t columns, bool mapped) {
         uint8_t fg_cl = *((uint8_t*)fg_cl_addr);
         uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
         uint8_t bits = *((uint8_t*)bits_addr);
-        for (int shift = 7; shift >= 0; shift--) {
-            uint bit_set = (bits >> shift) & 0b1;
-            if (bit_set) {
-                *rgbbuf++ = cgia_rgb_palette[fg_cl];
-            }
-            else {
-                if (mapped) {
-                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
-                }
-                else {
-                    rgbbuf++;  // transparent pixel
+        if (multi) {
+            for (int shift = 6; shift >= 0; shift -= 2) {
+                uint color_no = (bits >> shift) & 0b11;
+                switch (color_no) {
+                    case 0b00:
+                        if (mapped) {
+                            *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                            if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                        }
+                        else {
+                            rgbbuf++;  // transparent pixel
+                            if (doubled) rgbbuf++;
+                        }
+                        break;
+                    case 0b01:
+                        *rgbbuf++ = cgia_rgb_palette[bg_cl];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[bg_cl];
+                        break;
+                    case 0b10:
+                        *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                        break;
+                    case 0b11:
+                        *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
+                        break;
+                    default: abort();
                 }
             }
         }
-        --columns;
-    }
-
-    return rgbbuf;
-}
-
-inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_shared(uint32_t* rgbbuf, uint32_t columns) {
-    return cgia_encode_mode_3(rgbbuf, columns, false);
-}
-
-inline uint32_t* __attribute__((always_inline)) cgia_encode_mode_3_mapped(uint32_t* rgbbuf, uint32_t columns) {
-    return cgia_encode_mode_3(rgbbuf, columns, true);
-}
-
-uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2], bool doubled, bool mapped) {
-    while (columns) {
-        uintptr_t bg_cl_addr = interp_peek_lane_result(interp1, 1);
-        uint8_t bg_cl = *((uint8_t*)bg_cl_addr);
-        uintptr_t fg_cl_addr = interp_pop_lane_result(interp1, 0);
-        uint8_t fg_cl = *((uint8_t*)fg_cl_addr);
-        uintptr_t bits_addr = interp_pop_lane_result(interp0, 0);
-        uint8_t bits = *((uint8_t*)bits_addr);
-        for (int shift = 6; shift >= 0; shift -= 2) {
-            uint color_no = (bits >> shift) & 0b11;
-            switch (color_no) {
-                case 0b00:
+        else {
+            for (int shift = 7; shift >= 0; shift--) {
+                uint bit_set = (bits >> shift) & 0b1;
+                if (bit_set) {
+                    *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                    if (doubled) *rgbbuf++ = cgia_rgb_palette[fg_cl];
+                }
+                else {
                     if (mapped) {
-                        *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
-                        if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[0]];
+                        *rgbbuf++ = cgia_rgb_palette[bg_cl];
+                        if (doubled) *rgbbuf++ = cgia_rgb_palette[bg_cl];
                     }
                     else {
                         rgbbuf++;  // transparent pixel
                         if (doubled) rgbbuf++;
                     }
-                    break;
-                case 0b01:
-                    *rgbbuf++ = cgia_rgb_palette[bg_cl];
-                    if (doubled) *rgbbuf++ = cgia_rgb_palette[bg_cl];
-                    break;
-                case 0b10:
-                    *rgbbuf++ = cgia_rgb_palette[fg_cl];
-                    if (doubled) *rgbbuf++ = cgia_rgb_palette[fg_cl];
-                    break;
-                case 0b11:
-                    *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
-                    if (doubled) *rgbbuf++ = cgia_rgb_palette[shared_colors[1]];
-                    break;
-                default: abort();
+                }
             }
         }
         --columns;
@@ -685,29 +696,34 @@ uint32_t* cgia_encode_mode_5(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_
     return rgbbuf;
 }
 
-inline uint32_t* __attribute__((always_inline))
-cgia_encode_mode_5_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, false, false);
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(, , _shared) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, false, false, false);
 }
-
-inline uint32_t* __attribute__((always_inline))
-cgia_encode_mode_5_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, false, true);
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(_multi, , _shared) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, true, false, false);
 }
-
-inline uint32_t* __attribute__((always_inline))
-cgia_encode_mode_5_doubled_shared(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, false);
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(, , _mapped) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, false, false, true);
 }
-
-inline uint32_t* __attribute__((always_inline))
-cgia_encode_mode_5_doubled_mapped(uint32_t* rgbbuf, uint32_t columns, uint8_t shared_colors[2]) {
-    return cgia_encode_mode_5(rgbbuf, columns, shared_colors, true, true);
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(_multi, , _mapped) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, true, false, true);
+}
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(, _doubled, _shared) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, false, true, false);
+}
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(_multi, _doubled, _shared) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, true, true, false);
+}
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(, _doubled, _mapped) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, false, true, true);
+}
+inline __attribute__((always_inline)) CGIA_ENCODE_MODE_3(_multi, _doubled, _mapped) {
+    return cgia_encode_mode_3(rgbbuf, columns, shared_colors, true, true, true);
 }
 
 #define QUANTA_BITS (3)
 uint32_t cgia_encode_mode_6_command(uint8_t cmd, uint32_t current_color, uint8_t base_colors[8]) {
-    uint8_t code = (cmd & 0x38) >> 3;
+    uint8_t code = (cmd & 0b00111000) >> 3;
     // Make changes in quanta
     uint8_t delta = (uint8_t)((cmd & 0x0f) << QUANTA_BITS);
     // Sign extend delta

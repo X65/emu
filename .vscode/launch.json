@@ -10,7 +10,7 @@
       "name": "Launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/emu",
-      "args": ["-z", "../examples/build/src/text_modes.xex"],
+      "args": ["-z", "../examples/build/src/bitmap_modes.xex"],
       "preLaunchTask": "CMake: build"
     },
     {
