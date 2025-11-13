@@ -266,7 +266,7 @@ static inline void set_mode7_interp_config(union cgia_plane_regs_t* plane) {
     interp1->base[1] = plane->affine.dy;
     interp1->base[2] = 0;
 }
-static inline void set_mode7_scans(union cgia_plane_regs_t* plane, uint8_t* memory_scan) {
+static inline void set_mode7_scans(union cgia_plane_regs_t* plane, const uint8_t* memory_scan) {
     assert(memory_scan >= vram_cache[0]);
     assert((uintptr_t)memory_scan < (uintptr_t)(vram_cache[2]));
 
@@ -293,7 +293,7 @@ static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t c
 uint32_t* cgia_encode_mode_0(
     uint32_t* rgbbuf,
     uint32_t columns,
-    uint8_t* character_generator,
+    const uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[8],
     bool multi,
@@ -533,7 +533,7 @@ inline __attribute__((always_inline)) CGIA_ENCODE_MODE_1(_4bpp, _doubled, _mappe
 uint32_t* cgia_encode_mode_2(
     uint32_t* rgbbuf,
     uint32_t columns,
-    uint8_t* character_generator,
+    const uint8_t* character_generator,
     uint32_t char_shift,
     uint8_t shared_colors[8],
     bool multi,
@@ -861,11 +861,11 @@ uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
     return rgbbuf;
 }
 
-uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, uint8_t* character_generator, uint32_t char_shift) {
+uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, const uint8_t* character_generator, uint32_t char_shift) {
     abort();
 }
 
-void cgia_encode_sprite(uint32_t* rgbbuf, uint32_t* descriptor, uint8_t* line_data, uint32_t width) {
+void cgia_encode_sprite(uint32_t* rgbbuf, const uint32_t* descriptor, const uint8_t* line_data, uint32_t width) {
     struct cgia_sprite_t* dsc = (struct cgia_sprite_t*)descriptor;
 
     if (dsc->pos_x > CGIA_ACTIVE_WIDTH || dsc->pos_x < -SPRITE_MAX_WIDTH * 8 * 2) return;
