@@ -34,9 +34,15 @@ Build using CMake and a modern C/C++ compiler.
 > [!TIP]
 > This repository uses submodules.
 > You need to do `git submodule update --init --recursive` after cloning
-> or clone recursively:
+> or clone recursively.
 
-    > git clone --recursive https://github.com/X65/emu.git
+### TL;DR
+
+    git clone --depth=1 --recursive --shallow-submodules https://github.com/X65/emu.git
+    cd emu
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --parallel
+    build/emu --help
 
 ### WASM
 
