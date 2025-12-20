@@ -333,8 +333,8 @@ uint32_t* cgia_encode_mode_0(
             uint8_t bits = character_generator[chr << char_shift];
 
             for (int shift = 7; shift >= 0; shift--) {
-                if (mapped) {
-                    uint8_t idx = color_idx | ((bits >> shift) & 0b1);
+                uint8_t idx = color_idx | ((bits >> shift) & 0b1);
+                if (mapped || idx) {
                     uint8_t color = shared_colors[idx & 0b00000111];
                     if (idx > 7) {
                         // toggle bit 2 for half-bright - move forward or backward by 4 colors
