@@ -25,6 +25,10 @@ Ubuntu:
 
     apt install libx11-dev libxi-dev libxcursor-dev libegl1-mesa-dev libasound2-dev libunwind-dev
 
+## Download
+
+Get the `latest` snapshot release at: https://github.com/X65/emu/releases
+
 ## Build
 
 [![CMake on multiple platforms](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/X65/emu/actions/workflows/cmake-multi-platform.yml)
