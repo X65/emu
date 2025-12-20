@@ -141,10 +141,10 @@ extern "C" {
 #define RIA816_IRQ_ENABLE     (0x2C)  // RIA interrupts enable
 #define RIA816_IRQ_STATUS     (0x2D)  // Interrupt Controller status
 #define RIA816_CPU_N_IRQB     (0x2E)  // 65816 vector.
-#define RIA816_API_STACK      (0x30)  // 512 bytes for passing call parameters.
-#define RIA816_API_OP         (0x31)  // Write the API operation id here to begin a kernel call.
-#define RIA816_API_ERRNO      (0x32)  // API error number.
-#define RIA816_API_BUSY       (0x33)  // Bit 7 high while operation is running.
+#define RIA816_API_OP         (0x30)  // Write the API operation id here to begin a kernel call.
+#define RIA816_API_RET_HI     (0x31)  // High byte of 16 bit return value. Otherwise `0`.
+#define RIA816_API_STACK      (0x32)  // 512 bytes for passing call parameters.
+#define RIA816_API_STATUS     (0x33)  // Bit 7 high while operation is running. Bit 0 high when ERRNO.
 #define RIA816_CPU_E_COP      (0x34)  // 65816 vector.
 #define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 32byte chunks for mapping RAM into I/O area.
 #define RIA816_EXT_MEM        (0x37)  // reserved for future use (MMU)
