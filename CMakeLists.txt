@@ -21,8 +21,7 @@ find_package(OpenGL REQUIRED)
 
 add_subdirectory(ext)
 include_directories(ext/imgui)
-include_directories(ext/sokol)
-include_directories(ext/sokol/util)
+include_directories(ext/sokol ext/sokol/util)
 include_directories(ext/doctest/doctest)
 include_directories(ext)
 
@@ -30,6 +29,8 @@ include_directories(src)
 add_subdirectory(src/common)
 
 include_directories(src/common)
+include_directories(ext/firmware/src/south)
+include_directories(ext/firmware/src/north)
 add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c

@@ -30,8 +30,15 @@ static inline absolute_time_t delayed_by_us(const absolute_time_t t, uint64_t us
     t2 = delayed;
     return t2;
 }
-#include "firmware/src/ria/term/color.c"
-#include "firmware/src/ria/term/term.c"
+
+#include "firmware/src/south/term/color.c"
+#include "firmware/src/south/term/term.c"
+
+void com_in_write_ansi_CPR(int row, int col) {
+    char buf[COM_IN_BUF_SIZE];
+    snprintf(buf, COM_IN_BUF_SIZE, "\33[%u;%uR", row, col);
+    com_out_chars(buf, strlen(buf));
+}
 
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -67,7 +74,7 @@ static void ui_console_process_tx(ui_console_t* win) {
     while (rb_get(win->tx, (uint8_t*)data_ptr))
         ++data_ptr;
 
-    term_out_chars(data, data_ptr - data);
+    com_out_chars(data, data_ptr - data);
 }
 
 void ui_console_draw(ui_console_t* win) {

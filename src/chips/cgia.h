@@ -42,7 +42,7 @@
 #include "chips/chips_common.h"
 #include "chips/pwm.h"
 
-#include "firmware/src/ria/cgia/cgia_palette.h"
+#include "firmware/src/south/cgia/cgia_palette.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -133,7 +133,7 @@ extern "C" {
     { p = (((p) & ~0xFF0000ULL) | (((d) << 16) & 0xFF0000ULL)); }
 
 // timing constants
-#include "firmware/src/ria/sys/out.h"
+#include "firmware/src/south/sys/out.h"
 
 #define MODE_H_TOTAL_PIXELS (MODE_H_FRONT_PORCH + MODE_H_SYNC_WIDTH + MODE_H_BACK_PORCH + MODE_H_ACTIVE_PIXELS)
 #define MODE_V_TOTAL_LINES  (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH + MODE_V_ACTIVE_LINES)
@@ -208,8 +208,8 @@ typedef struct {
 
     // VRAM cache information
     struct {
-        uint32_t bank_mask;
-        uint32_t wanted_bank_mask;
+        uint32_t bank;
+        uint32_t wanted_bank;
         uint8_t cache_ptr_idx;
     } vram_cache[2];
 

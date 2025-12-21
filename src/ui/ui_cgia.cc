@@ -15,7 +15,7 @@
 #endif
 
 #define cgia_t fwcgia_t
-#include "firmware/src/ria/cgia/cgia.h"
+#include "firmware/src/south/cgia/cgia.h"
 #undef cgia_t
 
 void ui_cgia_init(ui_cgia_t* win, const ui_cgia_desc_t* desc) {
@@ -44,7 +44,7 @@ static void _ui_cgia_draw_hwcolors(ui_cgia_t* win) {
         ImVec4 c;
         const ImVec2 size(18, 18);
         for (int i = 0; i < CGIA_COLORS_NUM; i++) {
-            c = ImColor(win->cgia->hwcolors[i]);
+            c = ImColor(win->cgia->hwcolors[i] | 0xFF000000);
             ImGui::PushID(i);
             char desc_id[64];
             sprintf(desc_id, "%03d 0x%02X##hw_color", i, i);
@@ -62,7 +62,11 @@ static void _ui_cgia_draw_color(const ui_cgia_t* win, const char* label, uint8_t
     ImGui::SameLine();
     char desc_id[64];
     sprintf(desc_id, "%3d 0x%02X##regclr", val, val);
-    ImGui::ColorButton(desc_id, ImColor(win->cgia->hwcolors[val]), ImGuiColorEditFlags_NoAlpha, ImVec2(12, 12));
+    ImGui::ColorButton(
+        desc_id,
+        ImColor(win->cgia->hwcolors[val] | 0xFF000000),
+        ImGuiColorEditFlags_NoAlpha,
+        ImVec2(12, 12));
 }
 
 static void _ui_cgia_draw_rgb(const char* label, uint32_t val) {
@@ -78,17 +82,17 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
         ui_util_b8("planes: ", chip->planes);
 
         ImGui::Text(
-            "bckgnd_bank: %02X (VRAM%d: %06X/%06X)",
+            "bckgnd_bank: %02X (VRAM%d: %02X/%02X)",
             chip->bckgnd_bank,
             win->cgia->vram_cache[0].cache_ptr_idx,
-            win->cgia->vram_cache[0].bank_mask,
-            win->cgia->vram_cache[0].wanted_bank_mask);
+            win->cgia->vram_cache[0].bank,
+            win->cgia->vram_cache[0].wanted_bank);
         ImGui::Text(
-            "sprite_bank: %02X (VRAM%d: %06X/%06X)",
+            "sprite_bank: %02X (VRAM%d: %02X/%02X)",
             chip->sprite_bank,
             win->cgia->vram_cache[1].cache_ptr_idx,
-            win->cgia->vram_cache[1].bank_mask,
-            win->cgia->vram_cache[1].wanted_bank_mask);
+            win->cgia->vram_cache[1].bank,
+            win->cgia->vram_cache[1].wanted_bank);
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
 

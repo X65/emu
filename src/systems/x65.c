@@ -4,7 +4,7 @@
 
 #include "chips/clk.h"
 
-#include "firmware/src/ria/cgia/font_8.h"
+#include "firmware/src/south/font_8.h"
 
 #include <stdlib.h>
 #include <string.h>  // memcpy, memset
@@ -15,7 +15,7 @@
 #endif
 
 // declare function to sync RAM writes to CGIA L1 cache
-void cgia_ram_write(uint32_t addr, uint8_t data);
+void cgia_ram_write(uint8_t bank, uint16_t addr, uint8_t data);
 
 static uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data);
 static void _x65_api_call(uint8_t data, void* user_data);
@@ -333,7 +333,7 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
 
 void mem_ram_write(x65_t* sys, uint32_t addr, uint8_t data) {
     sys->ram[addr] = data;
-    cgia_ram_write(addr, data);
+    cgia_ram_write((uint8_t)(addr >> 16), (uint16_t)addr, data);
 }
 
 uint8_t mem_ram_read(x65_t* sys, uint32_t addr) {
@@ -553,7 +553,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     return true;
 }
 
-#include "firmware/src/ria/api/api.h"
+#include "firmware/src/north/api/api.h"
 
 volatile uint8_t __regs[0x40];
 uint8_t xstack[XSTACK_SIZE + 1];
@@ -566,23 +566,23 @@ void _x65_api_call(uint8_t data, void* user_data) {
     memcpy(__regs, sys->ria.reg, sizeof(__regs));
 
     switch (data) {
-        case API_OP_ZXSTACK: {
-            api_zxstack();
-        } break;
-        case API_OP_OEM_GET_CHARGEN: {
-            // FIXME: use mem.h defined 512 bytes xstack
-            uint8_t value;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            uint32_t mem_addr = (uint32_t)value;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            mem_addr |= (uint32_t)value << 8;
-            if (!rb_get(&sys->ria.api_stack, &value)) break;
-            mem_addr |= (uint32_t)value << 16;
+        // case API_OP_ZXSTACK: {
+        //     api_zxstack();
+        // } break;
+        // case API_OP_OEM_GET_CHARGEN: {
+        //     // FIXME: use mem.h defined 512 bytes xstack
+        //     uint8_t value;
+        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
+        //     uint32_t mem_addr = (uint32_t)value;
+        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
+        //     mem_addr |= (uint32_t)value << 8;
+        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
+        //     mem_addr |= (uint32_t)value << 16;
 
-            // copy chargen to memory
-            for (size_t i = 0; i < sizeof(font8_data); ++i)
-                mem_ram_write(sys, mem_addr++, font8_data[i]);
-        } break;
+        //     // copy chargen to memory
+        //     for (size_t i = 0; i < sizeof(font8_data); ++i)
+        //         mem_ram_write(sys, mem_addr++, font8_data[i]);
+        // } break;
         case API_OP_HALT:  // STOP CPU
             sys->running = false;
             break;

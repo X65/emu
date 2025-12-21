@@ -1,11 +1,13 @@
 #define CGIA_PALETTE_IMPL
 #include "./cgia.h"
 
-#define cgia_init fwcgia_init
-#include "firmware/src/ria/cgia/cgia.h"
+#define cgia_init  fwcgia_init
+#define cgia_reset fwcgia_reset
+#include "firmware/src/south/cgia/cgia.h"
 #undef cgia_init
+#undef cgia_reset
 
-#include "firmware/src/ria/main.h"
+#include "firmware/src/south/hw.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -144,7 +146,7 @@ void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* vpu) {
 
 static inline void gpio_put(uint gpio, bool value) {
     switch (gpio) {
-        case RIA_NMIB_PIN: NMI_flag = !value;  // on Emu side NMI is active HIGH
+        case VPU_NMIB_PIN: NMI_flag = !value;  // on Emu side NMI is active HIGH
     }
 }
 
@@ -288,7 +290,7 @@ static inline uint32_t* fill_back(uint32_t* rgbbuf, uint32_t columns, uint32_t c
     return rgbbuf;
 }
 
-#include "firmware/src/ria/cgia/cgia_encode.h"
+#include "firmware/src/south/cgia/cgia_encode.h"
 
 uint32_t* cgia_encode_mode_0(
     uint32_t* rgbbuf,
@@ -865,7 +867,12 @@ uint32_t* cgia_encode_vt(uint32_t* rgbbuf, uint32_t columns, const uint8_t* char
     abort();
 }
 
-void cgia_encode_sprite(uint32_t* rgbbuf, const uint32_t* descriptor, const uint8_t* line_data, uint32_t width) {
+void cgia_encode_sprite_both(
+    uint32_t* rgbbuf,
+    const uint32_t* descriptor,
+    const uint8_t* line_data,
+    uint32_t width,
+    bool mirror) {
     struct cgia_sprite_t* dsc = (struct cgia_sprite_t*)descriptor;
 
     if (dsc->pos_x > CGIA_ACTIVE_WIDTH || dsc->pos_x < -SPRITE_MAX_WIDTH * 8 * 2) return;
@@ -873,7 +880,6 @@ void cgia_encode_sprite(uint32_t* rgbbuf, const uint32_t* descriptor, const uint
     rgbbuf += dsc->pos_x;  // move RGB buffer pointer to correct position in line
 
     const bool multicolor = dsc->flags & SPRITE_MASK_MULTICOLOR;
-    const bool mirror = dsc->flags & SPRITE_MASK_MIRROR_X;
     const bool doubled = dsc->flags & SPRITE_MASK_DOUBLE_WIDTH;
 
     ++width;  // 0 means 1 column
@@ -941,20 +947,30 @@ void cgia_encode_sprite(uint32_t* rgbbuf, const uint32_t* descriptor, const uint
     }
 }
 
-#define cgia_init fwcgia_init
-#include "firmware/src/ria/cgia/cgia.c"
+void cgia_encode_sprite(uint32_t* rgbbuf, const uint32_t* descriptor, const uint8_t* line_data, uint32_t width) {
+    cgia_encode_sprite_both(rgbbuf, descriptor, line_data, width, false);
+}
+void cgia_encode_sprite_mirror(uint32_t* rgbbuf, const uint32_t* descriptor, const uint8_t* line_data, uint32_t width) {
+    cgia_encode_sprite_both(rgbbuf, descriptor, line_data, width, true);
+}
+
+#define cgia_init  fwcgia_init
+#define cgia_reset fwcgia_reset
+#include "firmware/src/south/cgia/cgia.c"
 #undef cgia_init
+#undef cgia_reset
 
 static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
+    printf("Copying VRAM bank %u to cache (wanted bank %u)\n", bank, vram_wanted_bank[bank]);
     for (size_t i = 0; i < 256 * 256; ++i) {
-        vram_cache[bank][i] = vpu->fetch_cb((vram_wanted_bank_mask[bank] | i), vpu->user_data);
+        vram_cache[bank][i] = vpu->fetch_cb((vram_wanted_bank[bank] << 16) | i, vpu->user_data);
     }
 }
 static void _cgia_transfer_vcache_bank(uint8_t bank) {
     assert(CGIA_vpu);
-    if (vram_wanted_bank_mask[bank] != vram_cache_bank_mask[bank]) {
+    if (vram_wanted_bank[bank] != vram_cache_bank[bank]) {
         _cgia_copy_vcache_bank(CGIA_vpu, bank);
-        vram_cache_bank_mask[bank] = vram_wanted_bank_mask[bank];
+        vram_cache_bank[bank] = vram_wanted_bank[bank];
         vram_cache_ptr[bank] = vram_cache[bank];
     }
 }
@@ -978,8 +994,8 @@ static void _copy_internal_regs(cgia_t* vpu) {
         }
     }
     for (int i = 0; i < CGIA_VRAM_BANKS; ++i) {
-        vpu->vram_cache[i].bank_mask = vram_cache_bank_mask[i];
-        vpu->vram_cache[i].wanted_bank_mask = vram_wanted_bank_mask[i];
+        vpu->vram_cache[i].bank = vram_cache_bank[i];
+        vpu->vram_cache[i].wanted_bank = vram_wanted_bank[i];
         vpu->vram_cache[i].cache_ptr_idx = vram_cache_ptr[i] == vram_cache[0] ? 0 : 1;
     }
     vpu->int_mask = int_mask;
