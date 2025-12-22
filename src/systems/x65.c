@@ -4,8 +4,6 @@
 
 #include "chips/clk.h"
 
-#include "firmware/src/south/font_8.h"
-
 #include <stdlib.h>
 #include <string.h>  // memcpy, memset
 
@@ -553,11 +551,20 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     return true;
 }
 
-#include "firmware/src/north/api/api.h"
+#include "api/api.h"
+#include "sys/cpu.h"
+#include "term/font.h"
 
 volatile uint8_t __regs[0x40];
 uint8_t xstack[XSTACK_SIZE + 1];
 size_t volatile xstack_ptr;
+
+static bool api_stack_pop_uint16(x65_t* sys, uint16_t* value) {
+    return rb_get(&sys->ria.api_stack, &((uint8_t*)value)[0]) && rb_get(&sys->ria.api_stack, &((uint8_t*)value)[1]);
+}
+static bool api_stack_push_uint16(x65_t* sys, uint16_t value) {
+    return rb_put(&sys->ria.api_stack, ((uint8_t*)&value)[1]) && rb_put(&sys->ria.api_stack, ((uint8_t*)&value)[0]);
+}
 
 void _x65_api_call(uint8_t data, void* user_data) {
     x65_t* sys = (x65_t*)user_data;
@@ -566,23 +573,30 @@ void _x65_api_call(uint8_t data, void* user_data) {
     memcpy(__regs, sys->ria.reg, sizeof(__regs));
 
     switch (data) {
-        // case API_OP_ZXSTACK: {
-        //     api_zxstack();
-        // } break;
-        // case API_OP_OEM_GET_CHARGEN: {
-        //     // FIXME: use mem.h defined 512 bytes xstack
-        //     uint8_t value;
-        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
-        //     uint32_t mem_addr = (uint32_t)value;
-        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
-        //     mem_addr |= (uint32_t)value << 8;
-        //     if (!rb_get(&sys->ria.api_stack, &value)) break;
-        //     mem_addr |= (uint32_t)value << 16;
+        case API_OP_ZXSTACK: {
+            rb_init(&sys->ria.api_stack);
+        } break;
+        case API_OP_PHI2: {
+            api_stack_push_uint16(sys, CPU_PHI2_DEFAULT);
+        } break;
+        case API_OP_OEM_GET_CHARGEN: {
+            uint8_t value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            uint32_t mem_addr = (uint32_t)value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint32_t)value << 8;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            mem_addr |= (uint32_t)value << 16;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            uint16_t code_page = (uint16_t)value;
+            if (!rb_get(&sys->ria.api_stack, &value)) break;
+            code_page |= (uint16_t)value << 8;
 
-        //     // copy chargen to memory
-        //     for (size_t i = 0; i < sizeof(font8_data); ++i)
-        //         mem_ram_write(sys, mem_addr++, font8_data[i]);
-        // } break;
+            // copy chargen to memory
+            for (size_t i = 0; i < 256 * 8; ++i) {
+                mem_ram_write(sys, mem_addr++, font_get_byte(i, code_page));
+            }
+        } break;
         case API_OP_HALT:  // STOP CPU
             sys->running = false;
             break;
@@ -592,3 +606,6 @@ void _x65_api_call(uint8_t data, void* user_data) {
     // sync RIA regs back
     memcpy(sys->ria.reg, __regs, sizeof(__regs));
 }
+
+#define RP6502_CODE_PAGE 0
+#include "firmware/src/south/term/font.c"
