@@ -917,7 +917,10 @@ void cgia_encode_sprite_both(
                 }
             }
             --width;
-            ++line_data;
+            if (mirror)
+                --line_data;
+            else
+                ++line_data;
         }
     }
     else {
@@ -942,7 +945,10 @@ void cgia_encode_sprite_both(
                 }
             }
             --width;
-            ++line_data;
+            if (mirror)
+                --line_data;
+            else
+                ++line_data;
         }
     }
 }
