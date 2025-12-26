@@ -33,8 +33,6 @@
 #include "chips/tca6416a.h"
 #include "chips/w65c816s.h"
 #include "chips/ria816.h"
-#include "chips/ymf262.h"
-#include "chips/ymf825.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -136,8 +134,6 @@ typedef struct {
     ria816_t ria;
     tca6416a_t gpio;
     cgia_t cgia;
-    ymf825_t sd1;
-    ymf262_t opl3;
     uint64_t pins;
 
     bool running;  // whether CPU is running or held in RESET state

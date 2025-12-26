@@ -10,10 +10,3 @@ add_library(imgui-docking STATIC
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
 )
-
-add_library(esfmu STATIC
-    ESFMu/esfm.h
-    ESFMu/esfm.c
-    ESFMu/esfm_registers.c
-)
-

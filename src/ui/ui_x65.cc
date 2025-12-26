@@ -82,7 +82,6 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem(ICON_LC_MONITOR " Display", 0, &ui->display.open);
             ImGui::MenuItem(ICON_LC_CPU " WDC 65C816 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem(ICON_LC_HDMI_PORT " CGIA (VPU)", 0, &ui->cgia.open);
-            ImGui::MenuItem(ICON_LC_AUDIO_LINES " YMF262 (OPL3)", 0, &ui->opl3.open);
             ImGui::MenuItem(ICON_LC_BLEND " RIA816 (Bridge)", 0, &ui->ria.open);
             ImGui::MenuItem(ICON_LC_MICROCHIP " TI TCA6416A (GPIO)", 0, &ui->gpio.open);
             ImGui::EndMenu();
@@ -396,23 +395,6 @@ static const ui_chip_pin_t _ui_x65_gpio_pins[] = {
     { "P17",   33, TCA6416A_P17   },
 };
 
-static const ui_chip_pin_t _ui_x65_ymf262_pins[] = {
-    { "D0",  0,  YMF262_D0  },
-    { "D1",  1,  YMF262_D1  },
-    { "D2",  2,  YMF262_D2  },
-    { "D3",  3,  YMF262_D3  },
-    { "D4",  4,  YMF262_D4  },
-    { "D5",  5,  YMF262_D5  },
-    { "D6",  6,  YMF262_D6  },
-    { "D7",  7,  YMF262_D7  },
-    { "A0",  8,  YMF262_A0  },
-    { "A1",  9,  YMF262_A1  },
-    { "IC",  11, YMF262_IC  },
-    { "RW",  12, YMF262_RW  },
-    { "CS",  13, YMF262_CS  },
-    { "IRQ", 15, YMF262_IRQ },
-};
-
 static const ui_chip_pin_t _ui_x65_cgia_pins[] = {
     { "D0",  0,  CGIA_D0  },
     { "D1",  1,  CGIA_D1  },
@@ -476,17 +458,6 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.y = y;
         UI_CHIP_INIT_DESC(&desc.chip_desc, "65C816", 48, _ui_x65_cpu65816_pins);
         ui_w65816_init(&ui->cpu, &desc);
-    }
-    x += dx;
-    y += dy;
-    {
-        ui_ymf262_desc_t desc = { 0 };
-        desc.title = "YMF262 (OPL3)";
-        desc.opl3 = &ui->x65->opl3;
-        desc.x = x;
-        desc.y = y;
-        UI_CHIP_INIT_DESC(&desc.chip_desc, "YMF262", 16, _ui_x65_ymf262_pins);
-        ui_ymf262_init(&ui->opl3, &desc);
     }
     x += dx;
     y += dy;
@@ -619,7 +590,6 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_w65816_discard(&ui->cpu);
     ui_ria816_discard(&ui->ria);
     ui_tca6416a_discard(&ui->gpio);
-    ui_ymf262_discard(&ui->opl3);
     ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
     ui_audio_discard(&ui->audio);
@@ -642,7 +612,6 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_w65816_draw(&ui->cpu);
     ui_ria816_draw(&ui->ria);
     ui_tca6416a_draw(&ui->gpio);
-    ui_ymf262_draw(&ui->opl3);
     ui_cgia_draw(&ui->cgia);
     ui_console_draw(&ui->ria_uart);
     for (int i = 0; i < 4; i++) {
@@ -667,7 +636,6 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     ui_w65816_save_settings(&ui->cpu, settings);
     ui_ria816_save_settings(&ui->ria, settings);
     ui_tca6416a_save_settings(&ui->gpio, settings);
-    ui_ymf262_save_settings(&ui->opl3, settings);
     ui_cgia_save_settings(&ui->cgia, settings);
     ui_console_save_settings(&ui->ria_uart, settings);
     ui_audio_save_settings(&ui->audio, settings);
@@ -687,7 +655,6 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     ui_w65816_load_settings(&ui->cpu, settings);
     ui_ria816_load_settings(&ui->ria, settings);
     ui_tca6416a_load_settings(&ui->gpio, settings);
-    ui_ymf262_load_settings(&ui->opl3, settings);
     ui_cgia_load_settings(&ui->cgia, settings);
     ui_console_load_settings(&ui->ria_uart, settings);
     ui_audio_load_settings(&ui->audio, settings);

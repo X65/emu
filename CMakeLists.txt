@@ -36,8 +36,6 @@ add_executable(emu
     src/chips/cgia.c
     src/chips/ria816.c
     src/chips/tca6416a.c
-    src/chips/ymf262.c
-    src/chips/ymf825.c
     src/systems/x65.c
     src/x65.c
     src/x65-ui-impl.cc
@@ -46,14 +44,13 @@ add_executable(emu
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
     src/ui/ui_tca6416a.cc
-    src/ui/ui_ymf262.cc
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking esfmu)
+    PRIVATE common ui imgui-docking)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 

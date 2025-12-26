@@ -70,7 +70,6 @@
 #include "ui/ui_cgia.h"
 #include "ui/ui_ria816.h"
 #include "ui/ui_tca6416a.h"
-#include "ui/ui_ymf262.h"
 #include "ui/ui_memedit.h"
 #include "ui/ui_snapshot.h"
 
@@ -104,7 +103,6 @@ typedef struct {
     ui_w65816_t cpu;
     ui_ria816_t ria;
     ui_tca6416a_t gpio;
-    ui_ymf262_t opl3;
     ui_cgia_t cgia;
     ui_console_t ria_uart;
     ui_audio_t audio;
