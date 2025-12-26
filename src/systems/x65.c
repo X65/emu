@@ -148,15 +148,15 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= 0xFF90) {
-                // NOT_USED (FF90..FFBF)
+            else if (addr >= 0xFFA0) {
+                // NOT_USED (FFA0..FFBF)
             }
             else if (addr >= X65_IO_TIMERS_BASE) {
-                // GPIO (FF88..FF8F)
+                // GPIO (FF98..FF9F)
                 ria_pins |= RIA816_TIMERS_CS;
             }
             else if (addr >= X65_IO_GPIO_BASE) {
-                // GPIO (FF80..FF87)
+                // GPIO (FF80..FF97)
                 gpio_pins |= TCA6416A_CS;
             }
             else if (addr >= X65_IO_CGIA_BASE) {
@@ -168,7 +168,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 sd1_pins |= YMF825_CS;
             }
             else if (addr >= X65_IO_MIXER_BASE) {
-                // SD-1 (FEB0..FEBF)
+                // MIXER (FEB0..FEBF)
                 // FIXME: MIXER_CS;
             }
         }
