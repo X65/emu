@@ -59,6 +59,13 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .size = sizeof(sys->fb),
         },
     });
+    m6581_init(
+        &sys->sid,
+        &(m6581_desc_t){
+            .tick_hz = X65_FREQUENCY,
+            .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
+            .magnitude = _X65_DEFAULT(desc->audio.volume, 1.0f),
+        });
     beeper_init(
         &sys->beeper,
         &(beeper_desc_t){
@@ -81,6 +88,7 @@ void x65_reset(x65_t* sys) {
     ria816_reset(&sys->ria);
     tca6416a_reset(&sys->gpio, 0xff, 0xff);
     cgia_reset(&sys->cgia);
+    m6581_reset(&sys->sid);
     beeper_reset(&sys->beeper);
 }
 
@@ -111,6 +119,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     uint64_t cgia_pins = pins & W65816_PIN_MASK;
     uint64_t ria_pins = pins & W65816_PIN_MASK;
     uint64_t gpio_pins = pins & W65816_PIN_MASK;
+    uint64_t sid_pins = pins & W65816_PIN_MASK;
     if ((pins & (W65816_RDY | W65816_RW)) != (W65816_RDY | W65816_RW)) {
         if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
             const uint8_t slot = (addr & 0xFF) >> 5;
@@ -146,9 +155,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // CGIA (FF00..FF7F)
                 cgia_pins |= CGIA_CS;
             }
-            else if (addr >= X65_IO_YMF825_BASE) {
-                // SD-1 (FEC0..FEFF)
-                // sd1_pins |= YMF825_CS;
+            else if (addr >= X65_IO_XCSP_BASE) {
+                // SID (FEC0..FEFF)
+                sid_pins |= M6581_CS;
             }
             else if (addr >= X65_IO_MIXER_BASE) {
                 // MIXER (FEB0..FEBF)
@@ -208,6 +217,27 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
             pins = W65816_COPY_DATA(pins, cgia_pins);
+        }
+    }
+
+    // tick the SID
+    {
+        sid_pins = m6581_tick(&sys->sid, sid_pins);
+        if (sid_pins & M6581_SAMPLE) {
+            // new audio sample ready
+            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sid.sample;
+            if (sys->audio.sample_pos == sys->audio.num_samples) {
+                if (sys->audio.callback.func) {
+                    sys->audio.callback.func(
+                        sys->audio.sample_buffer,
+                        sys->audio.num_samples,
+                        sys->audio.callback.user_data);
+                }
+                sys->audio.sample_pos = 0;
+            }
+        }
+        if ((sid_pins & (M6581_CS | M6581_RW)) == (M6581_CS | M6581_RW)) {
+            pins = W65816_COPY_DATA(pins, sid_pins);
         }
     }
 
