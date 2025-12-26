@@ -59,13 +59,13 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .size = sizeof(sys->fb),
         },
     });
-    const beeper_desc_t beeper_desc = {
-        .tick_hz = X65_FREQUENCY,
-        .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
-        .base_volume = _X65_DEFAULT(desc->audio.volume, 1.0f),
-    };
-    beeper_init(&sys->beeper[0], &beeper_desc);
-    beeper_init(&sys->beeper[1], &beeper_desc);
+    beeper_init(
+        &sys->beeper,
+        &(beeper_desc_t){
+            .tick_hz = X65_FREQUENCY,
+            .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
+            .base_volume = _X65_DEFAULT(desc->audio.volume, 1.0f),
+        });
 }
 
 void x65_discard(x65_t* sys) {
@@ -81,8 +81,7 @@ void x65_reset(x65_t* sys) {
     ria816_reset(&sys->ria);
     tca6416a_reset(&sys->gpio, 0xff, 0xff);
     cgia_reset(&sys->cgia);
-    beeper_reset(&sys->beeper[0]);
-    beeper_reset(&sys->beeper[1]);
+    beeper_reset(&sys->beeper);
 }
 
 void x65_set_running(x65_t* sys, bool running) {

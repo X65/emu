@@ -134,6 +134,7 @@ typedef struct {
     ria816_t ria;
     tca6416a_t gpio;
     cgia_t cgia;
+    beeper_t beeper;
     uint64_t pins;
 
     bool running;  // whether CPU is running or held in RESET state
@@ -147,7 +148,6 @@ typedef struct {
     bool valid;
     chips_debug_t debug;
 
-    beeper_t beeper[2];
     struct {
         chips_audio_callback_t callback;
         int num_samples;
