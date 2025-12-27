@@ -94,6 +94,12 @@ extern "C" {
 #define SGU1_CS        (1ULL << SGU1_PIN_CS)
 #define SGU1_SAMPLE    (1ULL << SGU1_PIN_SAMPLE)
 
+#define SGU1_NUM_CHANNELS     (8)
+#define SGU1_NUM_CHANNEL_REGS (32)
+
+// control registers
+#define SGU1_REG_CHANNEL_SELECT (0x00)
+
 // channel registers
 #define SGU1_CHAN_FREQ_LO         (0x00)
 #define SGU1_CHAN_FREQ_HI         (0x01)
@@ -155,6 +161,7 @@ typedef struct {
     int sound_hz;
     // sound unit instance
     void* su;
+    uint8_t reg[32];
     int tick_period;
     int tick_counter;
     // sample generation state
