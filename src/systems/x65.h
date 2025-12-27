@@ -33,7 +33,7 @@
 #include "chips/tca6416a.h"
 #include "chips/w65c816s.h"
 #include "chips/ria816.h"
-#include "chips/m6581.h"
+#include "chips/sgu1.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -104,7 +104,7 @@ typedef enum {
 // IO base addresses
 #define X65_IO_BASE        (0xFE00)
 #define X65_IO_MIXER_BASE  (0xFEB0)
-#define X65_IO_XCSP_BASE   (0xFEC0)
+#define X65_IO_SGU_BASE    (0xFEC0)
 #define X65_IO_CGIA_BASE   (0xFF00)
 #define X65_IO_GPIO_BASE   (0xFF80)
 #define X65_IO_TIMERS_BASE (0xFF98)
@@ -135,7 +135,7 @@ typedef struct {
     ria816_t ria;
     tca6416a_t gpio;
     cgia_t cgia;
-    m6581_t sid;
+    sgu1_t sgu;
     beeper_t beeper;
     uint64_t pins;
 

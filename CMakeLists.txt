@@ -35,6 +35,7 @@ add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c
     src/chips/ria816.c
+    src/chips/sgu1.cc
     src/chips/tca6416a.c
     src/systems/x65.c
     src/x65.c
@@ -47,6 +48,7 @@ add_executable(emu
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
+    src/chips/su/su.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu

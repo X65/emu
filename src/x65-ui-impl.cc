@@ -20,7 +20,6 @@
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
 #include "ui/ui_w65c816s.h"
-#include "ui/ui_m6581.h"
 #include "ui/ui_audio.h"
 #include "ui/ui_display.h"
 #include "ui/ui_snapshot.h"
