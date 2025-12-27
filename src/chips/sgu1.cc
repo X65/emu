@@ -87,9 +87,7 @@ static inline uint8_t _sgu1_selected_channel(sgu1_t* sgu) {
     return sgu->reg[SGU1_REG_CHANNEL_SELECT] & (SGU1_NUM_CHANNELS - 1);
 }
 
-/* read a register */
-static uint64_t _sgu1_read(sgu1_t* sgu, uint64_t pins) {
-    uint8_t reg = pins & SGU1_ADDR_MASK;
+uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
     uint8_t data;
     if (reg < 32) {
         data = sgu->reg[reg];
@@ -98,14 +96,10 @@ static uint64_t _sgu1_read(sgu1_t* sgu, uint64_t pins) {
         uint8_t chan = _sgu1_selected_channel(sgu);
         data = ((unsigned char*)SGU_SU->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))];
     }
-    SGU1_SET_DATA(pins, data);
-    return pins;
+    return data;
 }
 
-/* write a register */
-static void _sgu1_write(sgu1_t* sgu, uint64_t pins) {
-    uint8_t reg = pins & SGU1_ADDR_MASK;
-    uint8_t data = SGU1_GET_DATA(pins);
+void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
     if (reg < 32) {
         if (reg == SGU1_REG_CHANNEL_SELECT) {
             sgu->reg[reg] = data;
@@ -115,6 +109,20 @@ static void _sgu1_write(sgu1_t* sgu, uint64_t pins) {
         uint8_t chan = _sgu1_selected_channel(sgu);
         ((unsigned char*)SGU_SU->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))] = data;
     }
+}
+
+/* read a register */
+static uint64_t _sgu1_read(sgu1_t* sgu, uint64_t pins) {
+    uint8_t reg = pins & SGU1_ADDR_MASK;
+    SGU1_SET_DATA(pins, sgu1_reg_read(sgu, reg));
+    return pins;
+}
+
+/* write a register */
+static void _sgu1_write(sgu1_t* sgu, uint64_t pins) {
+    uint8_t reg = pins & SGU1_ADDR_MASK;
+    uint8_t data = SGU1_GET_DATA(pins);
+    sgu1_reg_write(sgu, reg, data);
 }
 
 /* the all-in-one tick function */

@@ -182,6 +182,10 @@ void sgu1_reset(sgu1_t* sgu);
 // tick a sgu1_t instance
 uint64_t sgu1_tick(sgu1_t* sgu, uint64_t pins);
 
+// for use by debugger
+uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg);
+void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

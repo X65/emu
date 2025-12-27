@@ -267,30 +267,37 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
 
 uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
     if (bank == 0) {
-        if (addr >= 0xFFC0) {
+        if (addr >= X65_IO_RIA_BASE) {
             return sys->ria.reg[addr & 0x3F];
         }
-        // else if (addr >= 0xFEC0 && addr < 0xFF00) {
-        //     return sys->sd1.registers[addr & YMF825_ADDR_MASK];
-        // }
-        else if (addr >= 0xFF00 && addr < 0xFF80) {
+        else if (addr >= X65_IO_GPIO_BASE) {
+            return 0xEA;  // NOP
+        }
+        else if (addr >= X65_IO_CGIA_BASE) {
             return cgia_reg_read((uint8_t)addr);
         }
+        else if (addr >= X65_IO_SGU_BASE) {
+            return sgu1_reg_read(&sys->sgu, addr & SGU1_ADDR_MASK);
+        }
     }
+    // else
     return sys->ram[(bank << 16) | addr];
 }
 void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
     if (bank == 0) {
-        if (addr >= 0xFFC0) {
+        if (addr >= X65_IO_RIA_BASE) {
             sys->ria.reg[addr & 0x3F] = data;
             return;
         }
-        // else if (addr >= 0xFF80 && addr < 0xFF88) {
-        //     sys->sd1.registers[addr & YMF825_ADDR_MASK] = data;
-        //     return;
-        // }
-        else if (addr >= 0xFF00 && addr < 0xFF80) {
+        else if (addr >= X65_IO_GPIO_BASE) {
+            return;
+        }
+        else if (addr >= X65_IO_CGIA_BASE) {
             cgia_reg_write((uint8_t)addr, data);
+            return;
+        }
+        else if (addr >= X65_IO_SGU_BASE) {
+            sgu1_reg_write(&sys->sgu, addr & SGU1_ADDR_MASK, data);
             return;
         }
     }
