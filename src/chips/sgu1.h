@@ -155,9 +155,13 @@ typedef struct {
     int sound_hz;
     // sound unit instance
     void* su;
+    int tick_period;
+    int tick_counter;
     // sample generation state
     int sample_period;
     int sample_counter;
+    float sample_accum;
+    float sample_accum_count;
     float sample_mag;
     float sample;
     // debug inspection
