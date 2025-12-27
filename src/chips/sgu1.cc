@@ -33,7 +33,7 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_counter = sgu->sample_period;
     sgu->sample_mag = desc->magnitude;
     sgu->su = new SoundUnit();
-    SGU_SU->Init();
+    SGU_SU->Init(65536);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
