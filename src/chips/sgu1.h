@@ -10,7 +10,7 @@
     *           +-----------+         *
     *    CS --->|           |<--- A0  *
     *    RW --->|           |...      *
-    *           |           |<--- A4  *
+    *           |           |<--- A5  *
     *           |   SGU-1   |         *
     *           |           |<--> D0  *
     *           |           |...      *
@@ -24,7 +24,7 @@
 
     ## Links
 
-    -
+    - https://tildearrow.org/furnace/doc/latest/4-instrument/su.html
 
     ## 0BSD license
 
