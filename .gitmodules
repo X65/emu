@@ -16,3 +16,6 @@
 [submodule "ext/cppdap"]
 	path = ext/cppdap
 	url = https://github.com/google/cppdap.git
+[submodule "ext/imgui_toggle"]
+	path = ext/imgui_toggle
+	url = https://github.com/cmdwtf/imgui_toggle.git

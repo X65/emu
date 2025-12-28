@@ -1,6 +1,7 @@
 #include "./ui_sgu1.h"
 #include "chips/su/su.h"
 #include "imgui.h"
+#include "imgui_toggle.h"
 #include "ui/ui_util.h"
 
 #ifndef __cplusplus
@@ -54,8 +55,15 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
         ImGui::TableNextColumn();
         ImGui::Text("Muted");
         ImGui::TableNextColumn();
+        const float h = ImGui::GetTextLineHeight();
+        ImGuiToggleConfig toggle_config;
+        toggle_config.Flags = ImGuiToggleFlags_Animated | ImGuiToggleFlags_A11y;
+        toggle_config.Size = ImVec2(1.75f * h, h);
+        toggle_config.A11yStyle = ImGuiToggleA11yStyle_Glyph;
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            ImGui::Text("%s", su->muted[i] ? "YES" : "NO");
+            ImGui::PushID(i);
+            ImGui::Toggle("##muted", &su->muted[i], toggle_config);
+            ImGui::PopID();
             ImGui::TableNextColumn();
         }
         ImGui::Text("Frequency");

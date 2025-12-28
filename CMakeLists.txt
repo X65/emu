@@ -20,7 +20,7 @@ endif()
 find_package(OpenGL REQUIRED)
 
 add_subdirectory(ext)
-include_directories(ext/imgui)
+include_directories(ext/imgui ext/imgui_toggle)
 include_directories(ext/sokol ext/sokol/util)
 include_directories(ext/doctest/doctest)
 include_directories(ext)
@@ -53,7 +53,7 @@ add_executable(emu
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking)
+    PRIVATE common ui imgui-docking imgui-toggle)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 
