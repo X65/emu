@@ -120,7 +120,6 @@ jobs:
           prerelease: true
           name: Development Build
           tag_name: latest
-          generate_release_notes: true
           files: |
             emu_*_*
             LICENSE
