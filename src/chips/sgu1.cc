@@ -62,9 +62,16 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
         sgu->tick_counter += sgu->tick_period;
         short l, r;
         SGU_SU->NextSample(&l, &r);
-        int sample = (l + r) / 2;
-        sgu->sample_accum += ((float)sample / 16384.0f);
+        int sample = ((int)l + (int)r) >> 1;
+        sgu->sample_accum += ((float)sample / 32767.0f);
         sgu->sample_accum_count += 1.0f;
+
+        for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
+            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)SGU_SU->GetSample(i);
+            if (sgu->voice[i].sample_pos >= SGU1_AUDIO_SAMPLES) {
+                sgu->voice[i].sample_pos = 0;
+            }
+        }
     }
 
     /* new sample? */

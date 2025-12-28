@@ -39,6 +39,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
     SoundUnit* su = static_cast<SoundUnit*>(sgu->su);
     const float cw0 = 158.0f;
     const float cw = 62.0f;
+    const float h = ImGui::GetTextLineHeight();
 
     if (ImGui::BeginTable("##su_channels", SGU1_NUM_CHANNELS + 1)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
@@ -55,7 +56,6 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
         ImGui::TableNextColumn();
         ImGui::Text("Muted");
         ImGui::TableNextColumn();
-        const float h = ImGui::GetTextLineHeight();
         ImGuiToggleConfig toggle_config;
         toggle_config.Flags = ImGuiToggleFlags_Animated | ImGuiToggleFlags_A11y;
         toggle_config.Size = ImVec2(1.75f * h, h);
@@ -287,6 +287,28 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             ImGui::Text("%04X", su->chan[i].restimer);
             ImGui::TableNextColumn();
         }
+        ImGui::EndTable();
+    }
+    if (ImGui::BeginTable("##su_waves", 2)) {
+        char buf[32];
+        for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
+            ImGui::TableNextColumn();
+            ImGui::PushID(i);
+            ImVec2 area = ImGui::GetContentRegionAvail();
+            area.y = h * 4.0f;
+            snprintf(buf, sizeof(buf), "Chn%d", i);
+            ImGui::PlotLines(
+                "##samples",
+                sgu->voice[i].sample_buffer,
+                SGU1_AUDIO_SAMPLES,
+                0,
+                buf,
+                -4096.0f,
+                +4095.0f,
+                area);
+            ImGui::PopID();
+        }
+
         ImGui::EndTable();
     }
 }

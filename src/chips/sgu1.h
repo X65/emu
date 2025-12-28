@@ -163,6 +163,8 @@ extern "C" {
 #define SGU1_FLAGS1_VOL_SWEEP          (1 << 5)
 #define SGU1_FLAGS1_CUT_SWEEP          (1 << 6)
 
+#define SGU1_AUDIO_SAMPLES (4096)
+
 // setup parameters for sgu1_init()
 typedef struct {
     int tick_hz;      // frequency at which sgu1_tick() will be called in Hz
@@ -185,6 +187,11 @@ typedef struct {
     float sample_accum_count;
     float sample_mag;
     float sample;
+    // voice visualization
+    struct {
+        int sample_pos;
+        float sample_buffer[SGU1_AUDIO_SAMPLES];
+    } voice[SGU1_NUM_CHANNELS];
     // debug inspection
     uint64_t pins;
 } sgu1_t;
