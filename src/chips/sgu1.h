@@ -146,6 +146,15 @@ extern "C" {
 #define SGU1_FLAGS0_CTL_NSHIGH    (1 << 6)
 #define SGU1_FLAGS0_CTL_NSBAND    (1 << 7)
 
+#define SGU1_FLAGS0_WAVE_PULSE          (0)
+#define SGU1_FLAGS0_WAVE_SAWTOOTH       (1)
+#define SGU1_FLAGS0_WAVE_SINE           (2)
+#define SGU1_FLAGS0_WAVE_TRIANGLE       (3)
+#define SGU1_FLAGS0_WAVE_NOISE          (4)
+#define SGU1_FLAGS0_WAVE_PERIODIC_NOISE (5)
+#define SGU1_FLAGS0_WAVE_XOR_SINE       (6)
+#define SGU1_FLAGS0_WAVE_XOR_TRIANGLE   (7)
+
 #define SGU1_FLAGS1_PHASE_RESET        (1 << 0)
 #define SGU1_FLAGS1_FILTER_PHASE_RESET (1 << 1)
 #define SGU1_FLAGS1_PCM_LOOP           (1 << 2)

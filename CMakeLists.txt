@@ -44,6 +44,7 @@ add_executable(emu
     src/ui/ui_cgia.cc
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
+    src/ui/ui_sgu1.cc
     src/ui/ui_tca6416a.cc
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
