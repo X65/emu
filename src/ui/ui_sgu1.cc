@@ -34,6 +34,10 @@ void ui_sgu1_discard(ui_sgu1_t* win) {
     win->valid = false;
 }
 
+static void ui_util_s8(int8_t val) {
+    ImGui::Text("%s%02X", val < 0 ? "-" : "", val < 0 ? -val : val);
+}
+
 static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
     sgu1_t* sgu = win->sgu;
     SoundUnit* su = static_cast<SoundUnit*>(sgu->su);
@@ -75,13 +79,13 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
         ImGui::Text("Volume");
         ImGui::TableNextColumn();
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            ImGui::Text("%02X", su->chan[i].vol);
+            ui_util_s8(su->chan[i].vol);
             ImGui::TableNextColumn();
         }
         ImGui::Text("Panning");
         ImGui::TableNextColumn();
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            ImGui::Text("%02X", su->chan[i].pan);
+            ui_util_s8(su->chan[i].pan);
             ImGui::TableNextColumn();
         }
         ImGui::Text("Control Flags");
@@ -173,7 +177,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             ImGui::Text("%s", (su->chan[i].flags1 & SGU1_FLAGS1_VOL_SWEEP) ? "ON" : "OFF");
             ImGui::TableNextColumn();
         }
-        ImGui::Text("  CUT_SWEEP");
+        ImGui::Text("  CUT SWEEP");
         ImGui::TableNextColumn();
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
             ImGui::Text("%s", (su->chan[i].flags1 & SGU1_FLAGS1_CUT_SWEEP) ? "ON" : "OFF");
