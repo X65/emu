@@ -50,6 +50,7 @@ extern "C" {
 #define X65_FREQUENCY             (1826300)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (1024)     // max number of audio samples in internal sample buffer
 #define X65_DEFAULT_AUDIO_SAMPLES (128)      // default number of samples in internal sample buffer
+#define X65_AUDIO_CHANNELS        (2)        // stereo output
 
 // X65 joystick types
 typedef enum {

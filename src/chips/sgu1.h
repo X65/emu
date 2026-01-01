@@ -183,10 +183,10 @@ typedef struct {
     // sample generation state
     int sample_period;
     int sample_counter;
-    float sample_accum;
-    float sample_accum_count;
     float sample_mag;
-    float sample;
+    float sample_accum[2];
+    float sample_accum_count[2];
+    float sample[2];  // Left, Right
     // voice visualization
     struct {
         int sample_pos;

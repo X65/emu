@@ -109,7 +109,7 @@ static void* labels = NULL;
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
     (void)user_data;
-    saudio_push(samples, num_samples);
+    saudio_push(samples, num_samples / X65_AUDIO_CHANNELS);
 }
 
 // get x65_desc_t struct based on joystick type
@@ -147,6 +147,7 @@ static void app_load_rom_labels(const char* rom_file) {
 
 void app_init(void) {
     saudio_setup(&(saudio_desc){
+        .num_channels = X65_AUDIO_CHANNELS,
         .logger.func = slog_func,
     });
     x65_joystick_type_t joy_type = arguments.joy ? X65_JOYSTICKTYPE_DIGITAL_1 : X65_JOYSTICKTYPE_NONE;

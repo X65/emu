@@ -35,7 +35,7 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / desc->sound_hz;
     sgu->sample_counter = sgu->sample_period;
     sgu->sample_mag = desc->magnitude;
-    sgu->sample_accum_count = 1.0f;
+    sgu->sample_accum_count[0] = sgu->sample_accum_count[1] = 1.0f;
     sgu->su = new SoundUnit();
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / (CHIP_CLOCK / CHIP_DIVIDER);
     sgu->tick_counter = sgu->tick_period;
@@ -48,9 +48,9 @@ void sgu1_reset(sgu1_t* sgu) {
     memset(sgu->reg, 0, sizeof(sgu->reg));
     sgu->tick_counter = sgu->tick_period;
     sgu->sample_counter = sgu->sample_period;
-    sgu->sample = 0.0f;
-    sgu->sample_accum = 0.0f;
-    sgu->sample_accum_count = 1.0f;
+    sgu->sample[0] = sgu->sample[1] = 0.0f;
+    sgu->sample_accum[0] = sgu->sample_accum[1] = 0.0f;
+    sgu->sample_accum_count[0] = sgu->sample_accum_count[1] = 1.0f;
     sgu->pins = 0;
 }
 
@@ -62,9 +62,10 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
         sgu->tick_counter += sgu->tick_period;
         short l, r;
         SGU_SU->NextSample(&l, &r);
-        int sample = ((int)l + (int)r) >> 1;
-        sgu->sample_accum += ((float)sample / 32767.0f);
-        sgu->sample_accum_count += 1.0f;
+        sgu->sample_accum[0] += ((float)l / 32767.0f);
+        sgu->sample_accum_count[0] += 1.0f;
+        sgu->sample_accum[1] += ((float)r / 32767.0f);
+        sgu->sample_accum_count[1] += 1.0f;
 
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
             sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)SGU_SU->GetSample(i);
@@ -78,10 +79,12 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     sgu->sample_counter -= SGU1_FIXEDPOINT_SCALE;
     if (sgu->sample_counter <= 0) {
         sgu->sample_counter += sgu->sample_period;
-        float s = sgu->sample_accum / sgu->sample_accum_count;
-        sgu->sample = sgu->sample_mag * s;
-        sgu->sample_accum = 0.0f;
-        sgu->sample_accum_count = 0.0f;
+        float l = sgu->sample_accum[0] / sgu->sample_accum_count[0];
+        sgu->sample[0] = sgu->sample_mag * l;
+        float r = sgu->sample_accum[1] / sgu->sample_accum_count[1];
+        sgu->sample[1] = sgu->sample_mag * r;
+        sgu->sample_accum[0] = sgu->sample_accum[1] = 0.0f;
+        sgu->sample_accum_count[0] = sgu->sample_accum_count[1] = 0.0f;
         pins |= SGU1_SAMPLE;
     }
     else {
