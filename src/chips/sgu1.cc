@@ -40,6 +40,7 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / (CHIP_CLOCK / CHIP_DIVIDER);
     sgu->tick_counter = sgu->tick_period;
     SGU_SU->Init(65536);
+    sgu->resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, sgu->tick_period, sgu->sample_period, 3, NULL);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
@@ -52,6 +53,7 @@ void sgu1_reset(sgu1_t* sgu) {
     sgu->sample_accum[0] = sgu->sample_accum[1] = 0.0f;
     sgu->sample_accum_count[0] = sgu->sample_accum_count[1] = 1.0f;
     sgu->pins = 0;
+    speex_resampler_reset_mem(sgu->resampler);
 }
 
 /* tick the sound generation, return true when new sample ready */

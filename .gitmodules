@@ -19,3 +19,6 @@
 [submodule "ext/imgui_toggle"]
 	path = ext/imgui_toggle
 	url = https://github.com/cmdwtf/imgui_toggle.git
+[submodule "ext/speexdsp"]
+	path = ext/speexdsp
+	url = https://github.com/xiph/speexdsp.git

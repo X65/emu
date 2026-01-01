@@ -42,6 +42,7 @@
     OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #*/
 
+#include <speex_resampler.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -163,7 +164,8 @@ extern "C" {
 #define SGU1_FLAGS1_VOL_SWEEP          (1 << 5)
 #define SGU1_FLAGS1_CUT_SWEEP          (1 << 6)
 
-#define SGU1_AUDIO_SAMPLES (4096)
+#define SGU1_AUDIO_CHANNELS (2)
+#define SGU1_AUDIO_SAMPLES  (4096)
 
 // setup parameters for sgu1_init()
 typedef struct {
@@ -180,13 +182,14 @@ typedef struct {
     uint8_t reg[32];
     int tick_period;
     int tick_counter;
+    SpeexResamplerState* resampler;
     // sample generation state
     int sample_period;
     int sample_counter;
     float sample_mag;
-    float sample_accum[2];
-    float sample_accum_count[2];
-    float sample[2];  // Left, Right
+    float sample_accum[SGU1_AUDIO_CHANNELS];
+    float sample_accum_count[SGU1_AUDIO_CHANNELS];
+    float sample[SGU1_AUDIO_CHANNELS];  // Left, Right
     // voice visualization
     struct {
         int sample_pos;

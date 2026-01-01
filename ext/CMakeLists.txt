@@ -25,3 +25,16 @@ add_library(imgui-toggle STATIC
     imgui_toggle/imgui_toggle_renderer.cpp
     imgui_toggle/imgui_toggle_renderer.h
 )
+
+add_library(speex-resampler STATIC
+	speexdsp/libspeexdsp/resample.c
+)
+target_include_directories(speex-resampler PUBLIC
+    speexdsp/include
+    speexdsp/include/speex
+)
+target_compile_definitions(speex-resampler PUBLIC
+    OUTSIDE_SPEEX
+    RANDOM_PREFIX=x65_
+    FLOATING_POINT
+)
