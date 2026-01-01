@@ -57,6 +57,7 @@ typedef struct {
     const char* title;          /* window title */
     const float* sample_buffer; /* pointer to audio sample buffer */
     int num_samples;            /* max number of samples in sample buffer */
+    int num_channels;           /* number of audio channels */
     int x, y;                   /* initial window position */
     int w, h;                   /* initial window size or zero for default size */
     bool open;                  /* initial open state */
@@ -66,6 +67,7 @@ typedef struct {
     const char* title;
     const float* sample_buffer;
     int num_samples;
+    int num_channels;
     float init_x, init_y;
     float init_w, init_h;
     uint32_t cursor_color;
@@ -100,10 +102,12 @@ void ui_audio_init(ui_audio_t* win, const ui_audio_desc_t* desc) {
     CHIPS_ASSERT(desc->title);
     CHIPS_ASSERT(desc->sample_buffer);
     CHIPS_ASSERT(desc->num_samples > 0);
+    CHIPS_ASSERT(desc->num_channels > 0);
     memset(win, 0, sizeof(ui_audio_t));
     win->title = desc->title;
     win->sample_buffer = desc->sample_buffer;
     win->num_samples = desc->num_samples;
+    win->num_channels = desc->num_channels;
     win->init_x = (float) desc->x;
     win->init_y = (float) desc->y;
     win->init_w = (float) ((desc->w == 0) ? 480 : desc->w);
@@ -127,17 +131,29 @@ void ui_audio_draw(ui_audio_t* win, int sample_pos) {
     ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(win->title, &win->open)) {
+        const ImGuiStyle& style = ImGui::GetStyle();
         ImVec2 pos = ImGui::GetCursorScreenPos();
         ImVec2 area = ImGui::GetContentRegionAvail();
-        ImGui::PlotLines("##samples", win->sample_buffer, win->num_samples, 0, 0, -1.0f, +1.0f, area);
-        const ImGuiStyle& style = ImGui::GetStyle();
-        float x0 = pos.x + style.FramePadding.x;
-        float x1 = pos.x + area.x - style.FramePadding.x;
-        float y0 = pos.y + style.FramePadding.y;
-        float y1 = pos.y + area.y - style.FramePadding.y;
-        float tx = (float)sample_pos / (float)win->num_samples;
-        float x = x0 + (x1 - x0) * tx;
-        ImGui::GetWindowDrawList()->AddLine(ImVec2(x, y0), ImVec2(x, y1), win->cursor_color, 3);
+        area.y /= win->num_channels;
+        area.y -= style.FramePadding.y;
+        for (int ch = 0; ch < win->num_channels; ch++) {
+            ImGui::PushID(ch);
+            ImGui::PlotLines("##samples",
+                win->sample_buffer + ch, win->num_samples / win->num_channels, 0,
+                ch % 2 ? "Right" : "Left", -1.0f, +1.0f,
+                area, sizeof(float) * win->num_channels);
+            float x0 = pos.x + style.FramePadding.x;
+            float x1 = pos.x + area.x - style.FramePadding.x;
+            float y0 = pos.y + style.FramePadding.y;
+            float y1 = pos.y + area.y - style.FramePadding.y;
+            float tx = (float)sample_pos / (float)win->num_samples;
+            float x = x0 + (x1 - x0) * tx;
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(x, y0 + area.y * ch),
+                ImVec2(x, y1 + area.y * ch),
+                win->cursor_color, 3);
+            ImGui::PopID();
+        }
     }
     ImGui::End();
 }

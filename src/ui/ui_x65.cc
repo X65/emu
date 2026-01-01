@@ -543,6 +543,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
         desc.title = "Audio Output";
         desc.sample_buffer = ui->x65->audio.sample_buffer;
         desc.num_samples = ui->x65->audio.num_samples;
+        desc.num_channels = X65_AUDIO_CHANNELS;
         desc.x = x;
         desc.y = y;
         ui_audio_init(&ui->audio, &desc);
