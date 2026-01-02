@@ -1,5 +1,4 @@
 #include "./sgu1.h"
-#include "./su/su.h"
 
 #include <string.h>
 #ifdef _MSC_VER
@@ -23,7 +22,6 @@
 
 #define CHIP_DIVIDER  2
 #define CHIP_FREQBASE 524288
-#define SGU_SU        ((SoundUnit*)(sgu->su))
 #define CHIP_CLOCK    618000  // tSU: 6.18MHz (NTSC)
 
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
@@ -39,13 +37,13 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->su = new SoundUnit();
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / (CHIP_CLOCK / CHIP_DIVIDER);
     sgu->tick_counter = sgu->tick_period;
-    SGU_SU->Init(65536);
+    SoundUnit_Init(sgu->su, 65536, false);
     sgu->resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, CHIP_CLOCK / CHIP_DIVIDER, sgu->sound_hz, 10, nullptr);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
     CHIPS_ASSERT(sgu);
-    SGU_SU->Reset();
+    SoundUnit_Reset(sgu->su);
     memset(sgu->reg, 0, sizeof(sgu->reg));
     sgu->tick_counter = sgu->tick_period;
     sgu->sample_counter = sgu->sample_period;
@@ -61,14 +59,14 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     if (sgu->tick_counter <= 0) {
         sgu->tick_counter += sgu->tick_period;
         short l, r;
-        SGU_SU->NextSample(&l, &r);
+        SoundUnit_NextSample(sgu->su, &l, &r);
         float in[2] = { ((float)l / 32767.0f), ((float)r / 32767.0f) };
         spx_uint32_t in_len = 1;   // 1 stereo frame
         spx_uint32_t out_len = 1;  // room for 1 stereo frame
         speex_resampler_process_interleaved_float(sgu->resampler, in, &in_len, sgu->sample, &out_len);
 
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)SGU_SU->GetSample(i);
+            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)SoundUnit_GetSample(sgu->su, i);
             if (sgu->voice[i].sample_pos >= SGU1_AUDIO_SAMPLES) {
                 sgu->voice[i].sample_pos = 0;
             }
@@ -100,7 +98,7 @@ uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
     }
     else {
         uint8_t chan = _sgu1_selected_channel(sgu);
-        data = ((unsigned char*)SGU_SU->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))];
+        data = ((unsigned char*)sgu->su->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))];
     }
     return data;
 }
@@ -113,7 +111,7 @@ void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
     }
     else {
         uint8_t chan = _sgu1_selected_channel(sgu);
-        ((unsigned char*)SGU_SU->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))] = data;
+        ((unsigned char*)sgu->su->chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))] = data;
     }
 }
 

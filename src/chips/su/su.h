@@ -1,4 +1,4 @@
-/* su.cpp/su.h - Sound Unit emulator
+/* su.c/su.h - Sound Unit emulator
  * Copyright (C) 2015-2023 tildearrow
  * Copyright (C) 2025 smokku
  *
@@ -20,11 +20,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#pragma once
+
 #include <stddef.h>
 #include <stdint.h>
 
-class SoundUnit
-{
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    // private:
     int8_t SCsine[256];
     int8_t SCtriangle[256];
     int8_t SCpantabL[256];
@@ -50,7 +57,7 @@ class SoundUnit
     bool dsOut;
     uint8_t dsChannel;
 
-  public:
+    // public:
     uint16_t resetfreq[8];
     uint16_t voldcycles[8];
     uint16_t volicycles[8];
@@ -93,15 +100,19 @@ class SoundUnit
     } chan[8];
     int8_t pcm[65536];
     bool muted[8];
-    void Write(uint8_t addr, uint8_t data);
-    void NextSample(int16_t* l, int16_t* r);
-    inline int32_t GetSample(int32_t ch) {
-        int32_t ret = (nsL[ch] + nsR[ch]) >> 1;
-        if (ret < -32768) ret = -32768;
-        if (ret > 32767) ret = 32767;
-        return ret;
-    }
-    void Init(size_t sampleMemSize = 8192, bool dsOutMode = false);
-    void Reset();
-    SoundUnit();
-};
+} SoundUnit;
+
+void SoundUnit_Init(SoundUnit* su, size_t sampleMemSize, bool dsOutMode);
+void SoundUnit_Reset(SoundUnit* su);
+void SoundUnit_Write(SoundUnit* su, uint8_t addr, uint8_t data);
+void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r);
+inline int32_t SoundUnit_GetSample(SoundUnit* su, int32_t ch) {
+    int32_t ret = (su->nsL[ch] + su->nsR[ch]) >> 1;
+    if (ret < -32768) ret = -32768;
+    if (ret > 32767) ret = 32767;
+    return ret;
+}
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif

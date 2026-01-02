@@ -45,6 +45,7 @@
 #include <speex_resampler.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "./su/su.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -178,7 +179,7 @@ typedef struct {
 typedef struct {
     int sound_hz;
     // sound unit instance
-    void* su;
+    SoundUnit* su;
     uint8_t reg[32];
     int tick_period;
     int tick_counter;

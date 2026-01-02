@@ -49,7 +49,7 @@ add_executable(emu
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
-    src/chips/su/su.cpp
+    src/chips/su/su.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
