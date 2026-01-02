@@ -33,7 +33,6 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / desc->sound_hz;
     sgu->sample_counter = sgu->sample_period;
     sgu->sample_mag = desc->magnitude;
-    // sgu->sample_accum_count[0] = sgu->sample_accum_count[1] = 1.0f;
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / (CHIP_CLOCK / CHIP_DIVIDER);
     sgu->tick_counter = sgu->tick_period;
     SoundUnit_Init(&sgu->su, 65536, false);
@@ -65,7 +64,7 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
         speex_resampler_process_interleaved_float(sgu->resampler, in, &in_len, sgu->sample, &out_len);
 
         for (int i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)SoundUnit_GetSample(&sgu->su, i);
+            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)(SoundUnit_GetSample(&sgu->su, i));
             if (sgu->voice[i].sample_pos >= SGU1_AUDIO_SAMPLES) {
                 sgu->voice[i].sample_pos = 0;
             }

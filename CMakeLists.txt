@@ -35,7 +35,7 @@ add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c
     src/chips/ria816.c
-    src/chips/sgu1.cc
+    src/chips/sgu1.c
     src/chips/tca6416a.c
     src/systems/x65.c
     src/x65.c

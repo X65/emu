@@ -1,11 +1,11 @@
 include_directories(imgui)
 
 add_library(imgui-docking STATIC
-	imgui/imgui.cpp
-	imgui/imgui.h
-	imgui/imstb_rectpack.h
-	imgui/imstb_textedit.h
-	imgui/imstb_truetype.h
+    imgui/imgui.cpp
+    imgui/imgui.h
+    imgui/imstb_rectpack.h
+    imgui/imstb_textedit.h
+    imgui/imstb_truetype.h
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
     imgui/imgui_internal.h
@@ -14,7 +14,7 @@ add_library(imgui-docking STATIC
 )
 
 add_library(imgui-toggle STATIC
-	imgui_toggle/imgui_offset_rect.h
+    imgui_toggle/imgui_offset_rect.h
     imgui_toggle/imgui_toggle.cpp
     imgui_toggle/imgui_toggle.h
     imgui_toggle/imgui_toggle_math.h
@@ -27,7 +27,7 @@ add_library(imgui-toggle STATIC
 )
 
 add_library(speex-resampler STATIC
-	speexdsp/libspeexdsp/resample.c
+    speexdsp/libspeexdsp/resample.c
 )
 target_include_directories(speex-resampler PUBLIC
     speexdsp/include
