@@ -179,7 +179,7 @@ typedef struct {
 typedef struct {
     int sound_hz;
     // sound unit instance
-    SoundUnit* su;
+    SoundUnit su;
     uint8_t reg[32];
     int tick_period;
     int tick_counter;

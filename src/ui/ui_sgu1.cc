@@ -40,7 +40,7 @@ static void ui_util_s8(int8_t val) {
 
 static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
     sgu1_t* sgu = win->sgu;
-    SoundUnit* su = static_cast<SoundUnit*>(sgu->su);
+    SoundUnit* su = &sgu->su;
     const float cw0 = 158.0f;
     const float cw = 62.0f;
     const float h = ImGui::GetTextLineHeight();
