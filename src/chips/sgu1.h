@@ -187,8 +187,6 @@ typedef struct {
     int sample_period;
     int sample_counter;
     float sample_mag;
-    float sample_accum[SGU1_AUDIO_CHANNELS];
-    float sample_accum_count[SGU1_AUDIO_CHANNELS];
     float sample[SGU1_AUDIO_CHANNELS];  // Left, Right
     // voice visualization
     struct {
