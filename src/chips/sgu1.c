@@ -1,10 +1,6 @@
 #include "./sgu1.h"
 
 #include <string.h>
-#ifdef _MSC_VER
-    #define _USE_MATH_DEFINES
-#endif
-#include <math.h> /* tanh */
 #ifndef CHIPS_ASSERT
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)

@@ -3,11 +3,16 @@
 #include "imgui.h"
 #include "imgui_toggle.h"
 #include "ui/ui_util.h"
+#include <algorithm>
 
 #ifndef __cplusplus
     #error "implementation must be compiled as C++"
 #endif
 #include <string.h> /* memset */
+#ifdef _MSC_VER
+    #define _USE_MATH_DEFINES
+#endif
+#include <math.h> /* INFINITY */
 #ifndef CHIPS_ASSERT
     #include <assert.h>
     #define CHIPS_ASSERT(c) assert(c)
@@ -301,11 +306,42 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             ImVec2 area = ImGui::GetContentRegionAvail();
             area.y = h * 4.0f;
             snprintf(buf, sizeof(buf), "Chn%d", i);
+
+            // plotline triggering on zero crossing with hysteresis
+            double acc = 0.0;
+            float min = +INFINITY;
+            float max = -INFINITY;
+            for (int idx = 0; idx < SGU1_AUDIO_SAMPLES; ++idx) {
+                float sample = sgu->voice[i].sample_buffer[idx];
+                if (sample < min) min = sample;
+                if (sample > max) max = sample;
+                acc += sample;
+            }
+            float mean = (float)(acc / (double)SGU1_AUDIO_SAMPLES);
+            float p2p = max - min;
+            float hyst = std::clamp(0.01f * p2p, 1.0f, 0.10f * p2p);
+
+            int offset = sgu->voice[i].sample_pos;
+            bool armed = 0;
+            for (int idx = offset; (idx + 1) % SGU1_AUDIO_SAMPLES != offset; idx = ++idx % SGU1_AUDIO_SAMPLES) {
+                float a = sgu->voice[i].sample_buffer[idx] - mean;
+                float b = sgu->voice[i].sample_buffer[(idx + 1) % SGU1_AUDIO_SAMPLES] - mean;
+                if (!armed) {
+                    if (a < -hyst) armed = true;
+                }
+                else {
+                    if (a <= 0 && b > +hyst) {  // rising crossing
+                        offset = idx;
+                        break;
+                    }
+                }
+            }
+
             ImGui::PlotLines(
                 "##samples",
                 sgu->voice[i].sample_buffer,
                 SGU1_AUDIO_SAMPLES,
-                sgu->voice[i].sample_pos,
+                offset,
                 buf,
                 -4096.0f,
                 +4095.0f,
