@@ -305,7 +305,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
                 "##samples",
                 sgu->voice[i].sample_buffer,
                 SGU1_AUDIO_SAMPLES,
-                0,
+                sgu->voice[i].sample_pos,
                 buf,
                 -4096.0f,
                 +4095.0f,
