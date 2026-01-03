@@ -56,6 +56,7 @@ typedef struct {
     int32_t nslow[8];
     int32_t nshigh[8];
     int32_t nsband[8];
+    int32_t dc[8];
     int32_t tnsL, tnsR;
     int32_t ilBufPeriod;
     uint16_t ilBufPos;

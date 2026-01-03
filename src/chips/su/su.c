@@ -42,6 +42,21 @@
 // make the define it shorter, so it's easier to read in the code below
 #define Pm (SOUND_UNIT_PHASE_MULTIPLIER)
 
+#define DC_SHIFT_FAST 9
+#define DC_SHIFT_SLOW 12
+#define DC_THRESH_Q8  (64 << 8)  // threshold in Q8 units (tune)
+
+static inline int32_t dc_block_q8(int32_t x, int32_t* dc_q8) {
+    int32_t x_q8 = x << 8;
+    int32_t e = x_q8 - *dc_q8;
+    int32_t ae = (e >= 0) ? e : -e;
+
+    int sh = (ae > DC_THRESH_Q8) ? DC_SHIFT_FAST : DC_SHIFT_SLOW;
+    *dc_q8 += (e >> sh);
+
+    return x - (*dc_q8 >> 8);
+}
+
 void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
     // cache channel 0, so ring mod code below uses previous frame value
     // consistently for all channels, including 7 which feeds from 0
@@ -172,6 +187,7 @@ void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
                  + ((su->chan[i].flags0 & 64) ? (su->nshigh[i]) : (0))
                  + ((su->chan[i].flags0 & 128) ? (su->nsband[i]) : (0)));
         }
+        su->fns[i] = dc_block_q8(su->fns[i], &su->dc[i]);
         su->nsL[i] = (su->fns[i] * su->SCpantabL[(uint8_t)su->chan[i].pan]) >> 8;
         su->nsR[i] = (su->fns[i] * su->SCpantabR[(uint8_t)su->chan[i].pan]) >> 8;
         if (su->chan[i].flags1 & 32) {
@@ -417,9 +433,10 @@ void SoundUnit_Reset(SoundUnit* su) {
         su->nslow[i] = 0;
         su->nshigh[i] = 0;
         su->nsband[i] = 0;
-        su->swvolt[i] = su->chan[i].swvol.speed;
-        su->swfreqt[i] = su->chan[i].swfreq.speed;
-        su->swcutt[i] = su->chan[i].swcut.speed;
+        su->dc[i] = 0;
+        su->swvolt[i] = Pm;
+        su->swfreqt[i] = Pm;
+        su->swcutt[i] = Pm;
         su->lfsr[i] = 0xAAAA;
         su->pcmdec[i] = 0;
     }

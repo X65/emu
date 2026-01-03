@@ -340,7 +340,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             ImGui::PlotLines(
                 "##samples",
                 sgu->voice[i].sample_buffer,
-                SGU1_AUDIO_SAMPLES,
+                SGU1_AUDIO_SAMPLES / 2,
                 offset,
                 buf,
                 -4096.0f,
