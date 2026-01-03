@@ -192,7 +192,9 @@ void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
                 while (su->swvolt[i] <= 0) {
                     su->swvolt[i] += su->chan[i].swvol.speed;
                     if (su->chan[i].swvol.amt & 32) {
-                        su->chan[i].vol += su->chan[i].swvol.amt & 31;
+                        int v = su->chan[i].vol;
+                        v += su->chan[i].swvol.amt & 31;
+                        su->chan[i].vol = v > 127 ? 127 : v < -128 ? -128 : (int8_t)v;
                         if (su->chan[i].vol > su->chan[i].swvol.bound && !(su->chan[i].swvol.amt & 64)) {
                             su->chan[i].vol = su->chan[i].swvol.bound;
                         }
@@ -212,7 +214,9 @@ void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
                         }
                     }
                     else {
-                        su->chan[i].vol -= su->chan[i].swvol.amt & 31;
+                        int v = su->chan[i].vol;
+                        v -= su->chan[i].swvol.amt & 31;
+                        su->chan[i].vol = v > 127 ? 127 : v < -128 ? -128 : (int8_t)v;
                         if (su->chan[i].vol & 0x80) {
                             if (su->chan[i].swvol.amt & 64) {
                                 if (su->chan[i].swvol.amt & 128) {
