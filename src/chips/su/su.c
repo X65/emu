@@ -64,10 +64,6 @@ void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
 
     // run channels
     for (size_t i = 0; i < 8; i++) {
-        if (su->chan[i].vol == 0 && !(su->chan[i].flags1 & 32)) {
-            su->fns[i] = 0;
-            continue;
-        }
         if (su->chan[i].flags0 & 8) {
             su->ns[i] = su->pcm[su->chan[i].pcmpos];
         }
