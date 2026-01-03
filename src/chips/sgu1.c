@@ -16,9 +16,7 @@
 /* move bit into first position */
 #define SGU1_BIT(val, bitnr) ((val >> bitnr) & 1)
 
-#define CHIP_DIVIDER  2
-#define CHIP_FREQBASE 524288
-#define CHIP_CLOCK    618000  // tSU: 6.18MHz (NTSC)
+#define SGU1_CHIP_CLOCK (48000 * 2)  // 48kHz oversampled x2
 
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     CHIPS_ASSERT(sgu && desc);
@@ -29,10 +27,10 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / desc->sound_hz;
     sgu->sample_counter = sgu->sample_period;
     sgu->sample_mag = desc->magnitude;
-    sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / (CHIP_CLOCK / CHIP_DIVIDER);
+    sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU1_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
     SoundUnit_Init(&sgu->su, 65536, false);
-    sgu->resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, CHIP_CLOCK / CHIP_DIVIDER, sgu->sound_hz, 10, nullptr);
+    sgu->resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, SGU1_CHIP_CLOCK, sgu->sound_hz, 10, nullptr);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
