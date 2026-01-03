@@ -31,6 +31,85 @@
 #define minval(a, b) (((a) < (b)) ? (a) : (b))
 #define maxval(a, b) (((a) > (b)) ? (a) : (b))
 
+/*
+The **Input Line (IL)** is essentially a "Global Feedback and Delay" system. In the original hardware or engine this was
+modeled after, it allows the audio output of the channels to be fed back into a dedicated section of memory (your
+`pcm[]` buffer) to create **Echo, Reverb, or Chorus** effects.
+
+Because the `SoundUnit` only has 8 channels, the designer "stole" the unused registers of the later channels (4, 5, 6,
+and 7) to act as the control panel for this global effect.
+
+---
+
+### Breakdown of the Defines
+
+#### 1. Volume and Feedback Controls
+
+* **`MVOL` (Master Volume):** Controls the final output level of the entire unit.
+* **`FILVOL` (Filter/Feedback Volume):** Controls how loud the "Echo" signal is when it is mixed back into the main
+left/right output.
+* **`FIL1`:** A dual-purpose register.
+* **Lower 4 bits:** Controls the "Decay" of the echo (how much of the old sound is kept).
+* **Upper 4 bits:** Part of the timing logic that determines how fast the echo buffer advances.
+
+
+
+#### 2. The Input "Taps" (`IL0`, `IL1`, `IL2`)
+
+These are the **Mixed Input Sources**. Before the sound hits the speakers, it is sent to these "Input Lines."
+
+* **`IL0`**: Usually the mono mix of channels.
+* **`IL1` / `IL2**`: Usually represent the Left and Right accumulated mixes.
+The `switch (su->ILCTRL & 3)` in your code decides which of these is currently being written into the delay buffer.
+
+#### 3. Buffer Management (`ILSIZE`, `ILCTRL`)
+
+* **`ILSIZE`**:
+* **Bit 6 (0x40):** The Master Switch. If this isn't set, the entire Echo/Feedback system is **OFF**.
+* **Bits 0-5:** Determines the **Size** of the delay buffer (how "long" the echo can be). It carves out a piece of the
+end of your `pcm[]` memory.
+* **Bit 7 (0x80):** Usually a "Panning" or "Phase" flip switch for the feedback.
+
+
+* **`ILCTRL`**:
+* **Bits 0-1:** Selects the input source (`IL0`, `IL1`, or `IL2`).
+* **Bit 2 (0x04):** Enables the "Output" of the delay line. If this is off, you are recording an echo but not listening
+to it.
+
+
+
+---
+
+### How the Logic Works (The "Tape Loop")
+
+Imagine the `pcm[]` buffer is a loop of magnetic tape.
+
+1. **Read:** The engine looks at the current position (`ilBufPos`) and reads the "old" sound.
+2. **Feedback:** It multiplies that old sound by the decay factor in `FIL1`.
+3. **Mix:** It takes the "New" sound (from `IL1` or `IL2`) and adds it to that decayed old sound.
+4. **Write:** It writes the result back to `pcm[ilBufPos]`.
+5. **Advance:** It moves the "tape" forward.
+
+### Why `su->ilBufPeriod` is important
+
+This variable acts like the "Speed" control of the tape motor.
+
+* When we added `su->ilBufPeriod += Pm;`, we ensured the "tape" moves at the same physical speed at 96kHz as it did at
+309kHz.
+* Without this, your echoes would sound 3.2x deeper and last 3.2x longer because the "tape" would be moving too slowly.
+
+---
+
+### Summary Table
+
+| Define | Component | Function |
+| --- | --- | --- |
+| **`ILSIZE`** | **The Room** | How big is the echo chamber? Is it turned on? |
+| **`ILCTRL`** | **The Patch Bay** | Which channels are sent to the echo? Are we listening to it? |
+| **`FIL1`** | **The Dampening** | Does the echo last forever, or fade out quickly? |
+| **`FILVOL`** | **The Return** | How loud is the echo in the final mix? |
+
+*/
 #define FILVOL chan[4].special1C
 #define ILCTRL chan[4].special1D
 #define ILSIZE chan[5].special1C

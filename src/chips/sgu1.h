@@ -165,6 +165,10 @@ extern "C" {
 #define SGU1_FLAGS1_VOL_SWEEP          (1 << 5)
 #define SGU1_FLAGS1_CUT_SWEEP          (1 << 6)
 
+#define SGU1_VOL_SWEEP_INC    (1 << 5)
+#define SGU1_VOL_SWEEP_WRAP   (1 << 6)
+#define SGU1_VOL_SWEEP_BOUNCE (1 << 7)
+
 #define SGU1_AUDIO_CHANNELS (2)
 #define SGU1_AUDIO_SAMPLES  (4096)
 
