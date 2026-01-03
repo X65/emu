@@ -22,6 +22,7 @@
  */
 
 #include "su.h"
+#include <assert.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -399,7 +400,9 @@ void SoundUnit_NextSample(SoundUnit* su, int16_t* l, int16_t* r) {
 }
 
 void SoundUnit_Init(SoundUnit* su, size_t sampleMemSize, bool dsOutMode) {
+    assert((sampleMemSize & (sampleMemSize - 1)) == 0);  // must be power of 2
     su->pcmSize = sampleMemSize ? sampleMemSize : 8192;
+    assert(su->pcmSize <= sizeof(su->pcm));
     su->dsOut = dsOutMode;
     SoundUnit_Reset(su);
     memset(su->pcm, 0, su->pcmSize);
