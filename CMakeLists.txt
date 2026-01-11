@@ -31,6 +31,7 @@ add_subdirectory(src/common)
 include_directories(src/common)
 include_directories(ext/firmware/src/south)
 include_directories(ext/firmware/src/north)
+include_directories(ext/firmware/src/audio)
 add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c
@@ -49,7 +50,7 @@ add_executable(emu
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
     src/util/ringbuffer.c
-    src/chips/su/su.c
+    ext/firmware/src/audio/snd/su.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu

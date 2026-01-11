@@ -1,5 +1,5 @@
 #include "./ui_sgu1.h"
-#include "chips/su/su.h"
+#include "snd/su.h"
 #include "imgui.h"
 #include "imgui_toggle.h"
 #include "ui/ui_util.h"

@@ -45,7 +45,7 @@
 #include <speex_resampler.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "./su/su.h"
+#include "snd/su.h"
 
 #ifdef __cplusplus
 extern "C" {
