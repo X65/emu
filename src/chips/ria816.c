@@ -148,6 +148,14 @@ static uint64_t _ria816_update_irq(ria816_t* c, uint64_t pins) {
 
 static uint8_t HID_dev = 0;
 
+#ifdef NDEBUG
+static inline void DBG(const char* fmt, ...) {
+    (void)fmt;
+}
+#else
+    #include "log.h"
+    #define DBG(...) LOG_INFO(__VA_ARGS__)
+#endif
 typedef uint32_t DWORD;
 #include "hid/hid.c"
 static void kbd_queue_char(char ch) {}
@@ -155,6 +163,88 @@ static void kbd_queue_key(uint8_t modifier, uint8_t keycode, bool initial_press)
 #include "hid/kbd.c"
 #include "hid/mou.c"
 #include "hid/pad.c"
+#include <SDL3/SDL.h>
+
+static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_type, pad_xram_t* report) {
+    DBG("Type: 0x%X - %p, slot: %d", event_type, data, conn->slot);
+
+    uint8_t dpad = 0;
+    uint8_t button0 = 0;
+    uint8_t button1 = 0;
+
+    if (event_type >= SDL_EVENT_JOYSTICK_AXIS_MOTION && event_type <= SDL_EVENT_JOYSTICK_UPDATE_COMPLETE) {
+        // Joystick event
+
+        report->lx = SDL_GetJoystickAxis(data, 0) / 256;
+        report->ly = SDL_GetJoystickAxis(data, 1) / 256;
+        report->rx = SDL_GetJoystickAxis(data, 2) / 256;
+        report->ry = SDL_GetJoystickAxis(data, 3) / 256;
+        report->lt = SDL_GetJoystickAxis(data, 4) / 256;
+        report->rt = SDL_GetJoystickAxis(data, 5) / 256;
+
+        uint8_t hat = SDL_GetJoystickHat(data, 0);
+        if (hat & SDL_HAT_UP) dpad |= 1;
+        if (hat & SDL_HAT_DOWN) dpad |= 2;
+        if (hat & SDL_HAT_LEFT) dpad |= 4;
+        if (hat & SDL_HAT_RIGHT) dpad |= 8;
+
+        uint32_t buttons = 0;
+        for (int i = 0; i < PAD_MAX_BUTTONS; i++) {
+            if (SDL_GetJoystickButton(data, conn->button_offsets[i])) {
+                buttons |= (1 << i);
+            }
+        }
+        button0 = buttons & 0xFF;
+        button1 = (buttons >> 8) & 0xFF;
+    }
+    else if (event_type >= SDL_EVENT_GAMEPAD_AXIS_MOTION && event_type <= SDL_EVENT_GAMEPAD_UPDATE_COMPLETE) {
+        // Gamepad event
+
+        report->lx = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_LEFTX) / 256;
+        report->ly = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_LEFTY) / 256;
+        report->rx = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_RIGHTX) / 256;
+        report->ry = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_RIGHTY) / 256;
+        report->lt = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) / 256;
+        report->rt = SDL_GetGamepadAxis(data, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) / 256;
+
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_DPAD_UP)) dpad |= (1 << 0);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_DPAD_DOWN)) dpad |= (1 << 1);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_DPAD_LEFT)) dpad |= (1 << 2);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) dpad |= (1 << 3);
+
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_SOUTH)) button0 |= (1 << 0);           // A
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_EAST)) button0 |= (1 << 1);            // B
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1)) button0 |= (1 << 2);   // C
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_WEST)) button0 |= (1 << 3);            // X
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_NORTH)) button0 |= (1 << 4);           // Y
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_LEFT_PADDLE1)) button0 |= (1 << 5);    // Z
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) button0 |= (1 << 6);   // L1
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) button0 |= (1 << 7);  // R1
+
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_BACK)) button1 |= (1 << 2);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_START)) button1 |= (1 << 3);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_GUIDE)) button1 |= (1 << 4);
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_LEFT_STICK)) button1 |= (1 << 5);   // L3
+        if (SDL_GetGamepadButton(data, SDL_GAMEPAD_BUTTON_RIGHT_STICK)) button1 |= (1 << 6);  // R3
+    }
+
+    report->dpad |= dpad & 0x0F;  // only lower 4 bits are dpad
+    report->button0 = button0;
+    report->button1 = button1;
+    DBG("\t%s: 0x%02X, Sticks: 0x%02X, Buttons: 0x%02X 0x%02X, Sticks: L(%d,%d) R(%d,%d), Triggers: L(%d) R(%d)",
+        SDL_IsGamepad(SDL_GetGamepadID(data)) ? "Gamepad" : "Joystick",
+        report->dpad,
+        report->sticks,
+        report->button0,
+        report->button1,
+        report->lx,
+        report->ly,
+        report->rx,
+        report->ry,
+        report->lt,
+        report->rt);
+}
+
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
     uint8_t data = 0xFF;  // invalid
     switch (HID_dev & 0xF) {
