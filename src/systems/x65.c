@@ -479,6 +479,18 @@ void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask) {
     sys->joy_joy2_mask = joy2_mask;
 }
 
+uint8_t x65_joystick_mask(x65_t* sys) {
+    CHIPS_ASSERT(sys && sys->valid);
+    switch (sys->joystick_type) {
+        case X65_JOYSTICKTYPE_DIGITAL_1: return sys->kbd_joy1_mask | sys->joy_joy1_mask;
+        case X65_JOYSTICKTYPE_DIGITAL_2: return sys->kbd_joy2_mask | sys->joy_joy2_mask;
+        case X65_JOYSTICKTYPE_DIGITAL_12:
+            return (sys->kbd_joy1_mask | sys->joy_joy1_mask) | (sys->kbd_joy2_mask | sys->joy_joy2_mask);
+        case X65_JOYSTICKTYPE_NONE:
+        default: return 0;
+    }
+}
+
 bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
     CHIPS_ASSERT(sys && sys->valid && data.ptr);
     if (data.size < 2) {

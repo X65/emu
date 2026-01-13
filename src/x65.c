@@ -104,7 +104,7 @@ static void* labels = NULL;
 #endif
 #define BORDER_LEFT       (8)
 #define BORDER_RIGHT      (8)
-#define BORDER_BOTTOM     (16)
+#define BORDER_BOTTOM     (32)
 #define LOAD_DELAY_FRAMES (6)
 
 // audio-streaming callback
@@ -410,6 +410,13 @@ static void draw_status_bar(void) {
     prof_push(PROF_EMU, (float)state.emu_time_ms);
     prof_stats_t emu_stats = prof_stats(PROF_EMU);
     const float frame_time = (float)state.frame_time_us * 0.001f;
+
+    const uint32_t text_color = 0xFFFFFFFF;
+    const uint32_t disc_active = 0xFF00EE00;
+    const uint32_t disc_inactive = 0xFF006600;
+    const uint32_t joy_active = 0xFFFFEE00;
+    const uint32_t joy_inactive = 0xFF886600;
+
     const float w = sapp_widthf();
     const float h = sapp_heightf();
     sdtx_canvas(w, h);
@@ -417,7 +424,40 @@ static void draw_status_bar(void) {
         sdtx_color3b(255, 32, 32);
     else
         sdtx_color3b(255, 255, 255);
-    sdtx_pos(1.0f, (h / 8.0f) - 1.5f);
+    sdtx_origin(1.0f, (h / 8.0f) - 3.5f);
+    sdtx_font(0);
+
+    // joystick state
+    sdtx_puts("JOYSTICK: ");
+    sdtx_font(1);
+    const uint8_t joymask = x65_joystick_mask(&state.x65);
+    sdtx_color1i((joymask & X65_JOYSTICK_LEFT) ? joy_active : joy_inactive);
+    sdtx_putc(0x88);  // arrow left
+    sdtx_color1i((joymask & X65_JOYSTICK_RIGHT) ? joy_active : joy_inactive);
+    sdtx_putc(0x89);  // arrow right
+    sdtx_color1i((joymask & X65_JOYSTICK_UP) ? joy_active : joy_inactive);
+    sdtx_putc(0x8B);  // arrow up
+    sdtx_color1i((joymask & X65_JOYSTICK_DOWN) ? joy_active : joy_inactive);
+    sdtx_putc(0x8A);  // arrow down
+    sdtx_color1i((joymask & X65_JOYSTICK_BTN) ? joy_active : joy_inactive);
+    sdtx_putc(0x87);  // btn
+    sdtx_color1i((joymask & X65_JOYSTICK_BTN2) ? joy_active : joy_inactive);
+    sdtx_putc(0x87);  // btn
+    sdtx_color1i((joymask & X65_JOYSTICK_BTN3) ? joy_active : joy_inactive);
+    sdtx_putc(0x87);  // btn
+    sdtx_color1i((joymask & X65_JOYSTICK_BTN4) ? joy_active : joy_inactive);
+    sdtx_putc(0x87);  // btn
+    sdtx_font(0);
+
+    // RGB LEDs
+    sdtx_color1i(text_color);
+    sdtx_puts("  LEDs: ");
+    sdtx_color1i(true ? disc_active : disc_inactive);
+    sdtx_putc(0xCF);  // filled circle
+
+    sdtx_font(0);
+    sdtx_color1i(text_color);
+    sdtx_pos(0.0f, 1.5f);
     sdtx_printf(
         "frame:%.2fms emu:%.2fms (min:%.2fms max:%.2fms) ticks:%d",
         frame_time,

@@ -190,6 +190,8 @@ void x65_set_joystick_type(x65_t* sys, x65_joystick_type_t type);
 x65_joystick_type_t x65_joystick_type(x65_t* sys);
 // set joystick mask (combination of X65_JOYSTICK_*)
 void x65_joystick(x65_t* sys, uint8_t joy1_mask, uint8_t joy2_mask);
+// get current joystick bitmask state
+uint8_t x65_joystick_mask(x65_t* sys);
 // quickload a .xex file
 bool x65_quickload_xex(x65_t* sys, chips_range_t data);
 // insert tape as .TAP file (c1530 must be enabled)
