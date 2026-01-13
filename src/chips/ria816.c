@@ -3,6 +3,7 @@
 #undef CHIPS_IMPL
 
 #include "ria816.h"
+#include "sys/mem.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -26,7 +27,6 @@ void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
 
     c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
-    rb_init(&c->api_stack);
     c->api_cb = desc->api_cb;
     c->user_data = desc->user_data;
 
@@ -40,7 +40,6 @@ void ria816_reset(ria816_t* c) {
     c->us = 0;
     rb_init(&c->uart_rx);
     rb_init(&c->uart_tx);
-    rb_init(&c->api_stack);
     m6526_reset(&c->cia);
 }
 
@@ -108,7 +107,10 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
         case RIA816_IRQ_ENABLE: data = c->irq_enable; break;
         case RIA816_IRQ_STATUS: data = ~(c->int_status); break;
 
-        case RIA816_API_STACK: rb_get(&c->api_stack, &data); break;
+        case RIA816_API_STACK:
+            data = xstack[xstack_ptr];
+            if (xstack_ptr < XSTACK_SIZE) ++xstack_ptr;
+            break;
 
         default: data = c->reg[addr];
     }
@@ -122,7 +124,9 @@ void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data) {
         case RIA816_IRQ_STATUS: break;
         case RIA816_IRQ_ENABLE: c->irq_enable = (data && 0x01); break;
 
-        case RIA816_API_STACK: rb_put(&c->api_stack, data); break;
+        case RIA816_API_STACK:
+            if (xstack_ptr) xstack[--xstack_ptr] = data;
+            break;
         case RIA816_API_OP_RET:
             if (c->api_cb) c->api_cb(data, c->user_data);
             break;
