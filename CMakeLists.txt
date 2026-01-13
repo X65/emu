@@ -54,7 +54,9 @@ add_executable(emu
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu
-    PRIVATE common ui imgui-docking imgui-toggle speex-resampler)
+    PRIVATE common ui
+            imgui-docking imgui-toggle speex-resampler
+            SDL3::SDL3)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
 
