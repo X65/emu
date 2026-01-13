@@ -393,11 +393,23 @@ void x65_key_down(x65_t* sys, int key_code) {
     CHIPS_ASSERT(sys && sys->valid);
     uint8_t m = 0;
     switch (key_code) {
-        case 0x20: m = X65_JOYSTICK_BTN; break;    // SPACE
-        case 0x08: m = X65_JOYSTICK_LEFT; break;   // CURSOR_LEFT
-        case 0x09: m = X65_JOYSTICK_RIGHT; break;  // CURSOR_RIGHT
-        case 0x0A: m = X65_JOYSTICK_DOWN; break;   // CURSOR_DOWN
-        case 0x0B: m = X65_JOYSTICK_UP; break;     // CURSOR_UP
+        case 0x20:                                  // SPACE
+        case 0x4A:                                  // J
+        case 0x5A: m = X65_JOYSTICK_BTN; break;     // Z
+        case 0x4B:                                  // K
+        case 0x58: m = X65_JOYSTICK_BTN2; break;    // X
+        case 0x4C:                                  // L
+        case 0x43: m = X65_JOYSTICK_BTN3; break;    // C
+        case 0x3B:                                  // ;
+        case 0x56: m = X65_JOYSTICK_BTN4; break;    // V
+        case 0x41:                                  // A
+        case 0x107: m = X65_JOYSTICK_LEFT; break;   // CURSOR_LEFT
+        case 0x44:                                  // D
+        case 0x106: m = X65_JOYSTICK_RIGHT; break;  // CURSOR_RIGHT
+        case 0x53:                                  // S
+        case 0x108: m = X65_JOYSTICK_DOWN; break;   // CURSOR_DOWN
+        case 0x57:                                  // W
+        case 0x109: m = X65_JOYSTICK_UP; break;     // CURSOR_UP
         default: break;
     }
     if (m != 0) {
@@ -418,11 +430,23 @@ void x65_key_up(x65_t* sys, int key_code) {
     CHIPS_ASSERT(sys && sys->valid);
     uint8_t m = 0;
     switch (key_code) {
-        case 0x20: m = X65_JOYSTICK_BTN; break;
-        case 0x08: m = X65_JOYSTICK_LEFT; break;
-        case 0x09: m = X65_JOYSTICK_RIGHT; break;
-        case 0x0A: m = X65_JOYSTICK_DOWN; break;
-        case 0x0B: m = X65_JOYSTICK_UP; break;
+        case 0x20:
+        case 0x4A:
+        case 0x5A: m = X65_JOYSTICK_BTN; break;
+        case 0x4B:
+        case 0x58: m = X65_JOYSTICK_BTN2; break;
+        case 0x4C:
+        case 0x43: m = X65_JOYSTICK_BTN3; break;
+        case 0x3B:
+        case 0x56: m = X65_JOYSTICK_BTN4; break;
+        case 0x41:
+        case 0x107: m = X65_JOYSTICK_LEFT; break;
+        case 0x44:
+        case 0x106: m = X65_JOYSTICK_RIGHT; break;
+        case 0x53:
+        case 0x108: m = X65_JOYSTICK_DOWN; break;
+        case 0x57:
+        case 0x109: m = X65_JOYSTICK_UP; break;
         default: break;
     }
     if (m != 0) {

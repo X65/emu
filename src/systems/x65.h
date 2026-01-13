@@ -66,6 +66,9 @@ typedef enum {
 #define X65_JOYSTICK_LEFT  (1 << 2)
 #define X65_JOYSTICK_RIGHT (1 << 3)
 #define X65_JOYSTICK_BTN   (1 << 5)
+#define X65_JOYSTICK_BTN2  (1 << 7)
+#define X65_JOYSTICK_BTN3  (1 << 4)
+#define X65_JOYSTICK_BTN4  (1 << 6)
 
 // special keyboard keys
 #define X65_KEY_SPACE    (0x20)  // space

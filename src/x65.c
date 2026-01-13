@@ -329,55 +329,13 @@ void app_input(const sapp_event* event) {
         return;
     }
 #endif
-    const bool shift = event->modifiers & SAPP_MODIFIER_SHIFT;
     switch (event->type) {
-        int c;
-        case SAPP_EVENTTYPE_CHAR:
-            c = (int)event->char_code;
-            if ((c > 0x20) && (c < 0x7F)) {
-                // need to invert case (unshifted is upper caps, shifted is lower caps
-                if (isupper(c)) {
-                    c = tolower(c);
-                }
-                else if (islower(c)) {
-                    c = toupper(c);
-                }
-                x65_key_down(&state.x65, c);
-                x65_key_up(&state.x65, c);
-            }
-            break;
-        case SAPP_EVENTTYPE_KEY_DOWN:
+        case SAPP_EVENTTYPE_KEY_DOWN: x65_key_down(&state.x65, event->key_code); break;
         case SAPP_EVENTTYPE_KEY_UP:
+            x65_key_up(&state.x65, event->key_code);
             if (event->key_code == SAPP_KEYCODE_Q) {
                 if (event->modifiers == SAPP_MODIFIER_SUPER || event->modifiers == SAPP_MODIFIER_CTRL) {
                     sapp_request_quit();
-                }
-            }
-            switch (event->key_code) {
-                case SAPP_KEYCODE_SPACE: c = 0x20; break;
-                case SAPP_KEYCODE_LEFT: c = 0x08; break;
-                case SAPP_KEYCODE_RIGHT: c = 0x09; break;
-                case SAPP_KEYCODE_DOWN: c = 0x0A; break;
-                case SAPP_KEYCODE_UP: c = 0x0B; break;
-                case SAPP_KEYCODE_ENTER: c = 0x0D; break;
-                case SAPP_KEYCODE_BACKSPACE: c = shift ? 0x0C : 0x01; break;
-                case SAPP_KEYCODE_ESCAPE: c = shift ? 0x13 : 0x03; break;
-                case SAPP_KEYCODE_F1: c = 0xF1; break;
-                case SAPP_KEYCODE_F2: c = 0xF2; break;
-                case SAPP_KEYCODE_F3: c = 0xF3; break;
-                case SAPP_KEYCODE_F4: c = 0xF4; break;
-                case SAPP_KEYCODE_F5: c = 0xF5; break;
-                case SAPP_KEYCODE_F6: c = 0xF6; break;
-                case SAPP_KEYCODE_F7: c = 0xF7; break;
-                case SAPP_KEYCODE_F8: c = 0xF8; break;
-                default: c = 0; break;
-            }
-            if (c) {
-                if (event->type == SAPP_EVENTTYPE_KEY_DOWN) {
-                    x65_key_down(&state.x65, c);
-                }
-                else {
-                    x65_key_up(&state.x65, c);
                 }
             }
             break;
