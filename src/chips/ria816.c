@@ -169,6 +169,10 @@ void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data) {
         HID_dev = data;
 }
 
+uint8_t ria816_hid_dev(const ria816_t* c) {
+    return HID_dev;
+}
+
 uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
     pins = _ria816_tick(c, pins);
     if (pins & RIA816_CS) {
@@ -193,6 +197,7 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
             uint8_t data = RIA816_GET_DATA(pins);
             ria816_hid_write(c, addr, data);
         }
+        pins |= RIA816_CS;  // signal data merge to main loop
     }
     if (pins & RIA816_TIMERS_CS) {
         // CIA timers emulation
@@ -206,6 +211,7 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
             uint8_t data = M6526_GET_DATA(pins);
             _m6526_write(&c->cia, addr, data);
         }
+        pins |= RIA816_CS;  // signal data merge to main loop
     }
 
     pins = _ria816_update_irq(c, pins);

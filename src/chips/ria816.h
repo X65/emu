@@ -216,6 +216,7 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr);
 void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data);
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg);
 void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data);
+uint8_t ria816_hid_dev(const ria816_t* c);
 
 #ifdef __cplusplus
 }  // extern "C"

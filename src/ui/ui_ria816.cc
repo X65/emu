@@ -1,4 +1,5 @@
 #include "./ui_ria816.h"
+#include "sys/ria.h"
 
 #include "ui/ui_util.h"
 
@@ -147,6 +148,15 @@ static void _ui_ria816_draw_state(ui_ria816_t* win) {
     ui_util_b8("UART : ", ria_status);
     ImGui::SameLine();
     ImGui::Text("%s%s", ria_status & 0b10000000 ? "CTS " : "", ria_status & 0b01000000 ? "DRD " : "");
+    uint8_t hid_dev = ria816_hid_dev(ria);
+    ImGui::Text("HID  :       %02X", hid_dev);
+    ImGui::SameLine();
+    switch (hid_dev & 0x0F) {
+        case RIA_HID_DEV_KEYBOARD: ImGui::Text("KBD%d", hid_dev >> 5); break;
+        case RIA_HID_DEV_MOUSE: ImGui::Text("MOU%d", hid_dev >> 4); break;
+        case RIA_HID_DEV_GAMEPAD: ImGui::Text("PAD%d", hid_dev >> 4); break;
+        default: ImGui::Text("???"); break;
+    }
     ImGui::SeparatorText("Interrupts");
     ui_util_b8("RIA   : ", ria->irq_enable);
     ui_util_b8("Status: ", ria->int_status);
