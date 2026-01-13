@@ -109,6 +109,9 @@ typedef enum {
 #define X65_IO_CGIA_BASE   (0xFF00)
 #define X65_IO_GPIO_BASE   (0xFF80)
 #define X65_IO_TIMERS_BASE (0xFF98)
+#define X65_IO_RGB_BASE    (0xFFA0)
+#define X65_IO_BUZZER_BASE (0xFFA8)
+#define X65_IO_HID_BASE    (0xFFB0)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
 #define X65_RAM_SIZE_BYTES (1 << 24)  // 16 MBytes of RAM

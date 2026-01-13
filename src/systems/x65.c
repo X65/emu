@@ -140,8 +140,20 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // RIA (FFC0..FFFF)
                 ria_pins |= RIA816_CS;
             }
-            else if (addr >= 0xFFA0) {
-                // NOT_USED (FFA0..FFBF)
+            else if (addr >= X65_IO_HID_BASE) {
+                // GPIO (FFB0..FFBF)
+                ria_pins |= RIA816_HID_CS;
+            }
+            else if (addr >= 0xFFAC) {
+                // NOT_USED (FFAC..FFAF)
+            }
+            else if (addr >= X65_IO_BUZZER_BASE) {
+                // GPIO (FFA8..FFAB)
+                ria_pins |= RIA816_BUZZER_CS;
+            }
+            else if (addr >= X65_IO_RGB_BASE) {
+                // GPIO (FFA0..FFA7)
+                ria_pins |= RIA816_RGB_CS;
             }
             else if (addr >= X65_IO_TIMERS_BASE) {
                 // GPIO (FF98..FF9F)
@@ -269,10 +281,42 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
 uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
     if (bank == 0) {
         if (addr >= X65_IO_RIA_BASE) {
-            return sys->ria.reg[addr & 0x3F];
+            const uint8_t reg = addr & RIA816_RS;
+            switch (reg) {
+                case RIA816_FS_FDARW:
+                case RIA816_FS_FDBRW:
+                case RIA816_UART_TX_RX:
+                case RIA816_API_STACK: return 0xFF;
+            }
+            return ria816_reg_read(&sys->ria, reg);
+        }
+        else if (addr >= X65_IO_HID_BASE) {
+            return ria816_hid_read(&sys->ria, addr & RIA816_HID_RS);
+        }
+        else if (addr >= 0xFFAC) {
+            // NOT_USED (FFAC..FFAF)
+            return 0xFF;
+        }
+        else if (addr >= X65_IO_BUZZER_BASE) {
+            return 0xFF;
+        }
+        else if (addr >= X65_IO_RGB_BASE) {
+            return 0xFF;
+        }
+        else if (addr >= X65_IO_TIMERS_BASE) {
+            const uint8_t reg = addr & RIA816_TIMERS_RS;
+            switch (reg) {
+                case M6526_REG_ICR: return sys->ria.cia.intr.icr;
+            }
+            return m6526_read(&sys->ria.cia, reg);
         }
         else if (addr >= X65_IO_GPIO_BASE) {
-            return 0xEA;  // NOP
+            const uint8_t reg = addr & TCA6416A_RS;
+            switch (reg) {
+                case TCA6416A_REG_IN0: return sys->gpio.p0.in;
+                case TCA6416A_REG_IN1: return sys->gpio.p1.in;
+            }
+            return tca6416a_read(&sys->gpio, reg);
         }
         else if (addr >= X65_IO_CGIA_BASE) {
             return cgia_reg_read((uint8_t)addr);
@@ -287,7 +331,11 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
 void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
     if (bank == 0) {
         if (addr >= X65_IO_RIA_BASE) {
-            sys->ria.reg[addr & 0x3F] = data;
+            ria816_reg_write(&sys->ria, addr & RIA816_RS, data);
+            return;
+        }
+        else if (addr >= X65_IO_HID_BASE) {
+            ria816_hid_write(&sys->ria, addr & RIA816_HID_RS, data);
             return;
         }
         else if (addr >= X65_IO_GPIO_BASE) {
@@ -566,6 +614,7 @@ void _x65_api_call(uint8_t data, void* user_data) {
             code_page |= (uint16_t)value << 8;
 
             // copy chargen to memory
+            printf("Loading font page %02X to $%06X\n", code_page, mem_addr);
             for (size_t i = 0; i < 256 * 8; ++i) {
                 mem_ram_write(sys, mem_addr++, font_get_byte(i, code_page));
             }

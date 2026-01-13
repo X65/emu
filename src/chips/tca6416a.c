@@ -60,7 +60,7 @@ static uint64_t _tca6416a_tick(tca6416a_t* c, uint64_t pins) {
 }
 
 /* read a register */
-static uint8_t _tca6416a_read(tca6416a_t* c, uint8_t addr) {
+uint8_t tca6416a_read(tca6416a_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
     switch (addr) {
         case TCA6416A_REG_IN0:
@@ -81,7 +81,7 @@ static uint8_t _tca6416a_read(tca6416a_t* c, uint8_t addr) {
     return data;
 }
 
-static void _tca6416a_write(tca6416a_t* c, uint8_t addr, uint8_t data) {
+void tca6416a_write(tca6416a_t* c, uint8_t addr, uint8_t data) {
     switch (addr) {
         case TCA6416A_REG_OUT0: c->p0.out = data; break;
         case TCA6416A_REG_OUT1: c->p1.out = data; break;
@@ -97,12 +97,12 @@ uint64_t tca6416a_tick(tca6416a_t* c, uint64_t pins) {
     if (pins & TCA6416A_CS) {
         uint8_t addr = pins & TCA6416A_RS;
         if (pins & TCA6416A_RW) {
-            uint8_t data = _tca6416a_read(c, addr);
+            uint8_t data = tca6416a_read(c, addr);
             TCA6416A_SET_DATA(pins, data);
         }
         else {
             uint8_t data = TCA6416A_GET_DATA(pins);
-            _tca6416a_write(c, addr, data);
+            tca6416a_write(c, addr, data);
         }
     }
     if (c->intr) pins |= TCA6416A_INT;

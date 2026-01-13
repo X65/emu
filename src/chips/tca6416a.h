@@ -213,6 +213,9 @@ void tca6416a_reset(tca6416a_t* c, uint8_t p0, uint8_t p1);
 // tick the tca6416a_t instance
 uint64_t tca6416a_tick(tca6416a_t* c, uint64_t pins);
 
+uint8_t tca6416a_read(tca6416a_t* c, uint8_t addr);
+void tca6416a_write(tca6416a_t* c, uint8_t addr, uint8_t data);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

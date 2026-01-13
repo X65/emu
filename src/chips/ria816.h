@@ -86,8 +86,11 @@ extern "C" {
 
 // chip-specific control pins
 #define RIA816_PIN_CS        (40)
-#define RIA816_PIN_TIMERS_CS (41)
-#define RIA816_PIN_IRQ       (42)
+#define RIA816_PIN_IRQ       (41)
+#define RIA816_PIN_TIMERS_CS (48)
+#define RIA816_PIN_RGB_CS    (49)
+#define RIA816_PIN_BUZZER_CS (50)
+#define RIA816_PIN_HID_CS    (52)
 
 // interrupt sources
 #define RIA816_INT_CIA_MASK (0x01)  // CIA interrupt
@@ -111,9 +114,15 @@ extern "C" {
 #define RIA816_DB_PINS   (0xFF0000ULL)
 #define RIA816_RW        (1ULL << RIA816_PIN_RW)
 #define RIA816_CS        (1ULL << RIA816_PIN_CS)
-#define RIA816_TIMERS_CS (1ULL << RIA816_PIN_TIMERS_CS)
-#define RIA816_TIMERS_RS (RIA816_RS4 | RIA816_RS3 | RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
 #define RIA816_IRQ       (1ULL << RIA816_PIN_IRQ)
+#define RIA816_TIMERS_CS (1ULL << RIA816_PIN_TIMERS_CS)
+#define RIA816_TIMERS_RS (RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
+#define RIA816_RGB_CS    (1ULL << RIA816_PIN_RGB_CS)
+#define RIA816_RGB_RS    (RIA816_RS3 | RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
+#define RIA816_BUZZER_CS (1ULL << RIA816_PIN_BUZZER_CS)
+#define RIA816_BUZZER_RS (RIA816_RS1 | RIA816_RS0)
+#define RIA816_HID_CS    (1ULL << RIA816_PIN_HID_CS)
+#define RIA816_HID_RS    (RIA816_RS3 | RIA816_RS2 | RIA816_RS1 | RIA816_RS0)
 
 // register indices
 #define RIA816_MATH_OPERA     (0x00)  // Operand A for multiplication and division.
@@ -128,9 +137,11 @@ extern "C" {
 #define RIA816_DMA_COUNT      (0x18)  // DMA transfers count.
 #define RIA816_DMA_DMAERR     (0x19)  // DMA transfer errno.
 #define RIA816_FS_FDA         (0x1A)  // File-descriptor A number. (Obtained from open() API call.)
-#define RIA816_FS_FDARW       (0x1B)  // Read bytes from the FDA. Write bytes to the FDA.
-#define RIA816_FS_FDB         (0x1C)  // File-descriptor B number.
+#define RIA816_FS_FDB         (0x1B)  // File-descriptor B number.
+#define RIA816_FS_FDARW       (0x1C)  // Read bytes from the FDA. Write bytes to the FDA.
 #define RIA816_FS_FDBRW       (0x1D)  // Read bytes from the FDB. Write bytes to the FDB.
+#define RIA816_FS_FDAST       (0x1E)  // File-descriptor A status.
+#define RIA816_FS_FDBST       (0x1F)  // File-descriptor B status.
 #define RIA816_UART_READY     (0x20)  // Flow control for UART FIFO.
 #define RIA816_UART_TX_RX     (0x21)  // Write bytes to the UART. Read bytes from the UART.
 #define RIA816_HW_RNG         (0x22)  // Random Number Generator.
@@ -141,7 +152,7 @@ extern "C" {
 #define RIA816_IRQ_ENABLE     (0x2C)  // RIA interrupts enable
 #define RIA816_IRQ_STATUS     (0x2D)  // Interrupt Controller status
 #define RIA816_CPU_N_IRQB     (0x2E)  // 65816 vector.
-#define RIA816_API_OP         (0x30)  // Write the API operation id here to begin a kernel call.
+#define RIA816_API_OP_RET     (0x30)  // Write the API operation id here to begin a kernel call.
 #define RIA816_API_RET_HI     (0x31)  // High byte of 16 bit return value. Otherwise `0`.
 #define RIA816_API_STACK      (0x32)  // 512 bytes for passing call parameters.
 #define RIA816_API_STATUS     (0x33)  // Bit 7 high while operation is running. Bit 0 high when ERRNO.
@@ -202,6 +213,10 @@ void ria816_reset(ria816_t* ria816);
 uint64_t ria816_tick(ria816_t* ria816, uint64_t pins);
 
 uint8_t ria816_uart_status(const ria816_t* c);
+uint8_t ria816_reg_read(ria816_t* c, uint8_t addr);
+void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data);
+uint8_t ria816_hid_read(ria816_t* c, uint8_t reg);
+void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data);
 
 #ifdef __cplusplus
 }  // extern "C"

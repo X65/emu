@@ -273,6 +273,8 @@ void m6526_reset(m6526_t* c);
 // tick the m6526_t instance
 uint64_t m6526_tick(m6526_t* c, uint64_t pins);
 
+uint8_t m6526_read(m6526_t* c, uint8_t addr);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
@@ -578,7 +580,7 @@ static inline void _m6526_write_cr(m6526_timer_t* t, uint8_t data) {
 }
 
 /* read a register */
-static uint8_t _m6526_read(m6526_t* c, uint8_t addr) {
+uint8_t m6526_read(m6526_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
     switch (addr) {
         case M6526_REG_PRA:
@@ -671,7 +673,7 @@ uint64_t m6526_tick(m6526_t* c, uint64_t pins) {
     if (pins & M6526_CS) {
         uint8_t addr = pins & M6526_RS;
         if (pins & M6526_RW) {
-            uint8_t data = _m6526_read(c, addr);
+            uint8_t data = m6526_read(c, addr);
             M6526_SET_DATA(pins, data);
         }
         else {

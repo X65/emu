@@ -68,7 +68,7 @@ uint8_t ria816_uart_status(const ria816_t* c) {
     return data;
 }
 
-static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
+uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
 
     switch (addr) {
@@ -115,7 +115,7 @@ static uint8_t _ria816_read(ria816_t* c, uint8_t addr) {
     return data;
 }
 
-static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
+void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data) {
     switch (addr) {
         case RIA816_UART_TX_RX: rb_put(&c->uart_tx, data); break;
 
@@ -123,7 +123,7 @@ static void _ria816_write(ria816_t* c, uint8_t addr, uint8_t data) {
         case RIA816_IRQ_ENABLE: c->irq_enable = (data && 0x01); break;
 
         case RIA816_API_STACK: rb_put(&c->api_stack, data); break;
-        case RIA816_API_OP:
+        case RIA816_API_OP_RET:
             if (c->api_cb) c->api_cb(data, c->user_data);
             break;
 
@@ -140,17 +140,54 @@ static uint64_t _ria816_update_irq(ria816_t* c, uint64_t pins) {
     return pins;
 }
 
+#include "sys/ria.h"
+
+static uint8_t HID_dev = 0;
+
+typedef uint32_t DWORD;
+#include "hid/hid.c"
+static void kbd_queue_char(char ch) {}
+static void kbd_queue_key(uint8_t modifier, uint8_t keycode, bool initial_press) {}
+#include "hid/kbd.c"
+#include "hid/mou.c"
+#include "hid/pad.c"
+uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
+    uint8_t data = 0xFF;  // invalid
+    switch (HID_dev & 0xF) {
+        case RIA_HID_DEV_KEYBOARD: data = kbd_get_reg((HID_dev & 0xF0) | reg); break;
+        case RIA_HID_DEV_MOUSE: data = mou_get_reg(reg); break;
+        case RIA_HID_DEV_GAMEPAD: data = pad_get_reg(HID_dev >> 4, reg); break;
+    }
+    return data;
+}
+void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data) {
+    if (reg == 0x00)  // HID SELECT
+        HID_dev = data;
+}
+
 uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
     pins = _ria816_tick(c, pins);
     if (pins & RIA816_CS) {
         uint8_t addr = pins & RIA816_RS;
         if (pins & RIA816_RW) {
-            uint8_t data = _ria816_read(c, addr);
+            uint8_t data = ria816_reg_read(c, addr);
             RIA816_SET_DATA(pins, data);
         }
         else {
             uint8_t data = RIA816_GET_DATA(pins);
-            _ria816_write(c, addr, data);
+            ria816_reg_write(c, addr, data);
+        }
+    }
+    if (pins & RIA816_HID_CS) {
+        // HID devices
+        const uint8_t addr = pins & RIA816_HID_RS;
+        if (pins & M6526_RW) {
+            uint8_t data = ria816_hid_read(c, addr);
+            RIA816_SET_DATA(pins, data);
+        }
+        else {
+            uint8_t data = RIA816_GET_DATA(pins);
+            ria816_hid_write(c, addr, data);
         }
     }
     if (pins & RIA816_TIMERS_CS) {
@@ -158,7 +195,7 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
         uint8_t addr = pins & M6526_RS;
         if (addr < M6526_REG_ICR) addr -= 4;
         if (pins & M6526_RW) {
-            uint8_t data = _m6526_read(&c->cia, addr);
+            uint8_t data = m6526_read(&c->cia, addr);
             M6526_SET_DATA(pins, data);
         }
         else {
