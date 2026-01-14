@@ -158,8 +158,6 @@ static inline void DBG(const char* fmt, ...) {
 #endif
 typedef uint32_t DWORD;
 #include "hid/hid.c"
-static void kbd_queue_char(char ch) {}
-static void kbd_queue_key(uint8_t modifier, uint8_t keycode, bool initial_press) {}
 #include "hid/kbd.c"
 #include "hid/mou.c"
 #include "hid/pad.c"

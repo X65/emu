@@ -1,6 +1,7 @@
 #include "./x65.h"
 #include "../args.h"
 #include "../log.h"
+#include "../hid.h"
 
 #include "chips/clk.h"
 
@@ -398,6 +399,7 @@ uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
 
 void x65_key_down(x65_t* sys, int key_code) {
     CHIPS_ASSERT(sys && sys->valid);
+    bool handled = false;
     uint8_t m = 0;
     switch (key_code) {
         case 0x20:                                  // SPACE
@@ -420,6 +422,7 @@ void x65_key_down(x65_t* sys, int key_code) {
         default: break;
     }
     if (m != 0) {
+        handled = true;  // possibly?
         switch (sys->joystick_type) {
             case X65_JOYSTICKTYPE_DIGITAL_1: sys->kbd_joy1_mask |= m; break;
             case X65_JOYSTICKTYPE_DIGITAL_2: sys->kbd_joy2_mask |= m; break;
@@ -428,13 +431,18 @@ void x65_key_down(x65_t* sys, int key_code) {
                 sys->kbd_joy2_mask |= m;
                 break;
             case X65_JOYSTICKTYPE_NONE:
-            default: break;
+            default: handled = false; break;
         }
+    }
+    if (!handled) {
+        // joy did not grab this key - pass to HID keyboard
+        hid_key_down(key_code);
     }
 }
 
 void x65_key_up(x65_t* sys, int key_code) {
     CHIPS_ASSERT(sys && sys->valid);
+    bool handled = false;
     uint8_t m = 0;
     switch (key_code) {
         case 0x20:
@@ -457,6 +465,7 @@ void x65_key_up(x65_t* sys, int key_code) {
         default: break;
     }
     if (m != 0) {
+        handled = true;  // possibly?
         switch (sys->joystick_type) {
             case X65_JOYSTICKTYPE_DIGITAL_1: sys->kbd_joy1_mask &= ~m; break;
             case X65_JOYSTICKTYPE_DIGITAL_2: sys->kbd_joy2_mask &= ~m; break;
@@ -465,8 +474,12 @@ void x65_key_up(x65_t* sys, int key_code) {
                 sys->kbd_joy2_mask &= ~m;
                 break;
             case X65_JOYSTICKTYPE_NONE:
-            default: break;
+            default: handled = false; break;
         }
+    }
+    if (!handled) {
+        // joy did not grab this key - pass to HID keyboard
+        hid_key_up(key_code);
     }
 }
 

@@ -1,6 +1,11 @@
 #pragma once
 
-void sdl_init();
-void sdl_shutdown();
+#include <sokol/sokol_app.h>
+
+void hid_init();
+void hid_shutdown();
 
 void sdl_poll_events();
+
+void hid_key_down(sapp_keycode key_code);
+void hid_key_up(sapp_keycode key_code);

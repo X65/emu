@@ -183,7 +183,7 @@ void app_init(void) {
     clock_init();
     prof_init();
     fs_init();
-    sdl_init();
+    hid_init();
 #ifdef CHIPS_USE_UI
     ui_init(&(ui_desc_t){
         .draw_cb = ui_draw_cb,
@@ -355,7 +355,7 @@ void app_cleanup(void) {
     saudio_shutdown();
     gfx_shutdown();
     sargs_shutdown();
-    sdl_shutdown();
+    hid_shutdown();
 #ifdef USE_DAP
     dap_shutdown();
 #endif
