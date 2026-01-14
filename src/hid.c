@@ -33,7 +33,7 @@ void sdl_poll_events(void) {
 
                 if (!pad_mount(
                         event.jdevice.which,
-                        joystick,
+                        (void*)joystick,
                         0,
                         SDL_GetJoystickVendor(joystick),
                         SDL_GetJoystickProduct(joystick))) {
@@ -57,7 +57,7 @@ void sdl_poll_events(void) {
 
                 if (!pad_mount(
                         event.gdevice.which,
-                        gamepad,
+                        (void*)gamepad,
                         0,
                         SDL_GetGamepadVendor(gamepad),
                         SDL_GetGamepadProduct(gamepad))) {
