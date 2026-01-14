@@ -32,6 +32,7 @@ include_directories(src/common)
 include_directories(ext/firmware/src/south)
 include_directories(ext/firmware/src/north)
 include_directories(ext/firmware/src/audio)
+include_directories(ext/firmware/src)
 add_executable(emu
     src/chips/pwm.c
     src/chips/cgia.c

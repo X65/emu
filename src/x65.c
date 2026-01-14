@@ -412,8 +412,6 @@ static void draw_status_bar(void) {
     const float frame_time = (float)state.frame_time_us * 0.001f;
 
     const uint32_t text_color = 0xFFFFFFFF;
-    const uint32_t disc_active = 0xFF00EE00;
-    const uint32_t disc_inactive = 0xFF006600;
     const uint32_t joy_active = 0xFFFFEE00;
     const uint32_t joy_inactive = 0xFF886600;
 
@@ -429,8 +427,8 @@ static void draw_status_bar(void) {
 
     // joystick state
     sdtx_puts("JOYSTICK: ");
-    sdtx_font(1);
     const uint8_t joymask = x65_joystick_mask(&state.x65);
+    sdtx_font(1);
     sdtx_color1i((joymask & X65_JOYSTICK_LEFT) ? joy_active : joy_inactive);
     sdtx_putc(0x88);  // arrow left
     sdtx_color1i((joymask & X65_JOYSTICK_RIGHT) ? joy_active : joy_inactive);
@@ -450,10 +448,24 @@ static void draw_status_bar(void) {
     sdtx_font(0);
 
     // RGB LEDs
+    uint32_t* leds;
+    size_t leds_no;
+    ria816_rgb_get_leds(&leds, &leds_no);
     sdtx_color1i(text_color);
     sdtx_puts("  LEDs: ");
-    sdtx_color1i(true ? disc_active : disc_inactive);
-    sdtx_putc(0xCF);  // filled circle
+    for (size_t i = 0; i < leds_no; i++) {
+        // GRB8 order ¯\_(ツ)_/¯
+        uint32_t led = leds[i];
+        if (led != 0) {
+            sdtx_color3b((led >> 8) & 0xFF, (led >> 16) & 0xFF, led & 0xFF);
+            sdtx_putc(0xCF);  // filled circle
+        }
+        else {
+            sdtx_color1i(0xFF444444);
+            sdtx_putc(0x8C);  // empty circle
+        }
+        sdtx_putc(' ');
+    }
 
     sdtx_font(0);
     sdtx_color1i(text_color);

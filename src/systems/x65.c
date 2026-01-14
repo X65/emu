@@ -301,7 +301,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
             return 0xFF;
         }
         else if (addr >= X65_IO_RGB_BASE) {
-            return 0xFF;
+            return ria816_rgb_read(&sys->ria, addr & RIA816_HID_RS);
         }
         else if (addr >= X65_IO_TIMERS_BASE) {
             const uint8_t reg = addr & RIA816_TIMERS_RS;
@@ -336,6 +336,13 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
         }
         else if (addr >= X65_IO_HID_BASE) {
             ria816_hid_write(&sys->ria, addr & RIA816_HID_RS, data);
+            return;
+        }
+        else if (addr >= X65_IO_BUZZER_BASE) {
+            return;
+        }
+        else if (addr >= X65_IO_RGB_BASE) {
+            ria816_rgb_write(&sys->ria, addr & RIA816_RGB_RS, data);
             return;
         }
         else if (addr >= X65_IO_GPIO_BASE) {

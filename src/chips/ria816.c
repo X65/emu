@@ -263,6 +263,35 @@ uint8_t ria816_hid_dev(const ria816_t* c) {
     return HID_dev;
 }
 
+#include "south/sys/led.c"
+static uint8_t RGB_regs[8] = { 0 };
+
+uint8_t ria816_rgb_read(ria816_t* c, uint8_t reg) {
+    return RGB_regs[reg & 0x07];
+}
+void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data) {
+    RGB_regs[reg] = data & 0x07;
+
+    RGB_regs[reg] = data;
+
+    switch (reg) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:  // RGB332 LED set
+            led_set_pixel_rgb332(reg, data);
+            break;
+        case 4:  // RGB888 LED set
+            led_set_pixel(data, RGB_regs[5], RGB_regs[6], RGB_regs[7]);
+            break;
+    }
+}
+
+void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no) {
+    *leds = RGB_LEDS;
+    *leds_no = led_used_no;
+}
+
 uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
     pins = _ria816_tick(c, pins);
     if (pins & RIA816_CS) {
@@ -286,6 +315,19 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
         else {
             uint8_t data = RIA816_GET_DATA(pins);
             ria816_hid_write(c, addr, data);
+        }
+        pins |= RIA816_CS;  // signal data merge to main loop
+    }
+    if (pins & RIA816_RGB_CS) {
+        // RGB LEDs
+        const uint8_t addr = pins & RIA816_RGB_RS;
+        if (pins & M6526_RW) {
+            uint8_t data = ria816_rgb_read(c, addr);
+            RIA816_SET_DATA(pins, data);
+        }
+        else {
+            uint8_t data = RIA816_GET_DATA(pins);
+            ria816_rgb_write(c, addr, data);
         }
         pins |= RIA816_CS;  // signal data merge to main loop
     }
