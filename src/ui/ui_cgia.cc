@@ -268,7 +268,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
     ImGui::Text("stop_y : %03d", chip->plane[p].sprite.stop_y);
     ImGui::Separator();
     const float cw0 = 10.0f;
-    const float cw = 42.0f;
+    const float cw = 46.0f;
     uint8_t* vram = win->cgia->vram[win->cgia->vram_cache[1].cache_ptr_idx];
     if (ImGui::BeginTable("##sprite_descriptors", 11)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
@@ -276,7 +276,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("H", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 56.0f);
+        ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 62.0f);
         ImGui::TableSetupColumn("Cl0", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl1", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl2", ImGuiTableColumnFlags_WidthFixed, cw);
