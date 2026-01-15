@@ -17,6 +17,8 @@
     #define CHIPS_ASSERT(c) assert(c)
 #endif
 
+#include "../log.h"
+
 #define _CGIA_CLAMP(x) ((x) > 255 ? 255 : (x))
 #define _CGIA_RGBA(r, g, b) \
     (0xFF000000 | _CGIA_CLAMP((r * 4) / 3) | (_CGIA_CLAMP((g * 4) / 3) << 8) | (_CGIA_CLAMP((b * 4) / 3) << 16))
@@ -967,7 +969,7 @@ void cgia_encode_sprite_mirror(uint32_t* rgbbuf, const uint32_t* descriptor, con
 #undef cgia_reset
 
 static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
-    printf("Copying VRAM bank %u to cache (wanted bank %u)\n", bank, vram_wanted_bank[bank]);
+    LOG_INFO("Copying VRAM bank %u to cache (wanted bank %u)\n", bank, vram_wanted_bank[bank]);
     for (size_t i = 0; i < 256 * 256; ++i) {
         vram_cache[bank][i] = vpu->fetch_cb((vram_wanted_bank[bank] << 16) | i, vpu->user_data);
     }
