@@ -429,6 +429,12 @@ static void draw_status_bar(void) {
     sdtx_puts("JOYSTICK: ");
     const uint8_t joymask = x65_joystick_mask(&state.x65);
     sdtx_font(1);
+    switch (state.x65.joystick_type) {
+        case X65_JOYSTICKTYPE_DIGITAL_1: sdtx_puts("1 "); break;
+        case X65_JOYSTICKTYPE_DIGITAL_2: sdtx_puts("2 "); break;
+        case X65_JOYSTICKTYPE_DIGITAL_12: sdtx_puts("12 "); break;
+        case X65_JOYSTICKTYPE_NONE: break;
+    }
     sdtx_color1i((joymask & X65_JOYSTICK_LEFT) ? joy_active : joy_inactive);
     sdtx_putc(0x88);  // arrow left
     sdtx_color1i((joymask & X65_JOYSTICK_RIGHT) ? joy_active : joy_inactive);
