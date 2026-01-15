@@ -230,8 +230,6 @@ static uint8_t sokol2usb[] = {
 static uint32_t kbd_keys[8] = { 0 };
 
 void hid_key_down(sapp_keycode key_code) {
-    LOG_INFO("HID key down: 0x%X", key_code);
-
     if (key_code) {
         uint8_t usb_keycode = sokol2usb[key_code];
         if (usb_keycode) {
@@ -242,8 +240,6 @@ void hid_key_down(sapp_keycode key_code) {
 }
 
 void hid_key_up(sapp_keycode key_code) {
-    LOG_INFO("HID key up: 0x%X", key_code);
-
     if (key_code) {
         uint8_t usb_keycode = sokol2usb[key_code];
         if (usb_keycode) {
