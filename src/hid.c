@@ -20,6 +20,10 @@ void sdl_poll_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
+            case SDL_EVENT_QUIT: {
+                sapp_request_quit();
+            } break;
+
             case SDL_EVENT_JOYSTICK_ADDED: {
                 if (SDL_IsGamepad(event.jdevice.which)) {
                     // Let's wait for the gamepad added event
