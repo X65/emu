@@ -28,6 +28,7 @@ static cgia_t* CGIA_vpu;
 static bool NMI_flag = false;
 
 static void _copy_internal_regs(cgia_t* vpu);
+static void _vcache_dma_process_block(cgia_t* vpu);
 
 void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
     CHIPS_ASSERT(vpu && desc);
@@ -122,6 +123,7 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins) {
 
     cgia_task();
 
+    _vcache_dma_process_block(vpu);
     _copy_internal_regs(vpu);
 
     if (NMI_flag) {
@@ -968,23 +970,26 @@ void cgia_encode_sprite_mirror(uint32_t* rgbbuf, const uint32_t* descriptor, con
 #undef cgia_init
 #undef cgia_reset
 
-static void _cgia_copy_vcache_bank(cgia_t* vpu, uint8_t bank) {
-    LOG_INFO("Copying VRAM bank %u to cache (wanted bank %u)\n", bank, vram_wanted_bank[bank]);
-    for (size_t i = 0; i < 256 * 256; ++i) {
-        vram_cache[bank][i] = vpu->fetch_cb((vram_wanted_bank[bank] << 16) | i, vpu->user_data);
+static bool vcache_dma_running = false;
+static uint32_t vcache_dma_src_addr24 = 0;
+static void _vcache_dma_process_block(cgia_t* vpu) {
+    if (vcache_dma_blocks_remaining > 0) {
+        if (!vcache_dma_running) {
+            LOG_INFO("Starting RAM to VCACHE DMA transfer for bank %u\n", vcache_dma_bank);
+            vcache_dma_src_addr24 = vcache_dma_bank << 16;
+            vcache_dma_running = true;
+        }
+        else {
+            for (size_t i = 0; i < 32; ++i) {
+                *(vcache_dma_dest++) = vpu->fetch_cb(vcache_dma_src_addr24++, vpu->user_data);
+            }
+            --vcache_dma_blocks_remaining;
+            if (vcache_dma_blocks_remaining == 0) {
+                vcache_dma_running = false;
+                LOG_INFO("Complete RAM to VCACHE DMA transfer for bank %u\n", vcache_dma_bank);
+            }
+        }
     }
-}
-static void _cgia_transfer_vcache_bank(uint8_t bank) {
-    assert(CGIA_vpu);
-    if (vram_wanted_bank[bank] != vram_cache_bank[bank]) {
-        _cgia_copy_vcache_bank(CGIA_vpu, bank);
-        vram_cache_bank[bank] = vram_wanted_bank[bank];
-        vram_cache_ptr[bank] = vram_cache[bank];
-    }
-}
-void cgia_mirror_vram(cgia_t* vpu) {
-    _cgia_copy_vcache_bank(vpu, vram_cache_ptr[0] == vram_cache[0] ? 0 : 1);
-    _cgia_copy_vcache_bank(vpu, vram_cache_ptr[1] == vram_cache[0] ? 0 : 1);
 }
 
 static void _copy_internal_regs(cgia_t* vpu) {

@@ -241,8 +241,6 @@ uint64_t cgia_tick(cgia_t* vpu, uint64_t pins);
 void cgia_snapshot_onsave(cgia_t* snapshot);
 // fixup cgia_t snapshot after loading
 void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
-// copy VRAM - after fastload
-void cgia_mirror_vram(cgia_t* vpu);
 // read CGIA register value
 uint8_t cgia_reg_read(uint8_t reg_no);
 // write CGIA register
