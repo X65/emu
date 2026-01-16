@@ -975,7 +975,7 @@ static uint32_t vcache_dma_src_addr24 = 0;
 static void _vcache_dma_process_block(cgia_t* vpu) {
     if (vcache_dma_blocks_remaining > 0) {
         if (!vcache_dma_running) {
-            LOG_INFO("Starting RAM to VCACHE DMA transfer for bank %u\n", vcache_dma_bank);
+            LOG_INFO("Starting RAM to VCACHE DMA transfer for bank %u", vcache_dma_bank);
             vcache_dma_src_addr24 = vcache_dma_bank << 16;
             vcache_dma_running = true;
         }
@@ -986,7 +986,7 @@ static void _vcache_dma_process_block(cgia_t* vpu) {
             --vcache_dma_blocks_remaining;
             if (vcache_dma_blocks_remaining == 0) {
                 vcache_dma_running = false;
-                LOG_INFO("Complete RAM to VCACHE DMA transfer for bank %u\n", vcache_dma_bank);
+                LOG_INFO("Complete RAM to VCACHE DMA transfer for bank %u", vcache_dma_bank);
             }
         }
     }
