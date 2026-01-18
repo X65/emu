@@ -631,6 +631,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
 #include "api/api.h"
 #include "sys/cpu.h"
 #include "term/font.h"
+static const uint8_t* font_8hi(uint16_t cp);
 
 volatile uint8_t regs[0x40];
 uint8_t xstack[XSTACK_SIZE + 1];
@@ -663,7 +664,7 @@ void _x65_api_call(uint8_t data, void* user_data) {
                 for (size_t i = 0; i < 256 * 8; ++i) {
                     mem_ram_write(sys, chargen_addr++, font_get_byte(i, chargen_cp));
                 }
-                api_return_ax(0);
+                api_return_ax((chargen_cp == 0xFFFF || font_8hi(chargen_cp)) ? chargen_cp : 0);
             }
         } break;
         case API_OP_HALT:  // STOP CPU
