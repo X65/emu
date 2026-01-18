@@ -1,9 +1,10 @@
 #include "./ui_x65.h"
 #include "../log.h"
 
-#include "imgui.h"
+#include "imgui_internal.h"
 #include "IconsLucide.h"
 #include "args.h"
+#include "ui.h"
 #include <filesystem>
 
 #ifdef __EMSCRIPTEN__
@@ -116,6 +117,16 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ui_util_options_menu();
             if (ui->inject.menu_cb) {
                 ui->inject.menu_cb();
+            }
+            if (ImGui::MenuItem("Reset UI")) {
+                const ui_settings_t* settings = ui_settings();
+                for (int i = 0; i < settings->num_slots; i++) {
+                    const ui_settings_slot_t* slot = &settings->slots[i];
+                    ImGui::ClearWindowSettings(slot->window_title.buf);
+                }
+                ui_settings_t ui_empty_settings;
+                ui_settings_init(&ui_empty_settings);
+                ui_x65_load_settings(ui, &ui_empty_settings);
             }
             ImGui::EndMenu();
         }
