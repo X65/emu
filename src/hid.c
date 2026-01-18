@@ -6,12 +6,18 @@
 
 #include <SDL3/SDL.h>
 
-void hid_init() {
-    SDL_Init(SDL_INIT_GAMEPAD);
+static uint32_t kbd_keys[8] = { 0 };
+
+void hid_reset(void) {
+    memset(kbd_keys, 0, sizeof(kbd_keys));
     hid_key_up(0);  // fake phantom key up to initialize kbd
 }
 
-void hid_shutdown() {
+void hid_init(void) {
+    SDL_Init(SDL_INIT_GAMEPAD);
+}
+
+void hid_shutdown(void) {
     SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
 }
 
@@ -230,8 +236,6 @@ static uint8_t sokol2usb[] = {
 #define KBD_KEY_BIT_SET(data, keycode) (data[keycode >> 5] |= 1 << (keycode & 31))
 #define KBD_KEY_BIT_RES(data, keycode) (data[keycode >> 5] &= ~(1 << (keycode & 31)))
 #define KBD_KEY_BIT_VAL(data, keycode) (data[keycode >> 5] & (1 << (keycode & 31)))
-
-static uint32_t kbd_keys[8] = { 0 };
 
 void hid_key_down(sapp_keycode key_code) {
     if (key_code) {

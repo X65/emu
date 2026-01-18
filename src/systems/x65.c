@@ -74,6 +74,8 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
             .base_volume = _X65_DEFAULT(desc->audio.volume, 1.0f),
         });
+
+    hid_reset();
 }
 
 void x65_discard(x65_t* sys) {
