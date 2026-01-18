@@ -647,11 +647,11 @@ void _x65_api_call(uint8_t data, void* user_data) {
         case API_OP_ZXSTACK: {
             xstack_ptr = XSTACK_SIZE;
             api_return_ax(0);
+            LOG_INFO("RIA API: XSTACK emptied");
         } break;
         case API_OP_PHI2: {
-            const uint16_t phi2 = CPU_PHI2_DEFAULT;
-            api_push_uint16(&phi2);
-            api_return_ax(0);
+            api_return_ax(CPU_PHI2_DEFAULT);
+            LOG_INFO("RIA API: PHI2 got: %d", CPU_PHI2_DEFAULT);
         } break;
         case API_OP_OEM_GET_CHARGEN: {
             uint16_t chargen_cp;
@@ -661,16 +661,19 @@ void _x65_api_call(uint8_t data, void* user_data) {
                 api_return_errno(API_EINVAL);
             else {
                 // blit chargen to memory
-                for (size_t i = 0; i < 256 * 8; ++i) {
+                for (uint16_t i = 0; i < 256 * 8; ++i) {
                     mem_ram_write(sys, chargen_addr++, font_get_byte(i, chargen_cp));
                 }
-                api_return_ax((chargen_cp == 0xFFFF || font_8hi(chargen_cp)) ? chargen_cp : 0);
+                const uint16_t loaded_cp = (chargen_cp == 0xFFFF || font_8hi(chargen_cp)) ? chargen_cp : 0;
+                api_return_ax(loaded_cp);
+                LOG_INFO("RIA API: OEM_GET_CHARGEN loaded CP%03d to $%06X", loaded_cp, chargen_addr);
             }
         } break;
         case API_OP_HALT:  // STOP CPU
             sys->running = false;
+            LOG_INFO("RIA API: HALT CPU");
             break;
-        default: fprintf(stderr, "Unhandled RIA API call: %02x\n", data);
+        default: LOG_WARNING("Unhandled RIA API call: %02x", data);
     }
 
     // sync RIA regs back
