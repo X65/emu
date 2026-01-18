@@ -552,7 +552,9 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         ptr += 2;
         const uint16_t end_addr = ptr[1] << 8 | ptr[0];
         ptr += 2;
-        LOG_INFO("Loading block: $%04X-$%04X", start_addr, end_addr);
+
+        const bool skip_chunk = start_addr == 0xFC00 && load_bank == 0x00;
+        LOG_INFO("%s block: $%04X-$%04X", skip_chunk ? "Skipping" : "Loading", start_addr, end_addr);
 
         data_left = (uint8_t*)data.ptr + data.size - ptr;
         if (data_left < (end_addr - start_addr + 1) || start_addr > end_addr) {
@@ -562,6 +564,9 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         if (start_addr == end_addr && start_addr == 0xFFFE) {
             load_bank = *ptr++;
             LOG_INFO("Loading to bank: $%02X", load_bank);
+        }
+        else if (skip_chunk) {
+            ptr += (end_addr - start_addr + 1);
         }
         else {
             uint16_t addr = start_addr;
