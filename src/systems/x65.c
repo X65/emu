@@ -235,7 +235,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    // tick the SID
+    // tick the SGU
     {
         sgu_pins = sgu1_tick(&sys->sgu, sgu_pins);
         if (sgu_pins & SGU1_SAMPLE) {

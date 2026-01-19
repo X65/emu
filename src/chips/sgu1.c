@@ -48,7 +48,7 @@ void sgu1_reset(sgu1_t* sgu) {
 static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     /* next sample? */
     sgu->tick_counter -= SGU1_FIXEDPOINT_SCALE;
-    if (sgu->tick_counter <= 0) {
+    while (sgu->tick_counter <= 0) {
         sgu->tick_counter += sgu->tick_period;
         int32_t l, r;
         SoundUnit_NextSample(&sgu->su, &l, &r);
@@ -66,15 +66,13 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     }
 
     /* new sample? */
+    pins &= ~SGU1_SAMPLE;
     sgu->sample_counter -= SGU1_FIXEDPOINT_SCALE;
-    if (sgu->sample_counter <= 0) {
+    while (sgu->sample_counter <= 0) {
         sgu->sample_counter += sgu->sample_period;
         sgu->sample[0] = sgu->sample_mag * sgu->sample[0];
         sgu->sample[1] = sgu->sample_mag * sgu->sample[1];
         pins |= SGU1_SAMPLE;
-    }
-    else {
-        pins &= ~SGU1_SAMPLE;
     }
     return pins;
 }
