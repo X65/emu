@@ -73,9 +73,11 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
     switch (addr) {
         // multiplication accelerator
         case RIA816_MATH_MULAB:
-        case RIA816_MATH_MULAB + 1: {
-            uint16_t mul = RIA816_REG16(c->reg, RIA816_MATH_OPERA) * RIA816_REG16(c->reg, RIA816_MATH_OPERB);
-            data = (addr == RIA816_MATH_MULAB) ? (mul & 0xFF) : (mul >> 8);
+        case RIA816_MATH_MULAB + 1:
+        case RIA816_MATH_MULAB + 2:
+        case RIA816_MATH_MULAB + 3: {
+            uint32_t mul = RIA816_REG16(c->reg, RIA816_MATH_OPERA) * RIA816_REG16(c->reg, RIA816_MATH_OPERB);
+            data = ((uint8_t*)&mul)[addr & 0x03];
         } break;
         // division accelerator
         case RIA816_MATH_DIVAB:

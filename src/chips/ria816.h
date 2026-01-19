@@ -128,8 +128,8 @@ extern "C" {
 #define RIA816_MATH_OPERA     (0x00)  // Operand A for multiplication and division.
 #define RIA816_MATH_OPERB     (0x02)  // Operand B for multiplication and division.
 #define RIA816_MATH_MULAB     (0x04)  // OPERA * OPERB.
-#define RIA816_MATH_DIVAB     (0x06)  // Signed OPERA / unsigned OPERB.
-#define RIA816_TIME_TM        (0x08)  // Time Of Day (ms) - 48bits (6 bytes)
+#define RIA816_MATH_DIVAB     (0x08)  // Signed OPERA / unsigned OPERB.
+#define RIA816_TIME_TM        (0x0A)  // Time Of Day (ms) - 48bits (6 bytes)
 #define RIA816_DMA_ADDRSRC    (0x10)  // DMA source address.
 #define RIA816_DMA_STEPSRC    (0x13)  // DMA source step.
 #define RIA816_DMA_ADDRDST    (0x14)  // DMA destination address.
