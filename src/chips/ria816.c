@@ -85,7 +85,7 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
             const int16_t oper_a = RIA816_REG16(c->reg, RIA816_MATH_OPERA);
             const uint16_t oper_b = RIA816_REG16(c->reg, RIA816_MATH_OPERB);
             uint16_t div = oper_b ? (oper_a / oper_b) : 0xFFFF;
-            data = (addr == RIA816_MATH_DIVAB) ? (div & 0xFF) : (div >> 8);
+            data = ((uint8_t*)&div)[addr & 0x01];
         } break;
 
         // Time Of Day
@@ -95,7 +95,7 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
         case RIA816_TIME_TM + 3:
         case RIA816_TIME_TM + 4:
         case RIA816_TIME_TM + 5: {
-            data = ((uint8_t*)&c->us)[addr & 0x07];
+            data = ((uint8_t*)&c->us)[(addr - 2) & 0x07];
         } break;
 
         case RIA816_UART_READY: {
