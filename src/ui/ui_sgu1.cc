@@ -319,7 +319,9 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             }
             float mean = (float)(acc / (double)SGU1_AUDIO_SAMPLES);
             float p2p = max - min;
-            float hyst = std::clamp(0.01f * p2p, 1.0f, 0.10f * p2p);
+            // Calculate the upper limit, but ensure it never drops below the 1.0f floor
+            float hyst_upper = std::max(1.0f, 0.10f * p2p);
+            float hyst = std::clamp(0.01f * p2p, 1.0f, hyst_upper);
 
             int offset = sgu->voice[i].sample_pos;
             bool armed = 0;
