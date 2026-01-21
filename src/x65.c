@@ -419,14 +419,11 @@ static void draw_status_bar(void) {
     const float w = sapp_widthf();
     const float h = sapp_heightf();
     sdtx_canvas(w, h);
-    if (emu_stats.avg_val > frame_time)
-        sdtx_color3b(255, 32, 32);
-    else
-        sdtx_color3b(255, 255, 255);
     sdtx_origin(1.0f, (h / 8.0f) - 3.5f);
     sdtx_font(0);
 
     // joystick state
+    sdtx_color1i(text_color);
     sdtx_puts("JOYSTICK: ");
     const uint8_t joymask = x65_joystick_mask(&state.x65);
     sdtx_font(1);
@@ -475,7 +472,10 @@ static void draw_status_bar(void) {
     }
 
     sdtx_font(0);
-    sdtx_color1i(text_color);
+    if (emu_stats.avg_val > frame_time)
+        sdtx_color3b(255, 32, 32);
+    else
+        sdtx_color3b(255, 255, 255);
     sdtx_pos(0.0f, 1.5f);
     sdtx_printf(
         "frame:%.2fms emu:%.2fms (min:%.2fms max:%.2fms) ticks:%d",
