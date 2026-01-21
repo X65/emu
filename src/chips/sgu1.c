@@ -12,11 +12,11 @@
 #define SGU1_SET_DATA(p, d) \
     { p = (((p) & ~0xFF0000ULL) | (((d) << 16) & 0xFF0000ULL)); }
 /* fixed point precision for sample period */
-#define SGU1_FIXEDPOINT_SCALE (16)
+#define SGU1_FIXEDPOINT_SCALE (512)
 /* move bit into first position */
 #define SGU1_BIT(val, bitnr) ((val >> bitnr) & 1)
 
-#define SGU1_CHIP_CLOCK (48000 * 2)  // 48kHz oversampled x2
+#define SGU1_CHIP_CLOCK (48000)  // 48kHz
 
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     CHIPS_ASSERT(sgu && desc);
