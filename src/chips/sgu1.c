@@ -21,16 +21,11 @@
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     CHIPS_ASSERT(sgu && desc);
     CHIPS_ASSERT(desc->tick_hz > 0);
-    CHIPS_ASSERT(desc->sound_hz > 0);
     memset(sgu, 0, sizeof(*sgu));
-    sgu->sound_hz = desc->sound_hz;
-    sgu->sample_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / desc->sound_hz;
-    sgu->sample_counter = sgu->sample_period;
     sgu->sample_mag = desc->magnitude;
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU1_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
     SoundUnit_Init(&sgu->su, 65536);
-    sgu->resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, SGU1_CHIP_CLOCK, sgu->sound_hz, 10, nullptr);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
@@ -38,24 +33,22 @@ void sgu1_reset(sgu1_t* sgu) {
     SoundUnit_Reset(&sgu->su);
     memset(sgu->reg, 0, sizeof(sgu->reg));
     sgu->tick_counter = sgu->tick_period;
-    sgu->sample_counter = sgu->sample_period;
     sgu->sample[0] = sgu->sample[1] = 0.0f;
     sgu->pins = 0;
-    speex_resampler_reset_mem(sgu->resampler);
 }
 
 /* tick the sound generation, return true when new sample ready */
 static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
+    pins &= ~SGU1_SAMPLE;
     /* next sample? */
     sgu->tick_counter -= SGU1_FIXEDPOINT_SCALE;
     while (sgu->tick_counter <= 0) {
         sgu->tick_counter += sgu->tick_period;
         int32_t l, r;
         SoundUnit_NextSample(&sgu->su, &l, &r);
-        float in[2] = { ((float)l / 32767.0f), ((float)r / 32767.0f) };
-        spx_uint32_t in_len = 1;   // 1 stereo frame
-        spx_uint32_t out_len = 1;  // room for 1 stereo frame
-        speex_resampler_process_interleaved_float(sgu->resampler, in, &in_len, sgu->sample, &out_len);
+        sgu->sample[0] = sgu->sample_mag * (float)l / 32767.0f;
+        sgu->sample[1] = sgu->sample_mag * (float)r / 32767.0f;
+        pins |= SGU1_SAMPLE;
 
         for (uint8_t i = 0; i < SGU1_NUM_CHANNELS; i++) {
             sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)(SoundUnit_GetSample(&sgu->su, i));
@@ -63,16 +56,6 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
                 sgu->voice[i].sample_pos = 0;
             }
         }
-    }
-
-    /* new sample? */
-    pins &= ~SGU1_SAMPLE;
-    sgu->sample_counter -= SGU1_FIXEDPOINT_SCALE;
-    while (sgu->sample_counter <= 0) {
-        sgu->sample_counter += sgu->sample_period;
-        sgu->sample[0] = sgu->sample_mag * sgu->sample[0];
-        sgu->sample[1] = sgu->sample_mag * sgu->sample[1];
-        pins |= SGU1_SAMPLE;
     }
     return pins;
 }

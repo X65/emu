@@ -68,6 +68,7 @@ static struct {
     } dbg;
     x65_snapshot_t snapshots[UI_SNAPSHOT_MAX_SLOTS];
 #endif
+    SpeexResamplerState* resampler;
 } state;
 
 #ifdef CHIPS_USE_UI
@@ -110,7 +111,11 @@ static void* labels = NULL;
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
     (void)user_data;
-    saudio_push(samples, num_samples / X65_AUDIO_CHANNELS);
+    spx_uint32_t in_len = num_samples / X65_AUDIO_CHANNELS;
+    spx_uint32_t out_len = X65_MAX_AUDIO_SAMPLES;
+    static float buf[X65_MAX_AUDIO_SAMPLES];
+    speex_resampler_process_interleaved_float(state.resampler, samples, &in_len, buf, &out_len);
+    saudio_push(buf, out_len);
 }
 
 // get x65_desc_t struct based on joystick type
@@ -146,12 +151,15 @@ static void app_load_rom_labels(const char* rom_file) {
     }
 #endif
 }
+#define SGU_CHIP_CLOCK (48000)
 
 void app_init(void) {
     saudio_setup(&(saudio_desc){
+        .sample_rate = SGU_CHIP_CLOCK,
         .num_channels = X65_AUDIO_CHANNELS,
         .logger.func = slog_func,
     });
+    state.resampler = speex_resampler_init(SGU1_AUDIO_CHANNELS, SGU_CHIP_CLOCK, saudio_sample_rate(), 4, 0);
     x65_joystick_type_t joy_type = arguments.joy ? X65_JOYSTICKTYPE_DIGITAL_1 : X65_JOYSTICKTYPE_NONE;
     if (sargs_exists("joystick")) {
         if (sargs_equals("joystick", "digital_1")) {
@@ -354,6 +362,7 @@ void app_cleanup(void) {
     ui_discard();
 #endif
     saudio_shutdown();
+    speex_resampler_destroy(state.resampler);
     gfx_shutdown();
     sargs_shutdown();
     hid_shutdown();

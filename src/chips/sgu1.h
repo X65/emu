@@ -170,12 +170,11 @@ extern "C" {
 #define SGU1_VOL_SWEEP_BOUNCE (1 << 7)
 
 #define SGU1_AUDIO_CHANNELS (2)
-#define SGU1_AUDIO_SAMPLES  (4096)
+#define SGU1_AUDIO_SAMPLES  (1024)
 
 // setup parameters for sgu1_init()
 typedef struct {
     int tick_hz;      // frequency at which sgu1_tick() will be called in Hz
-    int sound_hz;     // sound sample frequency
     float magnitude;  // output sample magnitude (0=silence to 1=max volume)
 } sgu1_desc_t;
 
@@ -187,10 +186,7 @@ typedef struct {
     uint8_t reg[32];
     int tick_period;
     int tick_counter;
-    SpeexResamplerState* resampler;
     // sample generation state
-    int sample_period;
-    int sample_counter;
     float sample_mag;
     float sample[SGU1_AUDIO_CHANNELS];  // Left, Right
     // voice visualization

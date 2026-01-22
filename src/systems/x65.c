@@ -64,7 +64,6 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &sys->sgu,
         &(sgu1_desc_t){
             .tick_hz = X65_FREQUENCY,
-            .sound_hz = _X65_DEFAULT(desc->audio.sample_rate, 44100),
             .magnitude = _X65_DEFAULT(desc->audio.volume, 1.0f),
         });
     beeper_init(
