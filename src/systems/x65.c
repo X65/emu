@@ -38,7 +38,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     sys->joystick_type = desc->joystick_type;
     sys->debug = desc->debug;
     sys->audio.callback = desc->audio.callback;
-    sys->audio.num_samples = _X65_DEFAULT(desc->audio.num_samples, X65_DEFAULT_AUDIO_SAMPLES) * X65_AUDIO_CHANNELS;
+    sys->audio.num_samples = _X65_DEFAULT(desc->audio.num_samples, X65_DEFAULT_AUDIO_SAMPLES) * SGU_AUDIO_CHANNELS;
     CHIPS_ASSERT(sys->audio.num_samples <= X65_MAX_AUDIO_SAMPLES);
 
     // initialize the hardware

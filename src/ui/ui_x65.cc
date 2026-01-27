@@ -1,6 +1,7 @@
 #include "./ui_x65.h"
 #include "../log.h"
 
+#include "common.h"
 #include "imgui_internal.h"
 #include "IconsLucide.h"
 #include "args.h"
@@ -555,12 +556,12 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
             ui_audio_title,
             sizeof(ui_audio_title),
             "Audio Output (%.1f kHz)",
-            (float)ui->x65->sgu.sound_hz / 1000.0f);
+            (float)saudio_sample_rate() / 1000.0f);
         ui_audio_desc_t desc = { 0 };
         desc.title = ui_audio_title;
         desc.sample_buffer = ui->x65->audio.sample_buffer;
         desc.num_samples = ui->x65->audio.num_samples;
-        desc.num_channels = X65_AUDIO_CHANNELS;
+        desc.num_channels = SGU_AUDIO_CHANNELS;
         desc.x = x;
         desc.y = y;
         ui_audio_init(&ui->audio, &desc);

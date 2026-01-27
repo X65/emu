@@ -111,12 +111,12 @@ static void* labels = NULL;
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
     (void)user_data;
-    spx_uint32_t in_frames = num_samples / X65_AUDIO_CHANNELS;
+    spx_uint32_t in_frames = num_samples / SGU_AUDIO_CHANNELS;
     if (!state.resampler) {
         saudio_push(samples, in_frames);
         return;
     }
-    spx_uint32_t out_frames = X65_MAX_AUDIO_SAMPLES / X65_AUDIO_CHANNELS;
+    spx_uint32_t out_frames = X65_MAX_AUDIO_SAMPLES / SGU_AUDIO_CHANNELS;
     static float buf[X65_MAX_AUDIO_SAMPLES];
     speex_resampler_process_interleaved_float(state.resampler, samples, &in_frames, buf, &out_frames);
     saudio_push(buf, out_frames);
@@ -155,12 +155,11 @@ static void app_load_rom_labels(const char* rom_file) {
     }
 #endif
 }
-#define SGU_CHIP_CLOCK (48000)
 
 void app_init(void) {
     saudio_setup(&(saudio_desc){
         .sample_rate = SGU_CHIP_CLOCK,
-        .num_channels = X65_AUDIO_CHANNELS,
+        .num_channels = SGU_AUDIO_CHANNELS,
         .logger.func = slog_func,
     });
     state.resampler = SGU_CHIP_CLOCK == saudio_sample_rate()

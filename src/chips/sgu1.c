@@ -16,25 +16,23 @@
 /* move bit into first position */
 #define SGU1_BIT(val, bitnr) ((val >> bitnr) & 1)
 
-#define SGU1_CHIP_CLOCK (48000)  // 48kHz
-
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     CHIPS_ASSERT(sgu && desc);
     CHIPS_ASSERT(desc->tick_hz > 0);
     memset(sgu, 0, sizeof(*sgu));
     sgu->sample_mag = desc->magnitude;
-    sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU1_CHIP_CLOCK;
+    sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
-    SoundUnit_Init(&sgu->su, 65536);
+    SGU_Init(&sgu->sgu, 65536);
 }
 
 void sgu1_reset(sgu1_t* sgu) {
     CHIPS_ASSERT(sgu);
-    SoundUnit_Reset(&sgu->su);
-    memset(sgu->reg, 0, sizeof(sgu->reg));
+    SGU_Reset(&sgu->sgu);
     sgu->tick_counter = sgu->tick_period;
     sgu->sample[0] = sgu->sample[1] = 0.0f;
     sgu->pins = 0;
+    sgu->selected_channel = 0;
 }
 
 /* tick the sound generation, return true when new sample ready */
@@ -45,13 +43,13 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     while (sgu->tick_counter <= 0) {
         sgu->tick_counter += sgu->tick_period;
         int32_t l, r;
-        SoundUnit_NextSample(&sgu->su, &l, &r);
+        SGU_NextSample(&sgu->sgu, &l, &r);
         sgu->sample[0] = sgu->sample_mag * (float)l / 32767.0f;
         sgu->sample[1] = sgu->sample_mag * (float)r / 32767.0f;
         pins |= SGU1_SAMPLE;
 
-        for (uint8_t i = 0; i < SGU1_NUM_CHANNELS; i++) {
-            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)(SoundUnit_GetSample(&sgu->su, i));
+        for (uint8_t i = 0; i < SGU_CHNS; i++) {
+            sgu->voice[i].sample_buffer[sgu->voice[i].sample_pos++] = (float)(SGU_GetSample(&sgu->sgu, i));
             if (sgu->voice[i].sample_pos >= SGU1_AUDIO_SAMPLES) {
                 sgu->voice[i].sample_pos = 0;
             }
@@ -60,32 +58,30 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     return pins;
 }
 
-static inline uint8_t _sgu1_selected_channel(sgu1_t* sgu) {
-    return sgu->reg[SGU1_REG_CHANNEL_SELECT] & (SGU1_NUM_CHANNELS - 1);
-}
-
 uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
     uint8_t data;
-    if (reg < 32) {
-        data = sgu->reg[reg];
+    if (reg == SGU_REGS_PER_CH - 1) {
+        data = sgu->selected_channel;
     }
     else {
-        uint8_t chan = _sgu1_selected_channel(sgu);
-        data = ((unsigned char*)sgu->su.chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))];
+        data = ((unsigned char*)sgu->sgu.chan)[(sgu->selected_channel % SGU_CHNS) << 6 | (reg & (SGU_REGS_PER_CH - 1))];
     }
     return data;
 }
 
 void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
-    if (reg < 32) {
-        if (reg == SGU1_REG_CHANNEL_SELECT) {
-            sgu->reg[reg] = data;
-        }
+    if (reg == SGU_REGS_PER_CH - 1) {
+        sgu->selected_channel = data;
     }
     else {
-        uint8_t chan = _sgu1_selected_channel(sgu);
-        ((unsigned char*)sgu->su.chan)[chan << 5 | (reg & (SGU1_NUM_CHANNEL_REGS - 1))] = data;
+        // ((unsigned char*)sgu->sgu.chan)[(sgu->selected_channel % SGU_CHNS) << 6 | (reg & (SGU_REGS_PER_CH - 1))] =
+        // data;
+        SGU_Write(&sgu->sgu, (uint16_t)((sgu->selected_channel % SGU_CHNS) << 6) | (reg & (SGU_REGS_PER_CH - 1)), data);
     }
+}
+
+void sgu1_direct_reg_write(sgu1_t* sgu, uint16_t reg, uint8_t data) {
+    SGU_Write(&sgu->sgu, reg, data);
 }
 
 /* read a register */
