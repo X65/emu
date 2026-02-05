@@ -46,36 +46,40 @@ static void ui_util_s8(int8_t val) {
 
 static void _ui_sgu1_op_flags(uint8_t reg, uint8_t value) {
     switch (reg) {
-        // R0  [7]TRM  [6]VIB  [5]FIX  [4]---  [3:0]MUL
+        // R0: [7]TRM [6]VIB [5:4]KSR [3:0]MUL
         case 0: {
             ImGui::Text(
-                "%s %s %s --- MUL:%01X",
-                SGU_OP0_TRM(value) ? "TRM" : "   ",
-                SGU_OP0_VIB(value) ? "VIB" : "   ",
-                SGU_OP0_FIX(value) ? "FIX" : "   ",
+                "%s %s MUL:%01X MUL:%01X",
+                SGU_OP0_TRM(value) ? "TRM" : "t..",
+                SGU_OP0_VIB(value) ? "VIB" : "v..",
+                SGU_OP0_KSR(value),
                 SGU_OP0_MUL(value));
         } break;
-        // R1  [7:6]KSL        [5:0]TL(0..63)
+        // R1: [7:6]KSL [5:0]TL_lo6
         case 1: {
             ImGui::Text("KSL:%01X TL:%02X", SGU_OP1_KSL(value), SGU_OP1_TL_LO6(value));
         } break;
-        // R2  [7:4]AR_lo4                     [3:0]DR_lo4
+        // R2: [7:4]AR_lo4 [3:0]DR_lo4
         case 2: {
             ImGui::Text("AR:%01X  DR:%01X", SGU_OP2_AR_LO4(value), SGU_OP2_DR_LO4(value));
         } break;
-        // R3  [7:4]SL(0..15)                  [3:0]RR(0..15)
+        // R3: [7:4]SL [3:0]RR
         case 3: {
             ImGui::Text("SL:%01X  RR:%01X", SGU_OP3_SL(value), SGU_OP3_RR(value));
         } break;
-        // R4  [7:5]DT                 [4:0]SR(0..31)
+        // R4: [7:5]DT [4:0]SR
         case 4: {
             ImGui::Text("DT:%01X  SR:%02X", SGU_OP4_DT(value), SGU_OP4_SR(value));
         } break;
-        // R5  [7:5]DELAY              [4:3]KSR             [2:0]WPAR
+        // R5: [7:5]DELAY [4]FIX [3:0]WPAR
         case 5: {
-            ImGui::Text("DEL:%01X KSR:%01X WPAR:%01X", SGU_OP5_DELAY(value), SGU_OP5_KSR(value), SGU_OP5_WPAR(value));
+            ImGui::Text(
+                "DEL:%01X %s WPAR:%01X",
+                SGU_OP5_DELAY(value),
+                SGU_OP5_FIX(value) ? "FIX" : "   ",
+                SGU_OP5_WPAR(value));
         } break;
-        // R6  [7]TRMD [6]VIBD [5]SYNC [4]RING [3:1]MOD [0]TL_msb
+        // R6: [7]TRMD [6]VIBD [5]SYNC [4]RING [3:1]MOD [0]TL_msb
         case 6: {
             ImGui::Text(
                 "%s %s %s %s MOD:%01X TL>:%01X",
@@ -86,7 +90,7 @@ static void _ui_sgu1_op_flags(uint8_t reg, uint8_t value) {
                 SGU_OP6_MOD(value),
                 SGU_OP6_TL_MSB(value));
         } break;
-        // R7  [7:5]OUT                [4]AR_msb [3]DR_msb [2:0]WAVE
+        // R7: [7:5]OUT [4]AR_msb [3]DR_msb [2:0]WAVE
         case 7: {
             ImGui::Text(
                 "OUT:%01X AR>:%01X DR>:%01X WAV:%01X",
@@ -119,7 +123,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
 
                 ImGui::PushStyleColor(
                     ImGuiCol_PlotLines,
-                    (su->chan[i].flags0 & SGU1_FLAGS0_CTL_KEYON) ? on_ch_col : off_ch_col);
+                    (su->chan[i].flags0 & SGU1_FLAGS0_CTL_GATE) ? on_ch_col : off_ch_col);
                 ImGui::PlotLines(
                     "##samples",
                     sgu->voice[i].sample_buffer,
@@ -274,19 +278,19 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
             for (int i = 0; i < SGU_CHNS; i++) {
                 ImGui::PushID(i);
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-                if (ImGui::Button((su->chan[i].flags0 & SGU1_FLAGS0_CTL_KEYON) ? "ON" : "OFF")) {
-                    if (su->chan[i].flags0 & SGU1_FLAGS0_CTL_KEYON) {
+                if (ImGui::Button((su->chan[i].flags0 & SGU1_FLAGS0_CTL_GATE) ? "ON" : "OFF")) {
+                    if (su->chan[i].flags0 & SGU1_FLAGS0_CTL_GATE) {
                         sgu1_direct_reg_write(
                             sgu,
-                            (uint16_t)(i * SGU_REGS_PER_CH + SGU_OP_PER_CH * SGU_OP_REGS + SGU1_CHAN_FLAGS0),
-                            su->chan[i].flags0 & ~SGU1_FLAGS0_CTL_KEYON);
-                        su->chan[i].flags0 &= ~SGU1_FLAGS0_CTL_KEYON;
+                            (uint16_t)(i * SGU_REGS_PER_CH + SGU_OP_PER_CH * SGU_OP_REGS + SGU1_CHN_FLAGS0),
+                            su->chan[i].flags0 & ~SGU1_FLAGS0_CTL_GATE);
+                        su->chan[i].flags0 &= ~SGU1_FLAGS0_CTL_GATE;
                     }
                     else {
                         sgu1_direct_reg_write(
                             sgu,
-                            (uint16_t)(i * SGU_REGS_PER_CH + SGU_OP_PER_CH * SGU_OP_REGS + SGU1_CHAN_FLAGS0),
-                            su->chan[i].flags0 | SGU1_FLAGS0_CTL_KEYON);
+                            (uint16_t)(i * SGU_REGS_PER_CH + SGU_OP_PER_CH * SGU_OP_REGS + SGU1_CHN_FLAGS0),
+                            su->chan[i].flags0 | SGU1_FLAGS0_CTL_GATE);
                     }
                 }
                 ImGui::PopStyleVar();
