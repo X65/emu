@@ -49,19 +49,19 @@ static void _ui_sgu1_op_flags(uint8_t reg, uint8_t value) {
         // R0: [7]TRM [6]VIB [5:4]KSR [3:0]MUL
         case 0: {
             ImGui::Text(
-                "%s %s MUL:%01X MUL:%01X",
-                SGU_OP0_TRM(value) ? "TRM" : "t..",
-                SGU_OP0_VIB(value) ? "VIB" : "v..",
+                "%s %s KSR:%01X MUL:%01X",
+                SGU_OP0_TRM(value) ? "TRM" : "trm",
+                SGU_OP0_VIB(value) ? "VIB" : "vib",
                 SGU_OP0_KSR(value),
                 SGU_OP0_MUL(value));
         } break;
         // R1: [7:6]KSL [5:0]TL_lo6
         case 1: {
-            ImGui::Text("KSL:%01X TL:%02X", SGU_OP1_KSL(value), SGU_OP1_TL_LO6(value));
+            ImGui::Text("KSL:%01X TL<:%02X", SGU_OP1_KSL(value), SGU_OP1_TL_LO6(value));
         } break;
         // R2: [7:4]AR_lo4 [3:0]DR_lo4
         case 2: {
-            ImGui::Text("AR:%01X  DR:%01X", SGU_OP2_AR_LO4(value), SGU_OP2_DR_LO4(value));
+            ImGui::Text("AR<:%01X DR<:%01X", SGU_OP2_AR_LO4(value), SGU_OP2_DR_LO4(value));
         } break;
         // R3: [7:4]SL [3:0]RR
         case 3: {
@@ -83,10 +83,10 @@ static void _ui_sgu1_op_flags(uint8_t reg, uint8_t value) {
         case 6: {
             ImGui::Text(
                 "%s %s %s %s MOD:%01X TL>:%01X",
-                SGU_OP6_TRMD(value) ? "TRMD" : "    ",
-                SGU_OP6_VIBD(value) ? "VIBD" : "    ",
-                SGU_OP6_SYNC(value) ? "SYNC" : "    ",
-                SGU_OP6_RING(value) ? "RING" : "    ",
+                SGU_OP6_TRMD(value) ? "TRMD" : "trmd",
+                SGU_OP6_VIBD(value) ? "VIBD" : "vibd",
+                SGU_OP6_SYNC(value) ? "SYNC" : "sync",
+                SGU_OP6_RING(value) ? "RING" : "ring",
                 SGU_OP6_MOD(value),
                 SGU_OP6_TL_MSB(value));
         } break;
@@ -214,7 +214,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
                             SGU_OP4_SR(su->chan[ch].op[op].reg4),
                             SGU_OP3_RR(su->chan[ch].op[op].reg3));
                         static const char* wave_names[] = { "Sine",  "Triangle",       "Sawtooth", "Pulse",
-                                                            "Noise", "Periodic Noise", "XOR Sine", "XOR Triangle" };
+                                                            "Noise", "Periodic Noise", "Reserved", "Sample" };
                         ImGui::Text(
                             "TL: %02X, Wave: %s",
                             SGU_OP16_TL(su->chan[ch].op[op].reg1, su->chan[ch].op[op].reg6),
