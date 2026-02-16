@@ -23,6 +23,19 @@
 #include "dap/protocol.h"
 #include "dap/session.h"
 
+/// Custom LaunchRequest with stopOnEntry field
+struct EmuLaunchRequest : public dap::LaunchRequest {
+    using Response = dap::LaunchResponse;
+    dap::optional<dap::boolean> stopOnEntry;
+};
+
+namespace dap {
+DAP_STRUCT_TYPEINFO_EXT(EmuLaunchRequest,
+                        LaunchRequest,
+                        "launch",
+                        DAP_FIELD(stopOnEntry, "stopOnEntry"));
+}  // namespace dap
+
 #ifdef _MSC_VER
     #define OS_WINDOWS 1
 #endif
@@ -345,6 +358,7 @@ static bool do_dap_pause = false;
 static bool do_dap_continue = false;
 static bool do_dap_stepForward = false;
 static bool do_dap_stepIn = false;
+static bool do_stop_on_entry = false;
 
 std::mutex dap_breakpoints_update_mutex;
 static std::map<dap::integer, std::vector<uint32_t>> dap_breakpoints = {};
@@ -588,8 +602,10 @@ void dap_register_session(dap::Session* session) {
     // The Launch request is made when the client instructs the debugger adapter
     // to start the debuggee. This request contains the launch arguments.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Launch
-    session->registerHandler([&](const dap::LaunchRequest& request) {
+    session->registerHandler([&](const EmuLaunchRequest& request) {
         LOG_INFO("Launch request")
+
+        do_stop_on_entry = request.stopOnEntry.value(false);
 
         if (request.noDebug.value(false)) {
             LOG_INFO("Launching debuggee without debugging");
@@ -641,7 +657,12 @@ void dap_register_session(dap::Session* session) {
     // requests have been made.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ConfigurationDone
     session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
-        dap_dbg_continue();  // Continue the debuggee
+        if (do_stop_on_entry) {
+            dap_dbg_break();  // stops CPU, sends StoppedEvent via callback
+        } else {
+            dap_dbg_continue();
+            dap_event_continued();
+        }
         return dap::ConfigurationDoneResponse();
     });
 
@@ -1095,9 +1116,11 @@ void dap_process() {
         do_dap_boot = false;
 
         dap_boot();
-        dap_dbg_break();  // wait for configuration
 
         // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Initialized
+        // InitializedEvent must be sent before any StoppedEvent so that
+        // the client can configure breakpoints before we decide whether
+        // to stop on entry.
         if (state.session) {
             auto sess = static_cast<dap::Session*>(state.session);
             sess->send(dap::InitializedEvent());
