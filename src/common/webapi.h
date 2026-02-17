@@ -3,12 +3,12 @@
 #include <stddef.h>
 #include "chips/chips_common.h"
 
-#define WEBAPI_STOPREASON_UNKNOWN       (0)
-#define WEBAPI_STOPREASON_BREAK         (1)
-#define WEBAPI_STOPREASON_BREAKPOINT    (2)
-#define WEBAPI_STOPREASON_STEP          (3)
-#define WEBAPI_STOPREASON_ENTRY         (4)
-#define WEBAPI_STOPREASON_EXIT          (5)
+#define WEBAPI_STOPREASON_UNKNOWN    (0)
+#define WEBAPI_STOPREASON_BREAK      (1)
+#define WEBAPI_STOPREASON_BREAKPOINT (2)
+#define WEBAPI_STOPREASON_STEP       (3)
+#define WEBAPI_STOPREASON_ENTRY      (4)
+#define WEBAPI_STOPREASON_EXIT       (5)
 
 #define WEBAPI_CPUTYPE_INVALID (0)
 #define WEBAPI_CPUTYPE_Z80     (1)
@@ -17,21 +17,21 @@
 
 #define WEBAPI_CPUSTATE_TYPE (0)
 
-#define WEBAPI_CPUSTATE_Z80_AF   (1)
-#define WEBAPI_CPUSTATE_Z80_BC   (2)
-#define WEBAPI_CPUSTATE_Z80_DE   (3)
-#define WEBAPI_CPUSTATE_Z80_HL   (4)
-#define WEBAPI_CPUSTATE_Z80_IX   (5)
-#define WEBAPI_CPUSTATE_Z80_IY   (6)
-#define WEBAPI_CPUSTATE_Z80_SP   (7)
-#define WEBAPI_CPUSTATE_Z80_PC   (8)
-#define WEBAPI_CPUSTATE_Z80_AF2  (9)
-#define WEBAPI_CPUSTATE_Z80_BC2  (10)
-#define WEBAPI_CPUSTATE_Z80_DE2  (11)
-#define WEBAPI_CPUSTATE_Z80_HL2  (12)
-#define WEBAPI_CPUSTATE_Z80_IM   (13)
-#define WEBAPI_CPUSTATE_Z80_IR   (14)
-#define WEBAPI_CPUSTATE_Z80_IFF  (15)   // bit0: iff1, bit2: iff2
+#define WEBAPI_CPUSTATE_Z80_AF  (1)
+#define WEBAPI_CPUSTATE_Z80_BC  (2)
+#define WEBAPI_CPUSTATE_Z80_DE  (3)
+#define WEBAPI_CPUSTATE_Z80_HL  (4)
+#define WEBAPI_CPUSTATE_Z80_IX  (5)
+#define WEBAPI_CPUSTATE_Z80_IY  (6)
+#define WEBAPI_CPUSTATE_Z80_SP  (7)
+#define WEBAPI_CPUSTATE_Z80_PC  (8)
+#define WEBAPI_CPUSTATE_Z80_AF2 (9)
+#define WEBAPI_CPUSTATE_Z80_BC2 (10)
+#define WEBAPI_CPUSTATE_Z80_DE2 (11)
+#define WEBAPI_CPUSTATE_Z80_HL2 (12)
+#define WEBAPI_CPUSTATE_Z80_IM  (13)
+#define WEBAPI_CPUSTATE_Z80_IR  (14)
+#define WEBAPI_CPUSTATE_Z80_IFF (15)  // bit0: iff1, bit2: iff2
 
 #define WEBAPI_CPUSTATE_6502_A  (1)
 #define WEBAPI_CPUSTATE_6502_X  (2)
@@ -51,7 +51,7 @@
 #define WEBAPI_CPUSTATE_65816_PBR (9)
 #define WEBAPI_CPUSTATE_65816_E   (10)
 
-#define WEBAPI_CPUSTATE_MAX  (16)
+#define WEBAPI_CPUSTATE_MAX (16)
 
 typedef struct webapi_cpu_state_t {
     uint16_t items[WEBAPI_CPUSTATE_MAX];
@@ -81,8 +81,8 @@ typedef struct {
     uint8_t payload[];
 } webapi_fileheader_t;
 
-#define WEBAPI_FILEHEADER_FLAG_START (1<<0)         // if set, start automatically
-#define WEBAPI_FILEHEADER_FLAG_STOPONENTRY (1<<1)   // if set, stop execution on entry
+#define WEBAPI_FILEHEADER_FLAG_START       (1 << 0)  // if set, start automatically
+#define WEBAPI_FILEHEADER_FLAG_STOPONENTRY (1 << 1)  // if set, stop execution on entry
 
 typedef struct {
     void (*boot)(void);
@@ -104,6 +104,7 @@ typedef struct {
     webapi_cpu_state_t (*dbg_cpu_state)(void);
     void (*dbg_request_disassembly)(uint32_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* dst_lines);
     void (*dbg_read_memory)(uint32_t addr, int num_bytes, uint8_t* dst_ptr);
+    void (*dbg_write_memory)(uint32_t addr, int num_bytes, const uint8_t* src_ptr);
     void (*input)(const char* text);
 } webapi_interface_t;
 

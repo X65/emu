@@ -98,6 +98,7 @@ static void web_dbg_on_reset(void);
 static webapi_cpu_state_t web_dbg_cpu_state(void);
 static void web_dbg_request_disassemly(uint32_t addr, int offset_lines, int num_lines, webapi_dasm_line_t* result);
 static void web_dbg_read_memory(uint32_t addr, int num_bytes, uint8_t* dst_ptr);
+static void web_dbg_write_memory(uint32_t addr, int num_bytes, const uint8_t* src_ptr);
 static void* labels = NULL;
     #define BORDER_TOP (24)
 #else
@@ -259,6 +260,7 @@ void app_init(void) {
             .dbg_cpu_state = web_dbg_cpu_state,
             .dbg_request_disassembly = web_dbg_request_disassemly,
             .dbg_read_memory = web_dbg_read_memory,
+            .dbg_write_memory = web_dbg_write_memory,
         },
     });
     #ifdef USE_DAP
@@ -282,6 +284,7 @@ void app_init(void) {
             .dbg_cpu_state = web_dbg_cpu_state,
             .dbg_request_disassembly = web_dbg_request_disassemly,
             .dbg_read_memory = web_dbg_read_memory,
+            .dbg_write_memory = web_dbg_write_memory,
         },
         .memory = state.x65.ram,
     });
@@ -749,6 +752,16 @@ static void web_dbg_read_memory(uint32_t addr, int num_bytes, uint8_t* dst_ptr) 
     for (int i = 0; i < num_bytes; i++) {
         const uint8_t bank = (addr >> 16) & 0xFF;
         *dst_ptr++ = mem_rd(&state.x65, bank, addr++ & 0xFFFF);
+    }
+}
+
+static void web_dbg_write_memory(uint32_t addr, int num_bytes, const uint8_t* src_ptr) {
+    if (!src_ptr || num_bytes <= 0) {
+        return;
+    }
+    for (int i = 0; i < num_bytes; i++) {
+        const uint8_t bank = (addr >> 16) & 0xFF;
+        mem_wr(&state.x65, bank, addr++ & 0xFFFF, *src_ptr++);
     }
 }
 #endif

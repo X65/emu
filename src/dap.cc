@@ -24,7 +24,7 @@
 #include "dap/session.h"
 
 /// Custom LaunchRequest with stopOnEntry field
-struct EmuLaunchRequest : public dap::LaunchRequest {
+struct EmuLaunchRequest: public dap::LaunchRequest {
     using Response = dap::LaunchResponse;
     dap::optional<dap::boolean> stopOnEntry;
 };
@@ -45,8 +45,9 @@ DAP_STRUCT_TYPEINFO_EXT(EmuLaunchRequest,
     #include <io.h>     // _setmode
 #endif                  // OS_WINDOWS
 
-/// base64 encoder forward declaration
+/// base64 encoder/decoder forward declaration
 std::string base64_encode(const std::vector<uint8_t>&);
+bool base64_decode(const std::string&, std::vector<uint8_t>*);
 
 static struct {
     bool dbg_connect_requested;
@@ -278,6 +279,18 @@ static uint8_t* dap_dbg_read_memory(uint32_t addr, int num_bytes) {
     }
 }
 
+static bool dap_dbg_write_memory(uint32_t addr, int num_bytes, const uint8_t* src_ptr) {
+    if (num_bytes <= 0 || src_ptr == nullptr) {
+        return false;
+    }
+    if (state.inited && state.funcs.dbg_write_memory) {
+        LOG_INFO("dbg_write_memory() called");
+        state.funcs.dbg_write_memory(addr, num_bytes, src_ptr);
+        return true;
+    }
+    return false;
+}
+
 static bool dap_input_internal(char* text) {
     if (state.funcs.input != NULL && text != NULL) {
         LOG_INFO("input() called");
@@ -407,6 +420,36 @@ static dap::Variable evaluateCPUFlag(uint8_t flagId) {
     return regVar;
 }
 
+static dap::Variable evaluateEmulationFlag() {
+    auto cpu_state = dap_dbg_cpu_state();
+    assert(cpu_state[WEBAPI_CPUSTATE_TYPE] == WEBAPI_CPUTYPE_65816);
+
+    dap::VariablePresentationHint regHint;
+    regHint.kind = "property";
+
+    dap::Variable regVar;
+    regVar.type = "register";
+    regVar.presentationHint = regHint;
+    regVar.variablesReference = 0;
+    regVar.value = cpu_state[WEBAPI_CPUSTATE_65816_E] ? '1' : '0';
+    return regVar;
+}
+
+static bool parse_memory_reference(const std::string& text, int64_t* out_value) {
+    try {
+        size_t parsed = 0;
+        const long long value = std::stoll(text, &parsed, 0);
+        if (parsed != text.size()) {
+            return false;
+        }
+        *out_value = value;
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
+}
+
 static auto variableEvaluators = std::map<std::string, std::function<dap::Variable(const std::string&)>>{
     { "reg.C",
      [](const std::string&) -> dap::Variable {
@@ -504,55 +547,61 @@ static auto variableEvaluators = std::map<std::string, std::function<dap::Variab
     { "flag.C",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_CF);
-          regVar.name = "Carry";
+          regVar.name = "C";
           return regVar;
       } },
     { "flag.Z",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_ZF);
-          regVar.name = "Zero";
+          regVar.name = "Z";
           return regVar;
       } },
     { "flag.I",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_IF);
-          regVar.name = "IRQ disable";
+          regVar.name = "I";
           return regVar;
       } },
     { "flag.D",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_DF);
-          regVar.name = "Decimal";
+          regVar.name = "D";
           return regVar;
       } },
     { "flag.B",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_BF);
-          regVar.name = "Break";
+          regVar.name = "B";
           return regVar;
       } },
     { "flag.X",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_XF);
-          regVar.name = "indeX";
+          regVar.name = "X";
           return regVar;
       } },
     { "flag.M",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_MF);
-          regVar.name = "Memory/Accumulator";
+          regVar.name = "M";
           return regVar;
       } },
     { "flag.V",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_VF);
-          regVar.name = "oVerflow";
+          regVar.name = "V";
           return regVar;
       } },
     { "flag.N",
      [](const std::string&) -> dap::Variable {
           dap::Variable regVar = evaluateCPUFlag(W65816_NF);
-          regVar.name = "Negative";
+          regVar.name = "N";
+          return regVar;
+      } },
+    { "flag.E",
+     [](const std::string&) -> dap::Variable {
+          dap::Variable regVar = evaluateEmulationFlag();
+          regVar.name = "E";
           return regVar;
       } },
 };
@@ -595,7 +644,7 @@ void dap_register_session(dap::Session* session) {
         response.supportsSetVariable = true;
         response.supportsStepBack = false;
         response.supportsTerminateRequest = true;
-        response.supportsWriteMemoryRequest = false;
+        response.supportsWriteMemoryRequest = true;
         return response;
     });
 
@@ -659,7 +708,8 @@ void dap_register_session(dap::Session* session) {
     session->registerHandler([&](const dap::ConfigurationDoneRequest&) {
         if (do_stop_on_entry) {
             dap_dbg_break();  // stops CPU, sends StoppedEvent via callback
-        } else {
+        }
+        else {
             dap_dbg_continue();
             dap_event_continued();
         }
@@ -919,15 +969,28 @@ void dap_register_session(dap::Session* session) {
         [&](const dap::DisassembleRequest& request) -> dap::ResponseOrError<dap::DisassembleResponse> {
             dap::DisassembleResponse response;
 
-            const auto address = std::stoi(request.memoryReference, nullptr, 0);
+            int64_t address = 0;
+            if (!parse_memory_reference(request.memoryReference, &address)) {
+                return dap::Error("Invalid memoryReference");
+            }
+            if (address < 0 || address >= EMU_RAM_SIZE) {
+                return dap::Error("Disassemble address out of range");
+            }
 
             auto instrOffset = (int)request.instructionOffset.value(0);
             auto instrLines = (int)request.instructionCount;
+            if (instrLines <= 0) {
+                return response;
+            }
 
             response.instructions.resize(instrLines);
 
             char buffer[64];
-            webapi_dasm_line_t* dasm = dap_dbg_request_disassembly(address & 0xFFFFFF, instrOffset, instrLines);
+            webapi_dasm_line_t* dasm =
+                dap_dbg_request_disassembly((uint32_t)address & 0xFFFFFF, instrOffset, instrLines);
+            if (!dasm) {
+                return dap::Error("Disassemble is not supported");
+            }
 
             for (int i = 0; i < instrLines; ++i) {
                 memcpy(buffer, dasm[i].chars, dasm[i].num_chars);
@@ -959,22 +1022,114 @@ void dap_register_session(dap::Session* session) {
         [&](const dap::ReadMemoryRequest& request) -> dap::ResponseOrError<dap::ReadMemoryResponse> {
             dap::ReadMemoryResponse response;
 
-            auto address = std::stoi(request.memoryReference, nullptr, 0);
+            int64_t address = 0;
+            if (!parse_memory_reference(request.memoryReference, &address)) {
+                return dap::Error("Invalid memoryReference");
+            }
             if (request.offset.has_value()) {
                 address += request.offset.value();
             }
+            if (request.count < 0) {
+                return dap::Error("count must be >= 0");
+            }
+            const uint32_t requested_count = (uint32_t)request.count;
+            if (address < 0 || address >= EMU_RAM_SIZE) {
+                return dap::Error("ReadMemory address out of range");
+            }
+
+            uint32_t readable = requested_count;
+            const uint32_t max_readable = (uint32_t)(EMU_RAM_SIZE - address);
+            if (readable > max_readable) {
+                readable = max_readable;
+                response.unreadableBytes = (dap::integer)(requested_count - readable);
+            }
 
             std::vector<uint8_t> data;
-            for (size_t i = 0; i < (uint32_t)request.count; ++i) {
-                size_t mem_addr = address + i;
-                if (mem_addr > 0xFFFFFF) break;
-                data.push_back(state.memory[mem_addr]);
+            if (readable > 0) {
+                uint8_t* raw = dap_dbg_read_memory((uint32_t)address, (int)readable);
+                if (!raw) {
+                    return dap::Error("ReadMemory is not supported");
+                }
+                data.assign(raw, raw + readable);
+                free(raw);
             }
 
             response.data = base64_encode(data);
             char buffer[64];
-            sprintf(buffer, "0x%06X", address & 0xFFFFFF);
+            sprintf(buffer, "0x%06X", (uint32_t)(address & 0xFFFFFF));
             response.address = buffer;
+
+            return response;
+        });
+
+    // Writes bytes to memory at the provided location.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_WriteMemory
+    session->registerHandler(
+        [&](const dap::WriteMemoryRequest& request) -> dap::ResponseOrError<dap::WriteMemoryResponse> {
+            dap::WriteMemoryResponse response;
+
+            int64_t address = 0;
+            if (!parse_memory_reference(request.memoryReference, &address)) {
+                return dap::Error("Invalid memoryReference");
+            }
+            if (request.offset.has_value()) {
+                address += request.offset.value();
+            }
+
+            std::vector<uint8_t> decoded;
+            if (!base64_decode(request.data, &decoded)) {
+                return dap::Error("Invalid base64 memory payload");
+            }
+
+            if (decoded.empty()) {
+                response.bytesWritten = 0;
+                response.offset = 0;
+                return response;
+            }
+
+            const bool allow_partial = request.allowPartial.value(false);
+            int64_t write_start = address;
+            size_t src_offset = 0;
+            size_t write_len = decoded.size();
+
+            if (allow_partial) {
+                if (write_start < 0) {
+                    src_offset = (size_t)(-write_start);
+                    write_start = 0;
+                }
+                if (src_offset >= decoded.size()) {
+                    response.offset = (dap::integer)src_offset;
+                    response.bytesWritten = 0;
+                    return response;
+                }
+                write_len = decoded.size() - src_offset;
+                const uint32_t max_writable = (uint32_t)(EMU_RAM_SIZE - std::min<int64_t>(write_start, EMU_RAM_SIZE));
+                if (write_start >= EMU_RAM_SIZE) {
+                    write_len = 0;
+                }
+                else if (write_len > max_writable) {
+                    write_len = max_writable;
+                }
+            }
+            else {
+                if (write_start < 0 || write_start >= EMU_RAM_SIZE) {
+                    return dap::Error("WriteMemory address out of range");
+                }
+                if ((size_t)(EMU_RAM_SIZE - write_start) < write_len) {
+                    return dap::Error("WriteMemory out of range");
+                }
+            }
+
+            if (write_len > 0) {
+                if (!dap_dbg_write_memory((uint32_t)write_start, (int)write_len, decoded.data() + src_offset)) {
+                    return dap::Error("WriteMemory is not supported");
+                }
+            }
+
+            if (allow_partial) {
+                response.offset = (dap::integer)src_offset;
+                response.bytesWritten = (dap::integer)write_len;
+            }
 
             return response;
         });
@@ -1207,4 +1362,43 @@ std::string base64_encode(const std::vector<uint8_t>& data) {
     }
 
     return output;
+}
+
+bool base64_decode(const std::string& input, std::vector<uint8_t>* out) {
+    if (!out) {
+        return false;
+    }
+    out->clear();
+
+    static const int8_t table[256] = {
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55,
+        56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+    };
+
+    int val = 0;
+    int bits = -8;
+    for (unsigned char c : input) {
+        if (c == '=') {
+            break;
+        }
+        const int8_t decoded = table[c];
+        if (decoded < 0) {
+            return false;
+        }
+        val = (val << 6) | decoded;
+        bits += 6;
+        if (bits >= 0) {
+            out->push_back((uint8_t)((val >> bits) & 0xFF));
+            bits -= 8;
+        }
+    }
+    return true;
 }
