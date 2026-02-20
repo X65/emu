@@ -273,7 +273,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
                 ui_util_b8("", su->chan[i].flags1);
                 ImGui::TableNextColumn();
             }
-            ImGui::Text("  KEY");
+            ImGui::Text("  GATE");
             ImGui::TableNextColumn();
             for (int i = 0; i < SGU_CHNS; i++) {
                 ImGui::PushID(i);
