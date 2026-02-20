@@ -112,7 +112,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
     if (ImGui::CollapsingHeader("Channels Output", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImVec4 on_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         ImVec4 off_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
-        if (ImGui::BeginTable("##sgu_waves", 2)) {
+        if (ImGui::BeginTable("##sgu_waves", 3)) {
             char buf[32];
             for (int i = 0; i < SGU_CHNS; i++) {
                 ImGui::TableNextColumn();
@@ -258,11 +258,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
                 }
                 ImGui::TableSetBgColor(
                     ImGuiTableBgTarget_CellBg,
-                    ImGui::ColorConvertFloat4ToU32(ImVec4(
-                        vus[ch],
-                        vus[ch],
-                        vus[ch],
-                        vus[ch] * 2.0f / 3.0f)));  // Semi-transparent red
+                    ImGui::ColorConvertFloat4ToU32(ImVec4(vus[ch], vus[ch], vus[ch], vus[ch] * 2.0f / 3.0f)));
                 ImGui::TableNextColumn();
             }
         }
@@ -372,7 +368,12 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
         }
         else {
             ImGui::TableNextColumn();
+            const ImVec4 off_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg);
+            const ImVec4 on_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive);
             for (int i = 0; i < SGU_CHNS; i++) {
+                ImGui::TableSetBgColor(
+                    ImGuiTableBgTarget_CellBg,
+                    ImGui::ColorConvertFloat4ToU32(su->chan[i].flags0 & SGU1_FLAGS0_CTL_GATE ? on_ch_col : off_ch_col));
                 ui_util_b8("", su->chan[i].flags0);
                 ui_util_b8("", su->chan[i].flags1);
                 ImGui::TableNextColumn();
