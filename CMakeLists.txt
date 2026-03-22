@@ -62,6 +62,7 @@ target_link_libraries(emu
             SDL3::SDL3)
 
 target_compile_definitions(emu PUBLIC CHIPS_USE_UI)
+target_compile_definitions(emu PRIVATE ${SOKOL_GFX_BACKEND_DEFINE})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "Building for Linux")
