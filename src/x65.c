@@ -159,8 +159,7 @@ static void app_load_rom_labels(const char* rom_file) {
 
 void app_init(void) {
 #if defined(SOKOL_GLES3) || defined(SOKOL_GLCORE)
-    log_func(3, "app_init", __FILE__, __LINE__,
-        "OpenGL context: %s %d.%d",
+    LOG_INFO("OpenGL context: %s %d.%d",
         sapp_gl_is_gles() ? "OpenGL ES" : "OpenGL",
         sapp_gl_get_major_version(),
         sapp_gl_get_minor_version());
