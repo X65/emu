@@ -158,6 +158,13 @@ static void app_load_rom_labels(const char* rom_file) {
 }
 
 void app_init(void) {
+#if defined(SOKOL_GLES3) || defined(SOKOL_GLCORE)
+    log_func(3, "app_init", __FILE__, __LINE__,
+        "OpenGL context: %s %d.%d",
+        sapp_gl_is_gles() ? "OpenGL ES" : "OpenGL",
+        sapp_gl_get_major_version(),
+        sapp_gl_get_minor_version());
+#endif
     saudio_setup(&(saudio_desc){
         .sample_rate = SGU_CHIP_CLOCK,
         .num_channels = SGU_AUDIO_CHANNELS,
@@ -838,6 +845,19 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     const chips_display_info_t info = x65_display_info(0);
     const int default_width = info.screen.width + BORDER_LEFT + BORDER_RIGHT;
     const int default_height = info.screen.height + BORDER_TOP + BORDER_BOTTOM;
+
+    // Use the minimum OpenGL/GLES version required by the compiled shaders to
+    // maximize compatibility with older hardware.
+    //   - SOKOL_GLES3 shaders are compiled for glsl300es  -> requires GLES 3.0
+    //   - SOKOL_GLCORE shaders are compiled for glsl410   -> requires GL 4.1
+#if defined(SOKOL_GLES3)
+    const int gl_major = 3, gl_minor = 0;
+#elif defined(SOKOL_GLCORE)
+    const int gl_major = 4, gl_minor = 1;
+#else
+    const int gl_major = 0, gl_minor = 0;  // Metal / D3D11 / WebGPU: ignored
+#endif
+
     return (sapp_desc){
         .init_cb = app_init,
         .frame_cb = app_frame,
@@ -855,6 +875,10 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         },
         .enable_clipboard = true,
         .enable_dragndrop = true,
+        .gl = {
+            .major_version = gl_major,
+            .minor_version = gl_minor,
+        },
         .html5 = {
             .bubble_mouse_events = true,
             .update_document_title = true,
