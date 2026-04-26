@@ -200,6 +200,9 @@ void app_init(void) {
         },
         .display_info = x65_display_info(&state.x65),
     });
+    if (arguments.crt) {
+        gfx_crt_set_enabled(true);
+    }
     keybuf_init(&(keybuf_desc_t){ .key_delay_frames = 5 });
     clock_init();
     prof_init();

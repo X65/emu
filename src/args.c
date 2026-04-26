@@ -12,7 +12,7 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 const char full_name[] = FULL_NAME;
 
 struct arguments arguments = {
-    NULL, "-", false, false, false, false, false, NULL,
+    NULL, "-", false, false, false, false, false, false, NULL,
 };
 static char args_doc[] = "[ROM.xex]";
 
@@ -27,6 +27,7 @@ static struct argp_option options[] = {
     { "zero-mem", 'z', 0, 0, "Fill memory with zeros" },
     { "dap", 'd', 0, 0, "Enable Debug Adapter Protocol over stdin/stdout" },
     { "dap-port", 'p', "PORT", 0, "Enable Debug Adapter Protocol over TCP port" },
+    { "crt", 'c', 0, 0, "Enable CRT post-process effect" },
     { 0 }
 };
 
@@ -42,6 +43,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 'o': args->output_file = arg; break;
         case 'd': args->dap = true; break;
         case 'p': args->dap_port = arg; break;
+        case 'c': args->crt = true; break;
 
         case 'l': app_load_labels(arg, false); break;
 
@@ -73,5 +75,8 @@ void args_parse(int argc, char* argv[]) {
 
     if (sargs_exists("file")) {
         arguments.rom = sargs_value("file");
+    }
+    if (sargs_exists("crt")) {
+        arguments.crt = true;
     }
 }

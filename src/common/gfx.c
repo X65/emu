@@ -45,8 +45,11 @@ typedef struct {
     struct {
         sg_buffer vbuf;
         sg_pipeline pip;
+        sg_pipeline pip_crt;
         sg_pass_action pass_action;
         bool portrait;
+        bool crt_enabled;
+        gfx_crt_params_t crt_params;
     } display;
     struct {
         sg_view tex_view;
@@ -178,6 +181,36 @@ chips_dim_t gfx_pixel_aspect(void) {
     return state.offscreen.pixel_aspect;
 }
 
+gfx_crt_params_t gfx_crt_default_params(void) {
+    return (gfx_crt_params_t){
+        .scanline_intensity = 0.25f,
+        .mask_intensity     = 0.30f,
+        .curvature          = 0.10f,
+        .gamma              = 1.10f,
+        .vignette           = 0.25f,
+    };
+}
+
+bool gfx_crt_enabled(void) {
+    assert(state.valid);
+    return state.display.crt_enabled;
+}
+
+void gfx_crt_set_enabled(bool enabled) {
+    assert(state.valid);
+    state.display.crt_enabled = enabled;
+}
+
+gfx_crt_params_t gfx_crt_get_params(void) {
+    assert(state.valid);
+    return state.display.crt_params;
+}
+
+void gfx_crt_set_params(gfx_crt_params_t params) {
+    assert(state.valid);
+    state.display.crt_params = params;
+}
+
 sg_view gfx_create_icon_texview(const uint8_t* packed_pixels, int width, int height, int stride, const char* label) {
     const size_t pixel_data_size = width * height * sizeof(uint32_t);
     uint32_t* pixels = malloc(pixel_data_size);
@@ -280,7 +313,11 @@ void gfx_init(const gfx_desc_t* desc) {
         .buffer_pool_size = 32,
         .image_pool_size = 128,
         .shader_pool_size = 16,
-        .pipeline_pool_size = 16,
+        // sokol-gl's sgl_make_pipeline creates 4 internal pipelines, plus
+        // simgui's defaults bring the baseline near the 16 default. Bump
+        // headroom so adding a CRT pipeline (and any future ones) doesn't
+        // silently overflow the pool and corrupt the heap.
+        .pipeline_pool_size = 32,
         .view_pool_size = 256,
         .environment = sglue_environment(),
         .logger.func = slog_func,
@@ -380,6 +417,19 @@ void gfx_init(const gfx_desc_t* desc) {
         .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP
     });
 
+    state.display.pip_crt = sg_make_pipeline(&(sg_pipeline_desc){
+        .shader = sg_make_shader(display_crt_shader_desc(sg_query_backend())),
+        .layout = {
+            .attrs = {
+                [0].format = SG_VERTEXFORMAT_FLOAT2,
+                [1].format = SG_VERTEXFORMAT_FLOAT2
+            }
+        },
+        .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP
+    });
+    state.display.crt_enabled = false;
+    state.display.crt_params = gfx_crt_default_params();
+
     // create an unpacked speaker icon image and sokol-gl pipeline
     {
         // textures must be 2^n for WebGL
@@ -419,9 +469,10 @@ void gfx_init(const gfx_desc_t* desc) {
 
 /* apply a viewport rectangle to preserve the emulator's aspect ratio,
    and for 'portrait' orientations, keep the emulator display at the
-   top, to make room at the bottom for mobile virtual keyboard
+   top, to make room at the bottom for mobile virtual keyboard.
+   Returns the applied viewport rect (in framebuffer pixels).
 */
-static void apply_viewport(chips_dim_t canvas, chips_rect_t view, chips_dim_t pixel_aspect, gfx_border_t border) {
+static chips_rect_t apply_viewport(chips_dim_t canvas, chips_rect_t view, chips_dim_t pixel_aspect, gfx_border_t border) {
     float cw = (float) (canvas.width - border.left - border.right);
     if (cw < 1.0f) {
         cw = 1.0f;
@@ -447,6 +498,10 @@ static void apply_viewport(chips_dim_t canvas, chips_rect_t view, chips_dim_t pi
         vp_y = border.top + (ch - vp_h) * 0.5f;
     }
     sg_apply_viewportf(vp_x, vp_y, vp_w, vp_h, true);
+    return (chips_rect_t){
+        .x = (int)vp_x, .y = (int)vp_y,
+        .width = (int)vp_w, .height = (int)vp_h,
+    };
 }
 
 void gfx_draw(chips_display_info_t display_info) {
@@ -538,13 +593,35 @@ void gfx_draw(chips_display_info_t display_info) {
         .action = state.display.pass_action,
         .swapchain = sglue_swapchain()
     });
-    apply_viewport(display, display_info.screen, state.offscreen.pixel_aspect, state.border);
-    sg_apply_pipeline(state.display.pip);
-    sg_apply_bindings(&(sg_bindings){
-        .vertex_buffers[0] = state.display.vbuf,
-        .views[VIEW_tex] = state.offscreen.tex_view,
-        .samplers[SMP_smp] = state.offscreen.smp,
-    });
+    const chips_rect_t vp = apply_viewport(display, display_info.screen, state.offscreen.pixel_aspect, state.border);
+    if (state.display.crt_enabled) {
+        sg_apply_pipeline(state.display.pip_crt);
+        sg_apply_bindings(&(sg_bindings){
+            .vertex_buffers[0] = state.display.vbuf,
+            .views[VIEW_crt_tex] = state.offscreen.tex_view,
+            .samplers[SMP_crt_smp] = state.offscreen.smp,
+        });
+        // fade out the shadow mask when the output is too small to resolve
+        // a clean 3-pixel-wide triad (avoids ugly moire at low scales)
+        const float mask_scale = (vp.height >= 2 * display_info.screen.height) ? 1.0f
+            : (float)vp.height / (float)(2 * display_info.screen.height);
+        const display_crt_fs_params_t crt_uniforms = {
+            .output_size        = { (float)vp.width, (float)vp.height },
+            .scanline_intensity = state.display.crt_params.scanline_intensity,
+            .mask_intensity     = state.display.crt_params.mask_intensity * mask_scale,
+            .curvature          = state.display.crt_params.curvature,
+            .gamma              = state.display.crt_params.gamma,
+            .vignette           = state.display.crt_params.vignette,
+        };
+        sg_apply_uniforms(UB_display_crt_fs_params, &SG_RANGE(crt_uniforms));
+    } else {
+        sg_apply_pipeline(state.display.pip);
+        sg_apply_bindings(&(sg_bindings){
+            .vertex_buffers[0] = state.display.vbuf,
+            .views[VIEW_tex] = state.offscreen.tex_view,
+            .samplers[SMP_smp] = state.offscreen.smp,
+        });
+    }
     sg_draw(0, 4, 1);
     sg_apply_viewport(0, 0, display.width, display.height, true);
     sdtx_draw();

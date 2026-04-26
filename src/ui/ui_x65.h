@@ -63,6 +63,7 @@
 #include "ui/ui_audio.h"
 #include "ui/ui_chip.h"
 #include "ui/ui_console.h"
+#include "ui/ui_crt.h"
 #include "ui/ui_dasm.h"
 #include "ui/ui_dbg.h"
 #include "ui/ui_display.h"
@@ -108,6 +109,7 @@ typedef struct {
     ui_cgia_t cgia;
     ui_console_t ria_uart;
     ui_audio_t audio;
+    ui_crt_t crt;
     ui_display_t display;
     ui_memedit_t memedit[4];
     ui_dasm_t dasm[4];

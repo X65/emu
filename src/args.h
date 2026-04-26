@@ -12,7 +12,7 @@ extern char program_version[];
 extern struct arguments {
     const char* rom;
     const char* output_file;
-    bool silent, verbose, zeromem, joy, dap;
+    bool silent, verbose, zeromem, joy, dap, crt;
     const char* dap_port;
 } arguments;
 

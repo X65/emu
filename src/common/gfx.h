@@ -1,10 +1,6 @@
 #pragma once
 /*
     Common graphics functions for the chips-test example emulators.
-
-    REMINDER: consider using this CRT shader?
-
-    https://github.com/mattiasgustavsson/rebasic/blob/master/source/libs/crtemu.h
 */
 #include <stdint.h>
 #include <stdbool.h>
@@ -38,6 +34,14 @@ typedef struct {
     gfx_draw_extra_t draw_extra_cb;
 } gfx_desc_t;
 
+typedef struct {
+    float scanline_intensity;
+    float mask_intensity;
+    float curvature;
+    float gamma;
+    float vignette;
+} gfx_crt_params_t;
+
 void gfx_init(const gfx_desc_t* desc);
 void gfx_draw(chips_display_info_t display_info);
 void gfx_shutdown(void);
@@ -46,6 +50,12 @@ void gfx_flash_error(void);
 void gfx_disable_speaker_icon(void);
 chips_dim_t gfx_pixel_aspect(void);
 sg_view gfx_create_icon_texview(const uint8_t* packed_pixels, int width, int height, int stride, const char* label);
+
+bool gfx_crt_enabled(void);
+void gfx_crt_set_enabled(bool enabled);
+gfx_crt_params_t gfx_crt_get_params(void);
+void gfx_crt_set_params(gfx_crt_params_t params);
+gfx_crt_params_t gfx_crt_default_params(void);
 
 #ifdef __cplusplus
 } /* extern "C" */

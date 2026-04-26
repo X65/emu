@@ -82,6 +82,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
         if (ImGui::BeginMenu(ICON_LC_MICROCHIP " Hardware")) {
             ImGui::MenuItem(ICON_LC_AUDIO_WAVEFORM " Audio Output", 0, &ui->audio.open);
             ImGui::MenuItem(ICON_LC_MONITOR " Display", 0, &ui->display.open);
+            ImGui::MenuItem(ICON_LC_TV " CRT Effect", 0, &ui->crt.open);
             ImGui::MenuItem(ICON_LC_CPU " WDC 65C816 (CPU)", 0, &ui->cpu.open);
             ImGui::MenuItem(ICON_LC_HDMI_PORT " CGIA (VPU)", 0, &ui->cgia.open);
             ImGui::MenuItem(ICON_LC_AUDIO_LINES " SGU-1 (SPU)", 0, &ui->sgu.open);
@@ -580,6 +581,15 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
+        ui_crt_desc_t desc = { 0 };
+        desc.title = "CRT Effect";
+        desc.x = x;
+        desc.y = y;
+        ui_crt_init(&ui->crt, &desc);
+    }
+    x += dx;
+    y += dy;
+    {
         ui_memedit_desc_t desc = { 0 };
         for (int i = 0; i < _UI_X65_MEMLAYER_NUM; i++) {
             desc.layers[i] = _ui_x65_memlayer_names[i];
@@ -645,6 +655,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_cgia_discard(&ui->cgia);
     ui_console_discard(&ui->ria_uart);
     ui_audio_discard(&ui->audio);
+    ui_crt_discard(&ui->crt);
     ui_display_discard(&ui->display);
     for (int i = 0; i < 4; i++) {
         ui_memedit_discard(&ui->memedit[i]);
@@ -660,6 +671,7 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     _ui_x65_draw_menu(ui);
     _ui_x65_draw_about(ui);
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);
+    ui_crt_draw(&ui->crt);
     ui_display_draw(&ui->display, &frame->display);
     ui_w65816_draw(&ui->cpu);
     ui_ria816_draw(&ui->ria);
@@ -693,6 +705,7 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     ui_cgia_save_settings(&ui->cgia, settings);
     ui_console_save_settings(&ui->ria_uart, settings);
     ui_audio_save_settings(&ui->audio, settings);
+    ui_crt_save_settings(&ui->crt, settings);
     ui_display_save_settings(&ui->display, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_save_settings(&ui->memedit[i], settings);
@@ -713,6 +726,7 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     ui_cgia_load_settings(&ui->cgia, settings);
     ui_console_load_settings(&ui->ria_uart, settings);
     ui_audio_load_settings(&ui->audio, settings);
+    ui_crt_load_settings(&ui->crt, settings);
     ui_display_load_settings(&ui->display, settings);
     for (int i = 0; i < 4; i++) {
         ui_memedit_load_settings(&ui->memedit[i], settings);
