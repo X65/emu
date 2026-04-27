@@ -46,6 +46,7 @@ add_executable(emu
     src/args.c
     src/hid.c
     src/ui/ui_cgia.cc
+    src/ui/ui_vram_debugger.cc
     src/ui/ui_console.cc
     src/ui/ui_ria816.cc
     src/ui/ui_sgu1.cc
