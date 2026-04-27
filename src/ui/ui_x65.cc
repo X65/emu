@@ -97,6 +97,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::MenuItem(ICON_LC_TIMER " Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
             ImGui::MenuItem("Execution History", 0, &ui->dbg.ui.history.open);
             ImGui::MenuItem("Memory Heatmap", 0, &ui->dbg.ui.heatmap.open);
+            ImGui::MenuItem(ICON_LC_GRID_2X2 " VRAM Debugger", 0, &ui->vram_debugger.open);
             if (ImGui::BeginMenu("Memory Editor")) {
                 ImGui::MenuItem("Window #1", 0, &ui->memedit[0].open);
                 ImGui::MenuItem("Window #2", 0, &ui->memedit[1].open);
@@ -552,6 +553,22 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     x += dx;
     y += dy;
     {
+        ui_vram_debugger_desc_t desc = { 0 };
+        desc.title = "VRAM Debugger";
+        desc.cgia = &ui->x65->cgia;
+        for (int i = 0; i < _UI_X65_MEMLAYER_NUM; i++) {
+            desc.layers[i] = _ui_x65_memlayer_names[i];
+            desc.layer_banks[i] = _ui_x65_memlayer_banks[i];
+        }
+        desc.read_cb = _ui_x65_mem_read;
+        desc.user_data = ui;
+        desc.x = x;
+        desc.y = y;
+        ui_vram_debugger_init(&ui->vram_debugger, &desc);
+    }
+    x += dx;
+    y += dy;
+    {
         static char ui_audio_title[256];
         snprintf(
             ui_audio_title,
@@ -653,6 +670,7 @@ void ui_x65_discard(ui_x65_t* ui) {
     ui_tca6416a_discard(&ui->gpio);
     ui_sgu1_discard(&ui->sgu);
     ui_cgia_discard(&ui->cgia);
+    ui_vram_debugger_discard(&ui->vram_debugger);
     ui_console_discard(&ui->ria_uart);
     ui_audio_discard(&ui->audio);
     ui_crt_discard(&ui->crt);
@@ -678,6 +696,7 @@ void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     ui_tca6416a_draw(&ui->gpio);
     ui_sgu1_draw(&ui->sgu);
     ui_cgia_draw(&ui->cgia);
+    ui_vram_debugger_draw(&ui->vram_debugger);
     ui_console_draw(&ui->ria_uart);
     for (int i = 0; i < 4; i++) {
         ui_memedit_draw(&ui->memedit[i]);
@@ -703,6 +722,7 @@ void ui_x65_save_settings(ui_x65_t* ui, ui_settings_t* settings) {
     ui_tca6416a_save_settings(&ui->gpio, settings);
     ui_sgu1_save_settings(&ui->sgu, settings);
     ui_cgia_save_settings(&ui->cgia, settings);
+    ui_vram_debugger_save_settings(&ui->vram_debugger, settings);
     ui_console_save_settings(&ui->ria_uart, settings);
     ui_audio_save_settings(&ui->audio, settings);
     ui_crt_save_settings(&ui->crt, settings);
@@ -724,6 +744,7 @@ void ui_x65_load_settings(ui_x65_t* ui, const ui_settings_t* settings) {
     ui_tca6416a_load_settings(&ui->gpio, settings);
     ui_sgu1_load_settings(&ui->sgu, settings);
     ui_cgia_load_settings(&ui->cgia, settings);
+    ui_vram_debugger_load_settings(&ui->vram_debugger, settings);
     ui_console_load_settings(&ui->ria_uart, settings);
     ui_audio_load_settings(&ui->audio, settings);
     ui_crt_load_settings(&ui->crt, settings);

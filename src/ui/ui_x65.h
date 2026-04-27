@@ -69,6 +69,7 @@
 #include "ui/ui_display.h"
 #include "ui/ui_w65c816s.h"
 #include "ui/ui_cgia.h"
+#include "ui/ui_vram_debugger.h"
 #include "ui/ui_ria816.h"
 #include "ui/ui_sgu1.h"
 #include "ui/ui_tca6416a.h"
@@ -107,6 +108,7 @@ typedef struct {
     ui_tca6416a_t gpio;
     ui_sgu1_t sgu;
     ui_cgia_t cgia;
+    ui_vram_debugger_t vram_debugger;
     ui_console_t ria_uart;
     ui_audio_t audio;
     ui_crt_t crt;
