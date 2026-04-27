@@ -91,7 +91,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu(ICON_LC_BUG " Debug")) {
-            ImGui::MenuItem(ICON_LC_CABLE " UART Console (USB CDC)", 0, &ui->ria_uart.open);
+            ImGui::MenuItem(ICON_LC_CABLE " USB UART Console", 0, &ui->ria_uart.open);
             ImGui::MenuItem(ICON_LC_CPU " CPU Debugger", 0, &ui->dbg.ui.open);
             ImGui::MenuItem(ICON_LC_BUG_PLAY " Breakpoints", 0, &ui->dbg.ui.breakpoints.open);
             ImGui::MenuItem(ICON_LC_TIMER " Stopwatch", 0, &ui->dbg.ui.stopwatch.open);
@@ -507,7 +507,7 @@ void ui_x65_init(ui_x65_t* ui, const ui_x65_desc_t* ui_desc) {
     y += dy;
     {
         ui_console_desc_t desc = { 0 };
-        desc.title = "UART Console";
+        desc.title = "USB UART Console";
         desc.rx = &ui->x65->ria.uart_rx;
         desc.tx = &ui->x65->ria.uart_tx;
         desc.x = x;
