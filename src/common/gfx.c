@@ -188,6 +188,7 @@ gfx_crt_params_t gfx_crt_default_params(void) {
         .curvature          = 0.10f,
         .gamma              = 1.10f,
         .vignette           = 0.25f,
+        .blur               = 0.35f,
     };
 }
 
@@ -612,6 +613,7 @@ void gfx_draw(chips_display_info_t display_info) {
             .curvature          = state.display.crt_params.curvature,
             .gamma              = state.display.crt_params.gamma,
             .vignette           = state.display.crt_params.vignette,
+            .blur               = state.display.crt_params.blur,
         };
         sg_apply_uniforms(UB_display_crt_fs_params, &SG_RANGE(crt_uniforms));
     } else {

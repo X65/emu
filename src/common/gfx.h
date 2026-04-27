@@ -40,6 +40,7 @@ typedef struct {
     float curvature;
     float gamma;
     float vignette;
+    float blur;
 } gfx_crt_params_t;
 
 void gfx_init(const gfx_desc_t* desc);

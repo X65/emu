@@ -69,8 +69,7 @@ layout(binding=0) uniform display_crt_fs_params {
     float curvature;
     float gamma;
     float vignette;
-    float _pad0;
-    float _pad1;
+    float blur;
 };
 in vec2 uv;
 out vec4 frag_color;
@@ -97,7 +96,13 @@ void main() {
         frag_color = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
-    vec3 col = texture(sampler2D(crt_tex, crt_smp), wuv).rgb;
+    // 3-tap horizontal blur — simulates CRT analog bandwidth limit.
+    // Offset is in UV scaled by output_size so the blur is ~1 output pixel
+    // wide at blur=1.0; weights collapse to identity when blur=0.
+    float ox = blur / max(output_size.x, 1.0);
+    vec3 col = texture(sampler2D(crt_tex, crt_smp), wuv).rgb * 0.5
+             + texture(sampler2D(crt_tex, crt_smp), vec2(wuv.x - ox, wuv.y)).rgb * 0.25
+             + texture(sampler2D(crt_tex, crt_smp), vec2(wuv.x + ox, wuv.y)).rgb * 0.25;
     float scan_phase = wuv.y * output_size.y;
     float scan = 1.0 - scanline_intensity * (1.0 - cos(scan_phase * 3.14159265)) * 0.5;
     col *= scan;

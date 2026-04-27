@@ -107,6 +107,7 @@ void ui_crt_draw(ui_crt_t* win) {
         changed |= ImGui::SliderFloat("RGB mask",   &p.mask_intensity,     0.0f, 1.0f);
         changed |= ImGui::SliderFloat("Curvature",  &p.curvature,          0.0f, 1.0f);
         changed |= ImGui::SliderFloat("Vignette",   &p.vignette,           0.0f, 1.0f);
+        changed |= ImGui::SliderFloat("Blur",       &p.blur,               0.0f, 2.0f);
         changed |= ImGui::SliderFloat("Gamma",      &p.gamma,              0.5f, 2.5f);
         if (changed) {
             gfx_crt_set_params(p);
