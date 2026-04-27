@@ -174,11 +174,11 @@ static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
         case (0x3 | CGIA_DL_MODE_BIT):  // MODE3 (B) - bitmap mode
             ImGui::Text("MODE3: bitmap");
             break;
-        case (0x4 | CGIA_DL_MODE_BIT):  // MODE4 (C) - multicolor text/tile mode
-            ImGui::Text("MODE4: multicolor text/tile");
+        case (0x4 | CGIA_DL_MODE_BIT):  // MODE4 (C) - [TBD]
+            ImGui::Text("MODE4: TBD");
             break;
-        case (0x5 | CGIA_DL_MODE_BIT):  // MODE5 (D) - multicolor bitmap mode
-            ImGui::Text("MODE5: multicolor bitmap");
+        case (0x5 | CGIA_DL_MODE_BIT):  // MODE5 (D) - [TBD]
+            ImGui::Text("MODE5: TBD");
             break;
         case (0x6 | CGIA_DL_MODE_BIT):  // MODE6 (E) - Hold-and-Modify (HAM) mode
             ImGui::Text("MODE6: HAM");
