@@ -157,9 +157,42 @@ static void app_load_rom_labels(const char* rom_file) {
 #endif
 }
 
+static void apply_crt_values_csv(const char* csv) {
+    gfx_crt_params_t p = gfx_crt_get_params();
+    float* slots[] = {
+        &p.scanline_intensity, &p.mask_intensity, &p.curvature, &p.vignette, &p.blur, &p.gamma,
+    };
+    const int max_slots = (int)(sizeof(slots) / sizeof(slots[0]));
+    const char* cur = csv;
+    for (int i = 0; i < max_slots; i++) {
+        const char* comma = strchr(cur, ',');
+        size_t len = comma ? (size_t)(comma - cur) : strlen(cur);
+        if (len > 0) {
+            char buf[64];
+            if (len >= sizeof(buf)) len = sizeof(buf) - 1;
+            memcpy(buf, cur, len);
+            buf[len] = '\0';
+            char* end = NULL;
+            float v = strtof(buf, &end);
+            while (end && *end == ' ')
+                end++;
+            if (end == buf || (end && *end != '\0')) {
+                LOG_WARNING("--crt: cannot parse '%s' as float, ignoring", buf);
+            }
+            else {
+                *slots[i] = v;
+            }
+        }
+        if (!comma) break;
+        cur = comma + 1;
+    }
+    gfx_crt_set_params(p);
+}
+
 void app_init(void) {
 #if defined(SOKOL_GLES3) || defined(SOKOL_GLCORE)
-    LOG_INFO("OpenGL context: %s %d.%d",
+    LOG_INFO(
+        "OpenGL context: %s %d.%d",
         sapp_gl_is_gles() ? "OpenGL ES" : "OpenGL",
         sapp_gl_get_major_version(),
         sapp_gl_get_minor_version());
@@ -202,6 +235,9 @@ void app_init(void) {
     });
     if (arguments.crt) {
         gfx_crt_set_enabled(true);
+        if (arguments.crt_values) {
+            apply_crt_values_csv(arguments.crt_values);
+        }
     }
     keybuf_init(&(keybuf_desc_t){ .key_delay_frames = 5 });
     clock_init();

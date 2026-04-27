@@ -14,6 +14,7 @@ extern struct arguments {
     const char* output_file;
     bool silent, verbose, zeromem, joy, dap, crt;
     const char* dap_port;
+    const char* crt_values;
 } arguments;
 
 void args_parse(int argc, char* argv[]);
