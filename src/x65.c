@@ -388,6 +388,26 @@ void app_input(const sapp_event* event) {
     if (event->type == SAPP_EVENTTYPE_FILES_DROPPED) {
         fs_load_dropped_file_async(FS_CHANNEL_IMAGES);
     }
+    // Fullscreen toggle hotkey. Intercepted before the UI so it fires even
+    // when ImGui has keyboard focus. On desktop ALT+Enter toggles and is
+    // swallowed (Enter+Alt is not a meaningful X65 input). On web F11 toggles
+    // and still reaches the emulated machine after toggling.
+#ifdef __EMSCRIPTEN__
+    if (event->type == SAPP_EVENTTYPE_KEY_DOWN && event->key_code == SAPP_KEYCODE_F11) {
+        sapp_toggle_fullscreen();
+    }
+#else
+    if (event->type == SAPP_EVENTTYPE_KEY_DOWN || event->type == SAPP_EVENTTYPE_KEY_UP) {
+        const bool is_alt_enter = event->key_code == SAPP_KEYCODE_ENTER
+            && (event->modifiers & SAPP_MODIFIER_ALT);
+        if (is_alt_enter) {
+            if (event->type == SAPP_EVENTTYPE_KEY_DOWN) {
+                sapp_toggle_fullscreen();
+            }
+            return;
+        }
+    }
+#endif
 #ifdef CHIPS_USE_UI
     if (ui_input(event)) {
         // input was handled by UI
@@ -903,6 +923,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .cleanup_cb = app_cleanup,
         .width = window_width >= default_width ? window_width : default_width,
         .height = window_height >= default_height ? window_height : default_height,
+        .fullscreen = arguments.fullscreen,
         .window_title = app_name,
         .icon.images = {
             {

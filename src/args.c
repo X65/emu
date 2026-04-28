@@ -12,7 +12,7 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 const char full_name[] = FULL_NAME;
 
 struct arguments arguments = {
-    NULL, "-", false, false, false, false, false, false, NULL, NULL,
+    NULL, "-", false, false, false, false, false, false, false, NULL, NULL,
 };
 static char args_doc[] = "[ROM.xex]";
 
@@ -32,6 +32,7 @@ static struct argp_option options[] = {
      OPTION_ARG_OPTIONAL, "Enable CRT post-process effect; optional VALUES is a comma-separated "
       "list of up to 6 floats: scanlines,mask,curvature,vignette,blur,gamma "
       "(empty positions keep current values)" },
+    { "fullscreen", 'f', 0, 0, "Start in fullscreen mode" },
     { 0 }
 };
 
@@ -53,6 +54,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
                 args->crt_values = arg;
             }
             break;
+        case 'f': args->fullscreen = true; break;
 
         case 'l': app_load_labels(arg, false); break;
 
@@ -91,5 +93,8 @@ void args_parse(int argc, char* argv[]) {
         if (val && val[0]) {
             arguments.crt_values = val;
         }
+    }
+    if (sargs_exists("fullscreen")) {
+        arguments.fullscreen = true;
     }
 }
