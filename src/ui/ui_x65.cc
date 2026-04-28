@@ -77,6 +77,14 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
                 }
                 ImGui::EndMenu();
             }
+#ifdef __EMSCRIPTEN__
+            const char* fullscreen_shortcut = "F11";
+#else
+            const char* fullscreen_shortcut = "Alt+Enter";
+#endif
+            if (ImGui::MenuItem(ICON_LC_FULLSCREEN " Fullscreen", fullscreen_shortcut, sapp_is_fullscreen())) {
+                sapp_toggle_fullscreen();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu(ICON_LC_MICROCHIP " Hardware")) {
