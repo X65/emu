@@ -239,9 +239,10 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
     // ImGui::Text("row_height: %03d", chip->plane[i].affine.row_height);
     ui_util_b8("texture_bits: ", chip->plane[p].affine.texture_bits);
     ImGui::SameLine();
-    ImGui::Text("w: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits & 0x0F)));
+    // MODE7 texture_bits stores bit counts minus one, so 0..7 displays as 2..256 px.
+    ImGui::Text("w: %03d", 1 << ((chip->plane[p].affine.texture_bits & 0x07) + 1));
     ImGui::SameLine();
-    ImGui::Text("h: %03d", (int)pow(2, (chip->plane[p].affine.texture_bits >> 4)));
+    ImGui::Text("h: %03d", 1 << (((chip->plane[p].affine.texture_bits >> 4) & 0x07) + 1));
     ImGui::Text(" u: %04x/%.5f", (uint16_t)chip->plane[p].affine.u, chip->plane[p].affine.u / 256.0);
     ImGui::SameLine();
     ImGui::Text(" v: %04x/%.5f", (uint16_t)chip->plane[p].affine.v, chip->plane[p].affine.v / 256.0);

@@ -66,10 +66,11 @@ static inline bool _ui_vram_dbg_is_text_mode(int mode) {
 }
 
 static inline int _ui_vram_dbg_mode7_width_px(const ui_vram_debugger_t* w) {
+    /* MODE7 width control mirrors texture_bits: slider value 0..7 encodes 1..8 bits. */
     int exp = w->width;
     if (exp < 0) exp = 0;
     if (exp > 7) exp = 7;
-    return 1 << exp;
+    return 1 << (exp + 1);
 }
 
 static inline int _ui_vram_dbg_text_cell_px_w(const ui_vram_debugger_t* w) {

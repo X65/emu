@@ -252,10 +252,12 @@ static inline void set_linear_scans(
 }
 static inline void set_mode7_interp_config(union cgia_plane_regs_t* plane) {
     // interp0 will scan texture row
-    const uint texture_width_bits = plane->affine.texture_bits & 0b0111;
+    // MODE7 stores texture dimensions as encoded bit counts: 0..7 means 1..8 bits,
+    // yielding texture dimensions from 2 to 256 pixels.
+    const uint texture_width_bits = (plane->affine.texture_bits & 0b0111) + 1;
     interp0->shift[0] = CGIA_AFFINE_FRACTIONAL_BITS;
     interp0->mask[0] = (1U << (texture_width_bits)) - 1;
-    const uint texture_height_bits = (plane->affine.texture_bits >> 4) & 0b0111;
+    const uint texture_height_bits = ((plane->affine.texture_bits >> 4) & 0b0111) + 1;
     interp0->shift[1] = CGIA_AFFINE_FRACTIONAL_BITS - texture_width_bits;
     interp0->mask[1] = ((1U << (texture_height_bits)) - 1) << texture_width_bits;
 

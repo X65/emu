@@ -91,8 +91,8 @@ typedef struct {
     uint16_t addr;         /* start address within bank */
     int mode;              /* ui_vram_dbg_mode_t */
     int bpp;               /* 1..4 — only honored in MODE0 / MODE1 */
-    int width;             /* meaning depends on mode (see ui_vram_debugger.cc) */
-    int row_h;             /* 1..12 — only honored in MODE 0/1/2/3 */
+    int width;             /* columns; MODE7 stores texture width bits-1 (0..7 => 2..256 px) */
+    int row_h;             /* 1..32 — only honored in MODE 0/1/2/3 */
     int chargen_bank;      /* bank for chargen lookup (MODE0/MODE2) */
     uint16_t chargen_addr; /* address within chargen_bank */
     uint8_t colors[8];     /* shared_colors[0..7] — 256-palette indices */
