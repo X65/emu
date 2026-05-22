@@ -49,6 +49,7 @@ static const char* settings_key = "Emu.x65";
 extern ui_settings_t* settings_load(const char* imgui_ini_key);
 int window_width = 0;
 int window_height = 0;
+static bool disable_gui = false;
 
 typedef struct {
     uint32_t version;
@@ -108,6 +109,20 @@ static void* labels = NULL;
 #define BORDER_RIGHT      (8)
 #define BORDER_BOTTOM     (32)
 #define LOAD_DELAY_FRAMES (6)
+
+// window border padding: reserved for the top menu bar and bottom status bar,
+// collapsed to zero when the GUI is disabled so the display fills the window
+static gfx_border_t gui_border(bool no_gui) {
+    if (no_gui) {
+        return (gfx_border_t){ 0 };
+    }
+    return (gfx_border_t){
+        .top = BORDER_TOP,
+        .bottom = BORDER_BOTTOM,
+        .left = BORDER_LEFT,
+        .right = BORDER_RIGHT,
+    };
+}
 
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
@@ -219,18 +234,14 @@ void app_init(void) {
     }
     x65_desc_t desc = x65_desc(joy_type);
     x65_init(&state.x65, &desc);
+    disable_gui = sargs_exists("disable-gui");
     gfx_init(&(gfx_desc_t){
         .disable_speaker_icon = sargs_exists("disable-speaker-icon"),
 #ifdef CHIPS_USE_UI
         .init_extra_cb = ui_preinit,
-        .draw_extra_cb = ui_draw,
+        .draw_extra_cb = disable_gui ? NULL : ui_draw,
 #endif
-        .border = {
-            .left = BORDER_LEFT,
-            .right = BORDER_RIGHT,
-            .top = BORDER_TOP,
-            .bottom = BORDER_BOTTOM,
-        },
+        .border = gui_border(disable_gui),
         .display_info = x65_display_info(&state.x65),
     });
     if (arguments.crt) {
@@ -370,7 +381,9 @@ void app_frame(void) {
     const uint64_t emu_start_time = stm_now();
     state.ticks = x65_exec(&state.x65, state.frame_time_us);
     state.emu_time_ms = stm_ms(stm_since(emu_start_time));
-    draw_status_bar();
+    if (!disable_gui) {
+        draw_status_bar();
+    }
     gfx_draw(x65_display_info(&state.x65));
     handle_file_loading();
     send_keybuf_input();
@@ -409,7 +422,7 @@ void app_input(const sapp_event* event) {
     }
 #endif
 #ifdef CHIPS_USE_UI
-    if (ui_input(event)) {
+    if (!disable_gui && ui_input(event)) {
         // input was handled by UI
         return;
     }
@@ -848,7 +861,7 @@ static unsigned long djb2(const char* s) {
 void log_func(uint32_t log_level, const char* log_id, const char* filename, uint32_t line_nr, const char* fmt, ...) {
     char message[512];
 
-    char* short_filename = strstr(filename, "src/");
+    const char* short_filename = strstr(filename, "src/");
     if (short_filename) {
         short_filename += 4;
     }
@@ -901,8 +914,9 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     }
 
     const chips_display_info_t info = x65_display_info(0);
-    const int default_width = info.screen.width + BORDER_LEFT + BORDER_RIGHT;
-    const int default_height = info.screen.height + BORDER_TOP + BORDER_BOTTOM;
+    const gfx_border_t border = gui_border(sargs_exists("disable-gui"));
+    const int default_width = info.screen.width + border.left + border.right;
+    const int default_height = info.screen.height + border.top + border.bottom;
 
     // Use the minimum OpenGL/GLES version required by the compiled shaders to
     // maximize compatibility with older hardware.
