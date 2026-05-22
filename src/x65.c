@@ -850,8 +850,8 @@ void app_load_labels(const char* file, bool clear) {
 #endif
 }
 
-static unsigned long djb2(const char* s) {
-    unsigned long h = 5381;
+static uint64_t djb2(const char* s) {
+    uint64_t h = 5381;
     int c;
     while ((c = *s++))
         h = ((h << 5) + h) + c;  // h * 33 + c
@@ -866,7 +866,7 @@ void log_func(uint32_t log_level, const char* log_id, const char* filename, uint
         short_filename += 4;
     }
 
-    unsigned long log_id_hash = djb2(log_id);
+    uint64_t log_id_hash = djb2(log_id);
     uint32_t log_item = (log_id_hash >> 32) ^ (log_id_hash & 0xFFFFFFFF);
 
     va_list args;
