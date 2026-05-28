@@ -49,6 +49,7 @@ void gfx_shutdown(void);
 void gfx_flash_success(void);
 void gfx_flash_error(void);
 void gfx_disable_speaker_icon(void);
+void gfx_set_border(gfx_border_t border);
 chips_dim_t gfx_pixel_aspect(void);
 sg_view gfx_create_icon_texview(const uint8_t* packed_pixels, int width, int height, int stride, const char* label);
 

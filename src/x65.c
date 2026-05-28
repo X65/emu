@@ -49,7 +49,7 @@ static const char* settings_key = "Emu.x65";
 extern ui_settings_t* settings_load(const char* imgui_ini_key);
 int window_width = 0;
 int window_height = 0;
-static bool disable_gui = false;
+bool disable_gui = false;
 
 typedef struct {
     uint32_t version;
@@ -123,6 +123,21 @@ static gfx_border_t gui_border(bool no_gui) {
         .right = BORDER_RIGHT,
     };
 }
+
+#ifdef CHIPS_USE_UI
+// gfx draw_extra dispatch: gated on disable_gui at call time so the menu can
+// toggle UI visibility at runtime (init-time gating would lock the choice in)
+static void ui_draw_extra(const gfx_draw_info_t* draw_info) {
+    if (!disable_gui) {
+        ui_draw(draw_info);
+    }
+}
+
+void app_set_disable_gui(bool hidden) {
+    disable_gui = hidden;
+    gfx_set_border(gui_border(hidden));
+}
+#endif
 
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
@@ -239,7 +254,7 @@ void app_init(void) {
         .disable_speaker_icon = sargs_exists("disable-speaker-icon"),
 #ifdef CHIPS_USE_UI
         .init_extra_cb = ui_preinit,
-        .draw_extra_cb = disable_gui ? NULL : ui_draw,
+        .draw_extra_cb = ui_draw_extra,
 #endif
         .border = gui_border(disable_gui),
         .display_info = x65_display_info(&state.x65),
@@ -422,6 +437,19 @@ void app_input(const sapp_event* event) {
     }
 #endif
 #ifdef CHIPS_USE_UI
+    // Hide/show debug UI hotkey. Multi-modifier so it can't collide with X65
+    // input, intercepted (and swallowed) before HID forwarding.
+    if (event->type == SAPP_EVENTTYPE_KEY_DOWN || event->type == SAPP_EVENTTYPE_KEY_UP) {
+        const uint32_t hide_ui_mods = SAPP_MODIFIER_CTRL | SAPP_MODIFIER_SHIFT;
+        const bool is_hide_ui = event->key_code == SAPP_KEYCODE_H
+            && ((event->modifiers & hide_ui_mods) == hide_ui_mods);
+        if (is_hide_ui) {
+            if (event->type == SAPP_EVENTTYPE_KEY_DOWN) {
+                app_set_disable_gui(!disable_gui);
+            }
+            return;
+        }
+    }
     if (!disable_gui && ui_input(event)) {
         // input was handled by UI
         return;

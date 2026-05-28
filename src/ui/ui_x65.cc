@@ -8,6 +8,8 @@
 #include "ui.h"
 #include <filesystem>
 
+extern "C" void app_set_disable_gui(bool hidden);
+
 #ifdef __EMSCRIPTEN__
     #include <emscripten/version.h>
 #endif
@@ -129,7 +131,7 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             if (ui->inject.menu_cb) {
                 ui->inject.menu_cb();
             }
-            if (ImGui::MenuItem("Reset UI")) {
+            if (ImGui::MenuItem(ICON_LC_ROTATE_CCW_SQUARE " Reset UI")) {
                 const ui_settings_t* settings = ui_settings();
                 for (int i = 0; i < settings->num_slots; i++) {
                     const ui_settings_slot_t* slot = &settings->slots[i];
@@ -138,6 +140,9 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
                 ui_settings_t ui_empty_settings;
                 ui_settings_init(&ui_empty_settings);
                 ui_x65_load_settings(ui, &ui_empty_settings);
+            }
+            if (ImGui::MenuItem(ICON_LC_EYE_OFF " Hide UI", "Ctrl+Shift+H")) {
+                app_set_disable_gui(true);
             }
             ImGui::EndMenu();
         }

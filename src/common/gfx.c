@@ -176,6 +176,11 @@ void gfx_disable_speaker_icon(void) {
     state.disable_speaker_icon = true;
 }
 
+void gfx_set_border(gfx_border_t border) {
+    assert(state.valid);
+    state.border = border;
+}
+
 chips_dim_t gfx_pixel_aspect(void) {
     assert(state.valid);
     return state.offscreen.pixel_aspect;
