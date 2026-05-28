@@ -249,7 +249,7 @@ void app_init(void) {
     }
     x65_desc_t desc = x65_desc(joy_type);
     x65_init(&state.x65, &desc);
-    disable_gui = sargs_exists("disable-gui");
+    disable_gui = arguments.disable_gui;
     gfx_init(&(gfx_desc_t){
         .disable_speaker_icon = sargs_exists("disable-speaker-icon"),
 #ifdef CHIPS_USE_UI
@@ -376,13 +376,13 @@ void app_init(void) {
             keybuf_put(sargs_value("input"));
         }
     }
-    if (sargs_exists("break")) {
+    if (arguments.break_opcode) {
         int opcode;
-        if (sscanf(sargs_value("break"), "%x", &opcode) == 1) {
+        if (sscanf(arguments.break_opcode, "%x", &opcode) == 1) {
             ui_dbg_control_opcode_break(&state.ui.dbg, true, opcode);
         }
         else {
-            fprintf(stderr, "Bad breakpoint opcode %s\n", sargs_value("break"));
+            fprintf(stderr, "Bad breakpoint opcode %s\n", arguments.break_opcode);
         }
     }
 }
@@ -942,7 +942,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     }
 
     const chips_display_info_t info = x65_display_info(0);
-    const gfx_border_t border = gui_border(sargs_exists("disable-gui"));
+    const gfx_border_t border = gui_border(arguments.disable_gui);
     const int default_width = info.screen.width + border.left + border.right;
     const int default_height = info.screen.height + border.top + border.bottom;
 
