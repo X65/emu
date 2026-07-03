@@ -59,6 +59,25 @@ Install [Emscripten][3] toolchain. Next, run the following commands:
 
 [3]: https://emscripten.org/docs/getting_started/downloads.html
 
+## Testing
+
+Tests are built as part of the normal CMake build and run with CTest:
+
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+    cmake --build build --parallel
+    ctest --test-dir build --output-on-failure
+
+Run a single suite with `-R`, e.g. `ctest --test-dir build -R ArgsTest`.
+
+The tests use [doctest][4], so you can also run a suite's binary directly to
+filter individual cases:
+
+    cmake --build build --target argstest
+    build/src/tests/argstest --test-case="*crt*"
+    build/src/tests/argstest --list-test-cases
+
+[4]: https://github.com/doctest/doctest
+
 ## Running
 
 Linux
