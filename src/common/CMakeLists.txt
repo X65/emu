@@ -35,7 +35,6 @@ add_library(common STATIC
         clock.c clock.h
         fs.c fs.h
         gfx.c gfx.h
-        keybuf.c keybuf.h
         prof.c prof.h
         webapi.c webapi.h)
 
@@ -74,7 +73,3 @@ endif()
 add_library(ui STATIC
     ui.cc ui.h)
 add_dependencies(ui imgui-docking common)
-
-# a separate library with just keybuf (for the ASCII emulators)
-add_library(keybuf STATIC
-    keybuf.c keybuf.h)

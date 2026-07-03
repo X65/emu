@@ -268,7 +268,6 @@ void app_init(void) {
             apply_crt_values_csv(arguments.crt_values);
         }
     }
-    keybuf_init(&(keybuf_desc_t){ .key_delay_frames = 5 });
     clock_init();
     prof_init();
     fs_init();
@@ -381,7 +380,6 @@ void app_init(void) {
 }
 
 static void handle_file_loading(void);
-static void send_keybuf_input(void);
 static void draw_status_bar(void);
 
 void app_frame(void) {
@@ -394,7 +392,6 @@ void app_frame(void) {
     }
     gfx_draw(x65_display_info(&state.x65));
     handle_file_loading();
-    send_keybuf_input();
     sdl_poll_events();
 #ifdef USE_DAP
     dap_process();
@@ -419,8 +416,7 @@ void app_input(const sapp_event* event) {
     }
 #else
     if (event->type == SAPP_EVENTTYPE_KEY_DOWN || event->type == SAPP_EVENTTYPE_KEY_UP) {
-        const bool is_alt_enter = event->key_code == SAPP_KEYCODE_ENTER
-            && (event->modifiers & SAPP_MODIFIER_ALT);
+        const bool is_alt_enter = event->key_code == SAPP_KEYCODE_ENTER && (event->modifiers & SAPP_MODIFIER_ALT);
         if (is_alt_enter) {
             if (event->type == SAPP_EVENTTYPE_KEY_DOWN) {
                 sapp_toggle_fullscreen();
@@ -434,8 +430,8 @@ void app_input(const sapp_event* event) {
     // input, intercepted (and swallowed) before HID forwarding.
     if (event->type == SAPP_EVENTTYPE_KEY_DOWN || event->type == SAPP_EVENTTYPE_KEY_UP) {
         const uint32_t hide_ui_mods = SAPP_MODIFIER_CTRL | SAPP_MODIFIER_SHIFT;
-        const bool is_hide_ui = event->key_code == SAPP_KEYCODE_H
-            && ((event->modifiers & hide_ui_mods) == hide_ui_mods);
+        const bool is_hide_ui =
+            event->key_code == SAPP_KEYCODE_H && ((event->modifiers & hide_ui_mods) == hide_ui_mods);
         if (is_hide_ui) {
             if (event->type == SAPP_EVENTTYPE_KEY_DOWN) {
                 app_set_disable_gui(!disable_gui);
@@ -477,28 +473,12 @@ void app_cleanup(void) {
 #endif
 }
 
-static void send_keybuf_input(void) {
-    uint8_t key_code;
-    if (0 != (key_code = keybuf_get(state.frame_time_us))) {
-        /* FIXME: this is ugly */
-        x65_joystick_type_t joy_type = state.x65.joystick_type;
-        state.x65.joystick_type = X65_JOYSTICKTYPE_NONE;
-        x65_key_down(&state.x65, key_code);
-        x65_key_up(&state.x65, key_code);
-        state.x65.joystick_type = joy_type;
-    }
-}
-
 static void handle_file_loading(void) {
     fs_dowork();
     const uint32_t load_delay_frames = LOAD_DELAY_FRAMES;
     if (fs_success(FS_CHANNEL_IMAGES) && clock_frame_count_60hz() > load_delay_frames) {
         bool load_success = false;
-        if (fs_ext(FS_CHANNEL_IMAGES, "txt") || fs_ext(FS_CHANNEL_IMAGES, "bas")) {
-            load_success = true;
-            keybuf_put((const char*)fs_data(FS_CHANNEL_IMAGES).ptr);
-        }
-        else if (fs_ext(FS_CHANNEL_IMAGES, "xex")) {
+        if (fs_ext(FS_CHANNEL_IMAGES, "xex")) {
             load_success = x65_quickload_xex(&state.x65, fs_data(FS_CHANNEL_IMAGES));
         }
         if (load_success) {
@@ -726,7 +706,7 @@ static bool web_load(chips_range_t data) {
 }
 
 static void web_input(const char* text) {
-    keybuf_put(text);
+    // FIXME: keybuf_put(text);
 }
 
 static void web_dbg_add_breakpoint(uint32_t addr) {
