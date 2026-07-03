@@ -67,7 +67,6 @@ target_compile_definitions(emu PRIVATE ${SOKOL_GFX_BACKEND_DEFINE})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     message(STATUS "Building for Linux")
-    target_compile_definitions(emu PRIVATE USE_ARGP)
     set(CPPDAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/cppdap")
     add_subdirectory(${CPPDAP_DIR})
     target_compile_definitions(emu PRIVATE USE_DAP)

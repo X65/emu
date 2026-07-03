@@ -25,3 +25,6 @@
 [submodule "ext/SDL"]
 	path = ext/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "ext/optparse"]
+	path = ext/optparse
+	url = https://github.com/skeeto/optparse.git

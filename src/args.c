@@ -1,9 +1,11 @@
 #include "./args.h"
 
-#ifdef USE_ARGP
-    #include <argp.h>
-#endif
-#include <sokol_args.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define OPTPARSE_IMPLEMENTATION
+#include <optparse/optparse.h>
 
 #define BUGS_ADDRESS "https://github.com/X65/emu/issues"
 const char* app_bug_address = BUGS_ADDRESS;
@@ -16,95 +18,201 @@ struct arguments arguments = {
 };
 static char args_doc[] = "[ROM.xex]";
 
-#ifdef USE_ARGP
-static struct argp_option options[] = {
-    { "verbose", 'v', 0, 0, "Produce verbose output" },
-    { "quiet", 'q', 0, 0, "Don't produce any output" },
-    { "silent", 's', 0, OPTION_ALIAS },
-    { "output", 'o', "FILE", 0, "Output to FILE instead of standard output" },
-    { "labels", 'l', "LABELS_FILE", 0, "Load VICE compatible global labels file" },
-    { "joy", 'j', 0, 0, "Enable Joystick 0 emulation" },
-    { "zero-mem", 'z', 0, 0, "Fill memory with zeros" },
-    { "dap", 'd', 0, 0, "Enable Debug Adapter Protocol over stdin/stdout" },
-    { "dap-port", 'p', "PORT", 0, "Enable Debug Adapter Protocol over TCP port" },
+enum { OPT_ALIAS = 1 << 0, OPT_ARG_OPTIONAL = 1 << 1 };
+
+typedef struct {
+    const char* name;  // long option; NULL terminates the table
+    int key;           // short option char
+    const char* arg;   // arg placeholder (e.g. "FILE"); NULL if no argument
+    int flags;         // OPT_ALIAS | OPT_ARG_OPTIONAL
+    const char* doc;   // help text; NULL for an alias row
+} option_t;
+
+static const option_t options[] = {
+    { "verbose",     'v', NULL,          0,         "Produce verbose output"                          },
+    { "quiet",       'q', NULL,          0,         "Don't produce any output"                        },
+    { "silent",      's', NULL,          OPT_ALIAS, NULL                                              },
+    { "output",      'o', "FILE",        0,         "Output to FILE instead of standard output"       },
+    { "labels",      'l', "LABELS_FILE", 0,         "Load VICE compatible global labels file"         },
+    { "joy",         'j', NULL,          0,         "Enable Joystick 0 emulation"                     },
+    { "zero-mem",    'z', NULL,          0,         "Fill memory with zeros"                          },
+    { "dap",         'd', NULL,          0,         "Enable Debug Adapter Protocol over stdin/stdout" },
+    { "dap-port",    'p', "PORT",        0,         "Enable Debug Adapter Protocol over TCP port"     },
     { "crt",
-     'c', "VALUES",
-     OPTION_ARG_OPTIONAL, "Enable CRT post-process effect; optional VALUES is a comma-separated "
+     'c',                 "VALUES",
+     OPT_ARG_OPTIONAL,                              "Enable CRT post-process effect; optional VALUES is a comma-separated "
       "list of up to 6 floats: scanlines,mask,curvature,vignette,blur,gamma "
-      "(empty positions keep current values)" },
-    { "fullscreen", 'f', 0, 0, "Start in fullscreen mode" },
-    { "disable-gui", 'g', 0, 0, "Start with debug UI hidden" },
-    { "break", 'b', "OPCODE", 0, "Break on hex OPCODE (e.g. 00 or EA)" },
-    { 0 }
+      "(empty positions keep current values)"                                   },
+    { "fullscreen",  'f', NULL,          0,         "Start in fullscreen mode"                        },
+    { "disable-gui", 'g', NULL,          0,         "Start with debug UI hidden"                      },
+    { "break",       'b', "OPCODE",      0,         "Break on hex OPCODE (e.g. 00 or EA)"             },
+    { NULL,          0,   NULL,          0,         NULL                                              },
 };
 
-static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
-    struct arguments* args = argp_state->input;
+// Layout of the --help option list.
+#define HELP_DOC_COLUMN 29  // column where doc text begins
+#define HELP_LINE_WIDTH 79  // total line width used for word-wrapping
 
-    switch (key) {
-        case 'q':
-        case 's': args->silent = true; break;
-        case 'v': args->verbose = true; break;
-        case 'j': args->joy = true; break;
-        case 'z': args->zeromem = true; break;
-        case 'o': args->output_file = arg; break;
-        case 'd': args->dap = true; break;
-        case 'p': args->dap_port = arg; break;
-        case 'c':
-            args->crt = true;
-            if (arg && arg[0]) {
-                args->crt_values = arg;
-            }
-            break;
-        case 'f': args->fullscreen = true; break;
-        case 'g': args->disable_gui = true; break;
-        case 'b': args->break_opcode = arg; break;
-
-        case 'l': app_load_labels(arg, false); break;
-
-        case ARGP_KEY_ARG:
-            if (argp_state->arg_num >= 2) /* Too many arguments. */
-                argp_usage(argp_state);
-
-            args->rom = arg;
-            break;
-
-        default: return ARGP_ERR_UNKNOWN;
-    }
-    return 0;
+static void print_usage(FILE* f) {
+    fprintf(f, "Usage: emu [OPTION...] %s\n", args_doc);
 }
 
-static struct argp argp = { options,
-                            parse_opt,
-                            args_doc,
-                            FULL_NAME
-                            "\v"
-                            "Report bugs to: " BUGS_ADDRESS };
-#endif
-
-void args_parse(int argc, char* argv[]) {
-#ifdef USE_ARGP
-    argp_program_version = program_version;
-    argp_parse(&argp, argc, argv, 0, NULL, &arguments);
-#endif
-
-    if (sargs_exists("file")) {
-        arguments.rom = sargs_value("file");
+// Append "-x, --name[=ARG]" for a single option onto the left-column buffer.
+static void help_append_names(char* buf, size_t size, const option_t* opt) {
+    size_t len = strlen(buf);
+    if (len) {
+        // separate from a previously appended (aliased) option
+        snprintf(buf + len, size - len, ", ");
+        len = strlen(buf);
     }
-    if (sargs_exists("crt")) {
-        arguments.crt = true;
-        const char* val = sargs_value("crt");
-        if (val && val[0]) {
-            arguments.crt_values = val;
+    if (opt->arg) {
+        if (opt->flags & OPT_ARG_OPTIONAL) {
+            snprintf(buf + len, size - len, "-%c, --%s[=%s]", opt->key, opt->name, opt->arg);
+        }
+        else {
+            snprintf(buf + len, size - len, "-%c, --%s=%s", opt->key, opt->name, opt->arg);
         }
     }
-    if (sargs_exists("fullscreen")) {
-        arguments.fullscreen = true;
+    else {
+        snprintf(buf + len, size - len, "-%c, --%s", opt->key, opt->name);
     }
-    if (sargs_exists("disable-gui")) {
-        arguments.disable_gui = true;
+}
+
+// Print one help entry: the left column (names) padded, then the word-wrapped doc.
+static void help_print_entry(const char* names, const char* doc) {
+    fputs("  ", stdout);
+    int col = 2 + (int)strlen(names);
+    fputs(names, stdout);
+
+    if (!doc || !doc[0]) {
+        fputc('\n', stdout);
+        return;
     }
-    if (sargs_exists("break")) {
-        arguments.break_opcode = sargs_value("break");
+
+    // Align to the doc column; wrap to the next line if names are too long.
+    if (col + 1 > HELP_DOC_COLUMN) {
+        fputc('\n', stdout);
+        col = 0;
+    }
+    for (; col < HELP_DOC_COLUMN; col++)
+        fputc(' ', stdout);
+
+    // Greedy word wrap of the doc text into the doc column.
+    const char* w = doc;
+    int written = col;
+    bool first = true;
+    while (*w) {
+        while (*w == ' ')
+            w++;
+        if (!*w) break;
+        const char* end = w;
+        while (*end && *end != ' ')
+            end++;
+        int wl = (int)(end - w);
+        if (!first && written + 1 + wl > HELP_LINE_WIDTH) {
+            fputc('\n', stdout);
+            for (written = 0; written < HELP_DOC_COLUMN; written++)
+                fputc(' ', stdout);
+        }
+        else if (!first) {
+            fputc(' ', stdout);
+            written++;
+        }
+        fwrite(w, 1, (size_t)wl, stdout);
+        written += wl;
+        first = false;
+        w = end;
+    }
+    fputc('\n', stdout);
+}
+
+static void print_help(void) {
+    print_usage(stdout);
+    printf("%s\n\n", full_name);
+
+    for (const option_t* opt = options; opt->name; opt++) {
+        if (opt->flags & OPT_ALIAS) continue;  // handled with its primary option
+
+        char names[128] = { 0 };
+        help_append_names(names, sizeof(names), opt);
+        // Fold any following alias rows onto the same line.
+        const option_t* next = opt + 1;
+        while (next->name && (next->flags & OPT_ALIAS)) {
+            help_append_names(names, sizeof(names), next);
+            next++;
+        }
+        help_print_entry(names, opt->doc);
+    }
+
+    help_print_entry("-h, --help", "Give this help list");
+    help_print_entry("-V, --version", "Print program version");
+
+    printf("\nReport bugs to: %s\n", app_bug_address);
+}
+
+void args_parse(int argc, char* argv[]) {
+    (void)argc;
+
+    // Build the optparse long-option table from our single source of truth,
+    // plus the synthetic --help/--version entries argp-like.
+    struct optparse_long longopts[sizeof(options) / sizeof(options[0]) + 2];
+    int n = 0;
+    for (const option_t* opt = options; opt->name; opt++) {
+        longopts[n].longname = opt->name;
+        longopts[n].shortname = opt->key;
+        longopts[n].argtype =
+            opt->arg ? ((opt->flags & OPT_ARG_OPTIONAL) ? OPTPARSE_OPTIONAL : OPTPARSE_REQUIRED) : OPTPARSE_NONE;
+        n++;
+    }
+    longopts[n++] = (struct optparse_long){ "help", 'h', OPTPARSE_NONE };
+    longopts[n++] = (struct optparse_long){ "version", 'V', OPTPARSE_NONE };
+    longopts[n++] = (struct optparse_long){ 0 };
+
+    struct optparse opt;
+    optparse_init(&opt, argv);
+
+    int key;
+    while ((key = optparse_long(&opt, longopts, NULL)) != -1) {
+        switch (key) {
+            case 'q':
+            case 's': arguments.silent = true; break;
+            case 'v': arguments.verbose = true; break;
+            case 'j': arguments.joy = true; break;
+            case 'z': arguments.zeromem = true; break;
+            case 'o': arguments.output_file = opt.optarg; break;
+            case 'd': arguments.dap = true; break;
+            case 'p': arguments.dap_port = opt.optarg; break;
+            case 'c':
+                arguments.crt = true;
+                if (opt.optarg && opt.optarg[0]) {
+                    arguments.crt_values = opt.optarg;
+                }
+                break;
+            case 'f': arguments.fullscreen = true; break;
+            case 'g': arguments.disable_gui = true; break;
+            case 'b': arguments.break_opcode = opt.optarg; break;
+
+            case 'l': app_load_labels(opt.optarg, false); break;
+
+            case 'h': print_help(); exit(EXIT_SUCCESS);
+            case 'V': printf("%s\n", program_version); exit(EXIT_SUCCESS);
+
+            case '?':
+                fprintf(stderr, "%s: %s\n", app_name, opt.errmsg);
+                fprintf(stderr, "Try 'emu --help' for more information.\n");
+                exit(EXIT_FAILURE);
+        }
+    }
+
+    const char* pos;
+    bool rom_set = false;
+    while ((pos = optparse_arg(&opt))) {
+        if (rom_set) {
+            fprintf(stderr, "%s: too many arguments\n", app_name);
+            print_usage(stderr);
+            exit(EXIT_FAILURE);
+        }
+        arguments.rom = pos;
+        rom_set = true;
     }
 }
