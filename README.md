@@ -27,7 +27,7 @@ Ubuntu:
 
 ## Download
 
-Get the `latest` snapshot release at: https://github.com/X65/emu/releases
+Get the `latest` snapshot release at: <https://github.com/X65/emu/releases>
 
 ## Build
 
@@ -70,10 +70,25 @@ Linux
 
 Windows
 
-    > build/emu.exe file=roms/SOTB.xex
+    > build/emu.exe roms/SOTB.xex
+
+Options use the GNU `--option` style; run `emu --help` for the full list.
 
 ### Opcode Breakpoints
 
 The emulator supports opcode based breakpoints, if an specified opcode is executed, the emulator will stop. Possible breakpoint values are EA (NOP) 42 (WDM #xx) and B8 (CLV).
 
-    > build/emu.exe file=roms/SOTB.xex break=EA
+    > build/emu --break EA roms/SOTB.xex
+
+### WASM URL arguments
+
+The web build has no command line, so arguments come from the page URL query
+string. `file=VALUE` becomes the positional ROM argument,
+and every other token maps to a long option (only the `--option[=value]` form is
+supported, but the `--` prefix may be omitted). For example:
+
+    emu.html?file=roms/SOTB.xex&crt=1,2,3&fullscreen
+
+is equivalent to the native command line:
+
+    build/emu --crt 1,2,3 --fullscreen roms/SOTB.xex
