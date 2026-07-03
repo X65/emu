@@ -15,12 +15,14 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 #define FULL_NAME  "X65 microcomputer emulator"
 const char full_name[] = FULL_NAME;
 
-struct arguments arguments = {
-    .output_file = "-",
-};
+// Single source of truth for default argument values, shared by the process
+// global and args_defaults() so the two can't drift apart.
+#define ARGUMENTS_DEFAULTS { .output_file = "-" }
+
+struct arguments arguments = ARGUMENTS_DEFAULTS;
 
 struct arguments args_defaults(void) {
-    return (struct arguments){ .output_file = "-" };
+    return (struct arguments)ARGUMENTS_DEFAULTS;
 }
 
 static char args_doc[] = "[ROM.xex]";
@@ -279,7 +281,7 @@ EM_JS(void, args_js_read_query, (void), {
 // into an argv for the normal parser.
 static char** web_build_argv(char* prog) {
     args_js_read_query();
-    return args_build_argv_from_query(prog, web_query ? web_query : "");
+    return args_build_argv_from_query(prog, web_query);
 }
 #endif  // __EMSCRIPTEN__
 

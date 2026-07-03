@@ -543,17 +543,24 @@ static chips_range_t fs_win32_posix_read_file(fs_path_t path, bool null_terminat
     #endif
 }
 
+#if defined(WIN32)
+// Convert a UTF-16 string to a UTF-8 fs_path_t; returns an empty path on failure.
+static fs_path_t fs_win32_wide_to_path(const WCHAR* wide) {
+    char utf8[FS_PATH_SIZE];
+    if (0 == WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8, sizeof(utf8), NULL, NULL)) {
+        return (fs_path_t){0};
+    }
+    return fs_path_printf("%s", utf8);
+}
+#endif
+
 static fs_path_t fs_win32_posix_tmp_dir(void) {
     #if defined(WIN32)
     WCHAR wc_tmp_path[FS_PATH_SIZE];
     if (0 == GetTempPathW(sizeof(wc_tmp_path) / sizeof(WCHAR), wc_tmp_path)) {
         return (fs_path_t){0};
     }
-    char utf8_tmp_path[FS_PATH_SIZE];
-    if (0 == WideCharToMultiByte(CP_UTF8, 0, wc_tmp_path, -1, utf8_tmp_path, sizeof(utf8_tmp_path), NULL, NULL)) {
-        return (fs_path_t){0};
-    }
-    return fs_path_printf("%s", utf8_tmp_path);
+    return fs_win32_wide_to_path(wc_tmp_path);
     #else
     return fs_path_printf("%s", "/tmp");
     #endif
@@ -563,11 +570,8 @@ static fs_path_t fs_win32_posix_config_dir(void) {
     #if defined(WIN32)
     const WCHAR* wc_appdata = _wgetenv(L"APPDATA");
     if (wc_appdata && wc_appdata[0]) {
-        char utf8_appdata[FS_PATH_SIZE];
-        if (0 != WideCharToMultiByte(CP_UTF8, 0, wc_appdata, -1, utf8_appdata,
-                                     sizeof(utf8_appdata), NULL, NULL)) {
-            return fs_path_printf("%s", utf8_appdata);
-        }
+        fs_path_t path = fs_win32_wide_to_path(wc_appdata);
+        if (path.cstr[0]) return path;
     }
     // Fall back to the temp directory if %APPDATA% is unavailable.
     return fs_win32_posix_tmp_dir();
@@ -575,7 +579,9 @@ static fs_path_t fs_win32_posix_config_dir(void) {
     const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
     if (xdg_config_home && *xdg_config_home) return fs_path_printf("%s", xdg_config_home);
     const char *home = getenv("HOME");
-    return fs_path_printf("%s/.config", home);
+    if (home && *home) return fs_path_printf("%s/.config", home);
+    // Neither XDG_CONFIG_HOME nor HOME set: fall back to the temp directory.
+    return fs_win32_posix_tmp_dir();
     #endif
 }
 
