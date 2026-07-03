@@ -561,6 +561,15 @@ static fs_path_t fs_win32_posix_tmp_dir(void) {
 
 static fs_path_t fs_win32_posix_config_dir(void) {
     #if defined(WIN32)
+    const WCHAR* wc_appdata = _wgetenv(L"APPDATA");
+    if (wc_appdata && wc_appdata[0]) {
+        char utf8_appdata[FS_PATH_SIZE];
+        if (0 != WideCharToMultiByte(CP_UTF8, 0, wc_appdata, -1, utf8_appdata,
+                                     sizeof(utf8_appdata), NULL, NULL)) {
+            return fs_path_printf("%s", utf8_appdata);
+        }
+    }
+    // Fall back to the temp directory if %APPDATA% is unavailable.
     return fs_win32_posix_tmp_dir();
     #else
     const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
