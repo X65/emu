@@ -10,7 +10,8 @@
 #define BUGS_ADDRESS "https://github.com/X65/emu/issues"
 const char* app_bug_address = BUGS_ADDRESS;
 const char* app_releases_address = "https://github.com/X65/emu/releases";
-#define FULL_NAME "X65 microcomputer emulator"
+#define SHORT_NAME "emu"
+#define FULL_NAME  "X65 microcomputer emulator"
 const char full_name[] = FULL_NAME;
 
 struct arguments arguments = {
@@ -62,7 +63,7 @@ static const option_t options[] = {
 #define HELP_LINE_WIDTH 79  // total line width used for word-wrapping
 
 static void print_usage(FILE* f) {
-    fprintf(f, "Usage: emu [OPTION...] %s\n", args_doc);
+    fprintf(f, "Usage: " SHORT_NAME " [OPTION...] %s\n", args_doc);
 }
 
 static bool key_is_short(int key) {
@@ -168,8 +169,116 @@ static void print_help(void) {
     printf("\nReport bugs to: %s\n", app_bug_address);
 }
 
+#ifdef __EMSCRIPTEN__
+    #include <ctype.h>
+    #include <emscripten/emscripten.h>
+
+    // keep the JS runtime helpers used by the EM_JS below alive through closure
+    #if defined(EM_JS_DEPS)
+EM_JS_DEPS(x65args, "$withStackSave,$stringToUTF8OnStack");
+    #endif
+
+// The page URL query string, captured from JS into a C string.
+static char* web_query = NULL;
+
+EMSCRIPTEN_KEEPALIVE void args_store_query(const char* q) {
+    web_query = strdup(q ? q : "");
+}
+
+// Read window.location.search and hand it to args_store_query() as a C string.
+// clang-format off
+EM_JS(void, args_js_read_query, (void), {
+    var search = window.location.search || "";
+    withStackSave(function() { _args_store_query(stringToUTF8OnStack(search)); });
+})
+// clang-format on
+
+// Decode %XX escapes and '+' in place (application/x-www-form-urlencoded style).
+static void url_decode(char* s) {
+    char* o = s;
+    for (char* p = s; *p;) {
+        if (*p == '%' && isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+            char hex[3] = { p[1], p[2], 0 };
+            *o++ = (char)strtol(hex, NULL, 16);
+            p += 3;
+        }
+        else if (*p == '+') {
+            *o++ = ' ';
+            p++;
+        }
+        else {
+            *o++ = *p++;
+        }
+    }
+    *o = '\0';
+}
+
+// Convert the page URL query string into an argv array parseable by optparse:
+//   ?fullscreen&crt=1,2,3&file=rom.xex -> { prog, "--fullscreen", "--crt=1,2,3", "rom.xex", NULL }
+// Rules: split on '&'; "file=VALUE" becomes a bare positional (may repeat, for
+// many-files support); every other token that isn't already "--..." is given a
+// "--" prefix (only the long "--option[=value]" form is supported).
+static char** web_build_argv(char* prog) {
+    // window.location.search, e.g. "?file=rom.xex&crt=1,2,3&fullscreen"
+    args_js_read_query();
+    const char* search = web_query ? web_query : "";
+    if (search[0] == '?') search++;
+    char* buf = strdup(search);
+
+    int cap = 8, argc = 0;
+    char** argv = malloc((size_t)cap * sizeof(char*));
+    #define PUSH(S)                                                \
+        do {                                                       \
+            if (argc + 1 >= cap) {                                 \
+                cap *= 2;                                          \
+                argv = realloc(argv, (size_t)cap * sizeof(char*)); \
+            }                                                      \
+            argv[argc++] = (S);                                    \
+        } while (0)
+
+    PUSH(prog ? prog : (char*)SHORT_NAME);  // argv[0] is the program name
+
+    char* p = buf;
+    while (*p) {
+        char* tok = p;
+        char* amp = strchr(p, '&');
+        if (amp) {
+            *amp = '\0';
+            p = amp + 1;
+        }
+        else {
+            p += strlen(p);
+        }
+        if (!tok[0]) continue;
+        url_decode(tok);
+
+        if (strncmp(tok, "file=", 5) == 0) {
+            if (tok[5]) PUSH(tok + 5);  // positional file argument
+        }
+        else if (strncmp(tok, "--", 2) == 0) {
+            PUSH(tok);  // already in long form
+        }
+        else {
+            size_t n = strlen(tok) + 3;
+            char* opt = malloc(n);
+            snprintf(opt, n, "--%s", tok);
+            PUSH(opt);
+        }
+    }
+    PUSH(NULL);  // optparse expects a NULL-terminated argv
+    #undef PUSH
+
+    return argv;
+}
+#endif  // __EMSCRIPTEN__
+
 void args_parse(int argc, char* argv[]) {
     (void)argc;
+
+#ifdef __EMSCRIPTEN__
+    // On the web there is no command line; arguments come from the page URL.
+    argv = web_build_argv(argc > 0 ? argv[0] : NULL);
+#endif
 
     // Build the optparse long-option table from our single source of truth,
     // plus the synthetic --help/--version entries argp-like.
@@ -219,20 +328,13 @@ void args_parse(int argc, char* argv[]) {
 
             case '?':
                 fprintf(stderr, "%s: %s\n", app_name, opt.errmsg);
-                fprintf(stderr, "Try 'emu --help' for more information.\n");
+                fprintf(stderr, "Try '" SHORT_NAME " --help' for more information.\n");
                 exit(EXIT_FAILURE);
         }
     }
 
     const char* pos;
-    bool rom_set = false;
     while ((pos = optparse_arg(&opt))) {
-        if (rom_set) {
-            fprintf(stderr, "%s: too many arguments\n", app_name);
-            print_usage(stderr);
-            exit(EXIT_FAILURE);
-        }
-        arguments.rom = pos;
-        rom_set = true;
+        if (!arguments.rom) arguments.rom = pos;  // first positional file
     }
 }
