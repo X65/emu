@@ -14,11 +14,16 @@ const char* app_releases_address = "https://github.com/X65/emu/releases";
 const char full_name[] = FULL_NAME;
 
 struct arguments arguments = {
-    NULL, "-", false, false, false, false, false, false, false, false, NULL, NULL, NULL,
+    .output_file = "-",
 };
 static char args_doc[] = "[ROM.xex]";
 
 enum { OPT_ALIAS = 1 << 0, OPT_ARG_OPTIONAL = 1 << 1 };
+
+// Keys for long-only options (no short form); must stay above ASCII range.
+enum {
+    KEY_DISABLE_SPEAKER_ICON = 0x100,
+};
 
 typedef struct {
     const char* name;  // long option; NULL terminates the table
@@ -29,24 +34,27 @@ typedef struct {
 } option_t;
 
 static const option_t options[] = {
-    { "verbose",     'v', NULL,          0,         "Produce verbose output"                          },
-    { "quiet",       'q', NULL,          0,         "Don't produce any output"                        },
-    { "silent",      's', NULL,          OPT_ALIAS, NULL                                              },
-    { "output",      'o', "FILE",        0,         "Output to FILE instead of standard output"       },
-    { "labels",      'l', "LABELS_FILE", 0,         "Load VICE compatible global labels file"         },
-    { "joy",         'j', NULL,          0,         "Enable Joystick 0 emulation"                     },
-    { "zero-mem",    'z', NULL,          0,         "Fill memory with zeros"                          },
-    { "dap",         'd', NULL,          0,         "Enable Debug Adapter Protocol over stdin/stdout" },
-    { "dap-port",    'p', "PORT",        0,         "Enable Debug Adapter Protocol over TCP port"     },
+    { "verbose",              'v',                      NULL,          0,         "Produce verbose output"                                                },
+    { "quiet",                'q',                      NULL,          0,         "Don't produce any output"                                              },
+    { "silent",               's',                      NULL,          OPT_ALIAS, NULL                                                                    },
+    { "output",               'o',                      "FILE",        0,         "Output to FILE instead of standard output"                             },
+    { "labels",               'l',                      "LABELS_FILE", 0,         "Load VICE compatible global labels file"                               },
+    { "joystick",
+     'j',                                               "TYPE",
+     OPT_ARG_OPTIONAL,                                                            "Enable joystick; TYPE is digital_1 (default), digital_2 or digital_12" },
+    { "zero-mem",             'z',                      NULL,          0,         "Fill memory with zeros"                                                },
+    { "dap",                  'd',                      NULL,          0,         "Enable Debug Adapter Protocol over stdin/stdout"                       },
+    { "dap-port",             'p',                      "PORT",        0,         "Enable Debug Adapter Protocol over TCP port"                           },
     { "crt",
-     'c',                 "VALUES",
-     OPT_ARG_OPTIONAL,                              "Enable CRT post-process effect; optional VALUES is a comma-separated "
+     'c',                                               "VALUES",
+     OPT_ARG_OPTIONAL,                                                            "Enable CRT post-process effect; optional VALUES is a comma-separated "
       "list of up to 6 floats: scanlines,mask,curvature,vignette,blur,gamma "
-      "(empty positions keep current values)"                                   },
-    { "fullscreen",  'f', NULL,          0,         "Start in fullscreen mode"                        },
-    { "disable-gui", 'g', NULL,          0,         "Start with debug UI hidden"                      },
-    { "break",       'b', "OPCODE",      0,         "Break on hex OPCODE (e.g. 00 or EA)"             },
-    { NULL,          0,   NULL,          0,         NULL                                              },
+      "(empty positions keep current values)"                                                                                       },
+    { "fullscreen",           'f',                      NULL,          0,         "Start in fullscreen mode"                                              },
+    { "disable-gui",          'g',                      NULL,          0,         "Start with debug UI hidden"                                            },
+    { "disable-speaker-icon", KEY_DISABLE_SPEAKER_ICON, NULL,          0,         "Hide the speaker status icon"                                          },
+    { "break",                'b',                      "OPCODE",      0,         "Break on hex OPCODE (e.g. 00 or EA)"                                   },
+    { NULL,                   0,                        NULL,          0,         NULL                                                                    },
 };
 
 // Layout of the --help option list.
@@ -57,7 +65,12 @@ static void print_usage(FILE* f) {
     fprintf(f, "Usage: emu [OPTION...] %s\n", args_doc);
 }
 
-// Append "-x, --name[=ARG]" for a single option onto the left-column buffer.
+static bool key_is_short(int key) {
+    return key > 0 && key < 128;
+}
+
+// Append "-x, --name[=ARG]" (or "    --name" for a long-only option) onto the
+// left-column buffer.
 static void help_append_names(char* buf, size_t size, const option_t* opt) {
     size_t len = strlen(buf);
     if (len) {
@@ -65,16 +78,21 @@ static void help_append_names(char* buf, size_t size, const option_t* opt) {
         snprintf(buf + len, size - len, ", ");
         len = strlen(buf);
     }
-    if (opt->arg) {
-        if (opt->flags & OPT_ARG_OPTIONAL) {
-            snprintf(buf + len, size - len, "-%c, --%s[=%s]", opt->key, opt->name, opt->arg);
-        }
-        else {
-            snprintf(buf + len, size - len, "-%c, --%s=%s", opt->key, opt->name, opt->arg);
-        }
+    if (key_is_short(opt->key)) {
+        snprintf(buf + len, size - len, "-%c, --%s", opt->key, opt->name);
     }
     else {
-        snprintf(buf + len, size - len, "-%c, --%s", opt->key, opt->name);
+        // no short form: pad so "--name" aligns under short options
+        snprintf(buf + len, size - len, "    --%s", opt->name);
+    }
+    len = strlen(buf);
+    if (opt->arg) {
+        if (opt->flags & OPT_ARG_OPTIONAL) {
+            snprintf(buf + len, size - len, "[=%s]", opt->arg);
+        }
+        else {
+            snprintf(buf + len, size - len, "=%s", opt->arg);
+        }
     }
 }
 
@@ -177,7 +195,7 @@ void args_parse(int argc, char* argv[]) {
             case 'q':
             case 's': arguments.silent = true; break;
             case 'v': arguments.verbose = true; break;
-            case 'j': arguments.joy = true; break;
+            case 'j': arguments.joystick = opt.optarg ? opt.optarg : "digital_1"; break;
             case 'z': arguments.zeromem = true; break;
             case 'o': arguments.output_file = opt.optarg; break;
             case 'd': arguments.dap = true; break;
@@ -191,6 +209,8 @@ void args_parse(int argc, char* argv[]) {
             case 'f': arguments.fullscreen = true; break;
             case 'g': arguments.disable_gui = true; break;
             case 'b': arguments.break_opcode = opt.optarg; break;
+
+            case KEY_DISABLE_SPEAKER_ICON: arguments.disable_speaker_icon = true; break;
 
             case 'l': app_load_labels(opt.optarg, false); break;
 

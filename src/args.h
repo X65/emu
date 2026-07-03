@@ -12,10 +12,11 @@ extern char program_version[];
 extern struct arguments {
     const char* rom;
     const char* output_file;
-    bool silent, verbose, zeromem, joy, dap, crt, fullscreen, disable_gui;
+    bool silent, verbose, zeromem, dap, crt, fullscreen, disable_gui, disable_speaker_icon;
     const char* dap_port;
     const char* crt_values;
     const char* break_opcode;
+    const char* joystick;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

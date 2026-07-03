@@ -237,7 +237,7 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
         ImGui::Text("VERBOSE = %s", arguments.verbose ? "yes" : "no");
         ImGui::Text("SILENT = %s", arguments.silent ? "yes" : "no");
         ImGui::Text("ZERO_MEM = %s", arguments.zeromem ? "on" : "off");
-        ImGui::Text("JOYSTICK = %s", arguments.joy ? "on" : "off");
+        ImGui::Text("JOYSTICK = %s", arguments.joystick ? arguments.joystick : "off");
         ImGui::Text("DAP = %s", arguments.dap ? "on" : "off");
         ImGui::Text("DAP_PORT = %s", arguments.dap_port);
 

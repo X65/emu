@@ -235,23 +235,26 @@ void app_init(void) {
     state.resampler = SGU_CHIP_CLOCK == saudio_sample_rate()
         ? NULL
         : speex_resampler_init(SGU1_AUDIO_CHANNELS, SGU_CHIP_CLOCK, saudio_sample_rate(), 4, 0);
-    x65_joystick_type_t joy_type = arguments.joy ? X65_JOYSTICKTYPE_DIGITAL_1 : X65_JOYSTICKTYPE_NONE;
-    if (sargs_exists("joystick")) {
-        if (sargs_equals("joystick", "digital_1")) {
+    x65_joystick_type_t joy_type = X65_JOYSTICKTYPE_NONE;
+    if (arguments.joystick) {
+        if (strcmp(arguments.joystick, "digital_1") == 0) {
             joy_type = X65_JOYSTICKTYPE_DIGITAL_1;
         }
-        else if (sargs_equals("joystick", "digital_2")) {
+        else if (strcmp(arguments.joystick, "digital_2") == 0) {
             joy_type = X65_JOYSTICKTYPE_DIGITAL_2;
         }
-        else if (sargs_equals("joystick", "digital_12")) {
+        else if (strcmp(arguments.joystick, "digital_12") == 0) {
             joy_type = X65_JOYSTICKTYPE_DIGITAL_12;
+        }
+        else {
+            fprintf(stderr, "Unknown joystick type '%s'\n", arguments.joystick);
         }
     }
     x65_desc_t desc = x65_desc(joy_type);
     x65_init(&state.x65, &desc);
     disable_gui = arguments.disable_gui;
     gfx_init(&(gfx_desc_t){
-        .disable_speaker_icon = sargs_exists("disable-speaker-icon"),
+        .disable_speaker_icon = arguments.disable_speaker_icon,
 #ifdef CHIPS_USE_UI
         .init_extra_cb = ui_preinit,
         .draw_extra_cb = ui_draw_extra,
@@ -361,20 +364,10 @@ void app_init(void) {
     });
     #endif
 #endif
-    bool delay_input = false;
     if (arguments.rom) {
-        delay_input = true;
         LOG_INFO("Loading ROM: %s", arguments.rom);
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
         app_load_rom_labels(arguments.rom);
-    }
-    if (sargs_exists("prg")) {
-        fs_load_base64(FS_CHANNEL_IMAGES, "url.prg", sargs_value("prg"));
-    }
-    if (!delay_input) {
-        if (sargs_exists("input")) {
-            keybuf_put(sargs_value("input"));
-        }
     }
     if (arguments.break_opcode) {
         int opcode;
@@ -478,7 +471,6 @@ void app_cleanup(void) {
     saudio_shutdown();
     if (state.resampler) speex_resampler_destroy(state.resampler);
     gfx_shutdown();
-    sargs_shutdown();
     hid_shutdown();
 #ifdef USE_DAP
     dap_shutdown();
@@ -512,11 +504,6 @@ static void handle_file_loading(void) {
         if (load_success) {
             if (clock_frame_count_60hz() > (load_delay_frames + 10)) {
                 gfx_flash_success();
-            }
-            if (!sargs_exists("debug")) {
-                if (sargs_exists("input")) {
-                    keybuf_put(sargs_value("input"));
-                }
             }
         }
         else {
@@ -922,15 +909,6 @@ sapp_desc sokol_main(int argc, char* argv[]) {
 
     snprintf(program_version, sizeof(program_version), "emu %s\n%s", app_version, full_name);
 
-    sargs_setup(&(sargs_desc){
-        .argc = argc,
-        .argv = argv,
-#ifdef _WIN32
-        .buf_size = (int)_ARGMAX,
-#else
-        .buf_size = (int)sysconf(_SC_ARG_MAX),
-#endif
-    });
     args_parse(argc, argv);
 
     app_load_rom_labels(arguments.rom);
