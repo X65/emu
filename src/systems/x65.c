@@ -111,6 +111,16 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     pins = w65816_tick(&sys->cpu, pins);
     const uint32_t addr = W65816_GET_ADDR(pins) & 0xFFFFFF;
 
+    // SGU-1 register dump: emit when the CPU parks on a WAI (once per WAI entry),
+    // capturing the registers a player wrote just before waiting for the frame IRQ
+    if (sys->sgu.dump_file) {
+        const bool wai = (sys->cpu.stopped == W65816_STOP_WAI);
+        if (wai && !sys->sgu_dump_wai_active) {
+            sgu1_dump_frame(&sys->sgu);
+        }
+        sys->sgu_dump_wai_active = wai;
+    }
+
     // those pins are set each tick by the CIAs and VIC
     pins &= ~(W65816_IRQ | W65816_NMI | W65816_RDY);
 
@@ -233,14 +243,6 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
             pins = W65816_COPY_DATA(pins, cgia_pins);
-        }
-
-        // SGU-1 register dump: fire at emulated video-frame boundary (CGIA vsync)
-        if (sys->sgu.dump_file) {
-            if (sys->cgia.v_count == 0 && sys->sgu_dump_prev_vcount != 0) {
-                sgu1_dump_frame(&sys->sgu);
-            }
-            sys->sgu_dump_prev_vcount = sys->cgia.v_count;
         }
     }
 

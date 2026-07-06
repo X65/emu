@@ -153,7 +153,7 @@ typedef struct {
     uint8_t joy_joy1_mask;  // current joystick-1 state from x65_joystick()
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
-    unsigned sgu_dump_prev_vcount;  // previous CGIA v_count, for SGU dump frame-edge detection
+    bool sgu_dump_wai_active;  // true while CPU is parked on WAI, for SGU dump edge detection
 
     bool valid;
     chips_debug_t debug;
