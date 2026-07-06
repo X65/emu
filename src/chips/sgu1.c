@@ -1,5 +1,6 @@
 #include "./sgu1.h"
 
+#include <stdio.h>
 #include <string.h>
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -24,6 +25,20 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
     SGU_Init(&sgu->sgu, 65536);
+    if (desc->dump_file) {
+        sgu->dump_file = fopen(desc->dump_file, "w");
+        if (!sgu->dump_file) {
+            fprintf(stderr, "sgu1: cannot open register dump file '%s'\n", desc->dump_file);
+        }
+    }
+}
+
+void sgu1_discard(sgu1_t* sgu) {
+    CHIPS_ASSERT(sgu);
+    if (sgu->dump_file) {
+        fclose(sgu->dump_file);
+        sgu->dump_file = 0;
+    }
 }
 
 void sgu1_reset(sgu1_t* sgu) {
@@ -70,6 +85,9 @@ uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
 }
 
 void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
+    if (sgu->dump_file) {
+        sgu->dirty = true;
+    }
     if (reg == SGU_REGS_PER_CH - 1) {
         sgu->selected_channel = data;
     }
@@ -82,6 +100,27 @@ void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
 
 void sgu1_direct_reg_write(sgu1_t* sgu, uint16_t reg, uint8_t data) {
     SGU_Write(&sgu->sgu, reg, data);
+}
+
+/* dump all registers of all channels for the frame that just ended */
+void sgu1_dump_frame(sgu1_t* sgu) {
+    CHIPS_ASSERT(sgu);
+    sgu->frame_counter++;
+    if (!sgu->dump_file || !sgu->dirty) {
+        return;
+    }
+    FILE* f = sgu->dump_file;
+    const uint8_t* regs = (const uint8_t*)sgu->sgu.chan;
+    fprintf(f, "Frame %u:\n", sgu->frame_counter);
+    for (int ch = 0; ch < SGU_CHNS; ch++) {
+        fprintf(f, "%02X:", ch);
+        for (int r = 0; r < SGU_REGS_PER_CH; r++) {
+            fprintf(f, " %02X", regs[(ch << 6) | r]);
+        }
+        fprintf(f, "\n");
+    }
+    fflush(f);
+    sgu->dirty = false;
 }
 
 /* read a register */

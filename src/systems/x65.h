@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 // bump snapshot version when x65_t memory layout changes
-#define X65_SNAPSHOT_VERSION (1)
+#define X65_SNAPSHOT_VERSION (2)
 
 #define X65_FREQUENCY             (3140000)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (2048)     // max number of audio samples in internal sample buffer
@@ -152,6 +152,8 @@ typedef struct {
     uint8_t kbd_joy2_mask;  // current joystick-2 state from keyboard-joystick emulation
     uint8_t joy_joy1_mask;  // current joystick-1 state from x65_joystick()
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
+
+    unsigned sgu_dump_prev_vcount;  // previous CGIA v_count, for SGU dump frame-edge detection
 
     bool valid;
     chips_debug_t debug;

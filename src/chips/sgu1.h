@@ -45,6 +45,7 @@
 #include <speex_resampler.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "snd/sgu.h"
 
 #ifdef __cplusplus
@@ -101,8 +102,9 @@ extern "C" {
 
 // setup parameters for sgu1_init()
 typedef struct {
-    int tick_hz;      // frequency at which sgu1_tick() will be called in Hz
-    float magnitude;  // output sample magnitude (0=silence to 1=max volume)
+    int tick_hz;            // frequency at which sgu1_tick() will be called in Hz
+    float magnitude;        // output sample magnitude (0=silence to 1=max volume)
+    const char* dump_file;  // if set, dump registers to this file at end of frames with writes
 } sgu1_desc_t;
 
 // tsu instance state
@@ -120,6 +122,10 @@ typedef struct {
         int sample_pos;
         float sample_buffer[SGU1_AUDIO_SAMPLES];
     } voice[SGU_CHNS];
+    // per-frame register dump (enabled via sgu1_desc_t.dump_file)
+    FILE* dump_file;         // open dump file, or NULL when disabled
+    uint32_t frame_counter;  // running emulated-frame number used as dump timestamp
+    bool dirty;              // a register was written during the current frame
     // debug inspection
     uint64_t pins;
 } sgu1_t;
@@ -128,8 +134,14 @@ typedef struct {
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc);
 // reset a sgu1_t instance
 void sgu1_reset(sgu1_t* sgu);
+// discard a sgu1_t instance (closes the register dump file if open)
+void sgu1_discard(sgu1_t* sgu);
 // tick a sgu1_t instance
 uint64_t sgu1_tick(sgu1_t* sgu, uint64_t pins);
+
+// emit the register dump for the frame just ended (no-op unless dump file is
+// open and a register was written this frame); advances the frame counter
+void sgu1_dump_frame(sgu1_t* sgu);
 
 // for use by debugger
 uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg);

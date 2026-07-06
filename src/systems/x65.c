@@ -65,6 +65,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &(sgu1_desc_t){
             .tick_hz = X65_FREQUENCY,
             .magnitude = _X65_DEFAULT(desc->audio.volume, 1.0f),
+            .dump_file = arguments.sgu_dump,
         });
     beeper_init(
         &sys->beeper,
@@ -79,6 +80,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
 
 void x65_discard(x65_t* sys) {
     CHIPS_ASSERT(sys && sys->valid);
+    sgu1_discard(&sys->sgu);
     sys->valid = false;
 }
 
@@ -231,6 +233,14 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
         if ((cgia_pins & (CGIA_CS | CGIA_RW)) == (CGIA_CS | CGIA_RW)) {
             pins = W65816_COPY_DATA(pins, cgia_pins);
+        }
+
+        // SGU-1 register dump: fire at emulated video-frame boundary (CGIA vsync)
+        if (sys->sgu.dump_file) {
+            if (sys->cgia.v_count == 0 && sys->sgu_dump_prev_vcount != 0) {
+                sgu1_dump_frame(&sys->sgu);
+            }
+            sys->sgu_dump_prev_vcount = sys->cgia.v_count;
         }
     }
 

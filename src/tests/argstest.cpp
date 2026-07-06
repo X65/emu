@@ -51,6 +51,7 @@ TEST_CASE("defaults with no arguments") {
     CHECK(a.crt_values == nullptr);
     CHECK(a.joystick == nullptr);
     CHECK(a.break_opcode == nullptr);
+    CHECK(a.sgu_dump == nullptr);
 }
 
 TEST_CASE("long boolean flags") {
@@ -100,6 +101,11 @@ TEST_CASE("options with required arguments") {
     CHECK(std::strcmp(a.break_opcode, "EA") == 0);
     CHECK(parse({ "--break=00" }, a) == ARGS_OK);
     CHECK(std::strcmp(a.break_opcode, "00") == 0);
+
+    CHECK(parse({ "--sgu-dump", "dump.out" }, a) == ARGS_OK);
+    CHECK(std::strcmp(a.sgu_dump, "dump.out") == 0);
+    CHECK(parse({ "--sgu-dump=dump2.out" }, a) == ARGS_OK);
+    CHECK(std::strcmp(a.sgu_dump, "dump2.out") == 0);
 }
 
 TEST_CASE("crt optional argument") {

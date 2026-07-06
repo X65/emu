@@ -17,6 +17,7 @@ extern struct arguments {
     const char* crt_values;
     const char* break_opcode;
     const char* joystick;
+    const char* sgu_dump;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

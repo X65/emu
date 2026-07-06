@@ -32,6 +32,7 @@ enum { OPT_ALIAS = 1 << 0, OPT_ARG_OPTIONAL = 1 << 1 };
 // Keys for long-only options (no short form); must stay above ASCII range.
 enum {
     KEY_DISABLE_SPEAKER_ICON = 0x100,
+    KEY_SGU_DUMP,
 };
 
 typedef struct {
@@ -63,6 +64,7 @@ static const option_t options[] = {
     { "disable-gui",          'g',                      NULL,          0,         "Start with debug UI hidden"                                            },
     { "disable-speaker-icon", KEY_DISABLE_SPEAKER_ICON, NULL,          0,         "Hide the speaker status icon"                                          },
     { "break",                'b',                      "OPCODE",      0,         "Break on hex OPCODE (e.g. 00 or EA)"                                   },
+    { "sgu-dump",             KEY_SGU_DUMP,             "FILE",        0,         "Dump SGU-1 registers to FILE at end of each frame that has register writes" },
     { NULL,                   0,                        NULL,          0,         NULL                                                                    },
 };
 
@@ -326,6 +328,7 @@ args_status_t args_parse_argv(char** argv, struct arguments* out, const char** e
             case 'b': out->break_opcode = opt.optarg; break;
 
             case KEY_DISABLE_SPEAKER_ICON: out->disable_speaker_icon = true; break;
+            case KEY_SGU_DUMP: out->sgu_dump = opt.optarg; break;
 
             case 'l': app_load_labels(opt.optarg, false); break;
 
