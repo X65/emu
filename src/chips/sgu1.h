@@ -112,6 +112,9 @@ typedef struct {
     // sound unit instance
     struct SGU sgu;
     uint8_t selected_channel;
+    uint16_t svc_sample_offset;
+    uint8_t svc_sample_bank;
+    uint8_t svc_master_vol;
     int tick_period;
     int tick_counter;
     // sample generation state

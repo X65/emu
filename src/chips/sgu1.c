@@ -17,6 +17,13 @@
 /* move bit into first position */
 #define SGU1_BIT(val, bitnr) ((val >> bitnr) & 1)
 
+#define SGU1_SERVICE_BANK      (0xFF)
+#define SGU1_SVC_SAMPLE_OFF_LO (0x1C)
+#define SGU1_SVC_SAMPLE_OFF_HI (0x1D)
+#define SGU1_SVC_SAMPLE_BANK   (0x1E)
+#define SGU1_SVC_SAMPLE_DATA   (0x1F)
+#define SGU1_SVC_MASTER_VOL    (0x20)
+
 void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     CHIPS_ASSERT(sgu && desc);
     CHIPS_ASSERT(desc->tick_hz > 0);
@@ -48,6 +55,9 @@ void sgu1_reset(sgu1_t* sgu) {
     sgu->sample[0] = sgu->sample[1] = 0.0f;
     sgu->pins = 0;
     sgu->selected_channel = 0;
+    sgu->svc_sample_offset = 0;
+    sgu->svc_sample_bank = 0;
+    sgu->svc_master_vol = 0xFF;
 }
 
 /* tick the sound generation, return true when new sample ready */
@@ -59,8 +69,11 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
         sgu->tick_counter += sgu->tick_period;
         int32_t l, r;
         SGU_NextSample(&sgu->sgu, &l, &r);
-        sgu->sample[0] = sgu->sample_mag * (float)l / 32767.0f;
-        sgu->sample[1] = sgu->sample_mag * (float)r / 32767.0f;
+        // The hardware volume law is not documented yet. Keep the service-bank
+        // implementation linear, with 0xFF exactly equal to the prior output.
+        float master_gain = (float)sgu->svc_master_vol / 255.0f;
+        sgu->sample[0] = sgu->sample_mag * master_gain * (float)l / 32767.0f;
+        sgu->sample[1] = sgu->sample_mag * master_gain * (float)r / 32767.0f;
         pins |= SGU1_SAMPLE;
 
         for (uint8_t i = 0; i < SGU_CHNS; i++) {
@@ -73,28 +86,67 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     return pins;
 }
 
+static uint8_t _sgu1_service_read(sgu1_t* sgu, uint8_t reg) {
+    switch (reg) {
+        case SGU1_SVC_SAMPLE_OFF_LO: return (uint8_t)sgu->svc_sample_offset;
+        case SGU1_SVC_SAMPLE_OFF_HI: return (uint8_t)(sgu->svc_sample_offset >> 8);
+        case SGU1_SVC_SAMPLE_BANK: return sgu->svc_sample_bank;
+        case SGU1_SVC_SAMPLE_DATA: {
+            uint8_t data = sgu->svc_sample_bank == 0 ? (uint8_t)sgu->sgu.pcm[sgu->svc_sample_offset] : 0;
+            sgu->svc_sample_offset++;
+            return data;
+        }
+        case SGU1_SVC_MASTER_VOL: return sgu->svc_master_vol;
+        default: return 0;
+    }
+}
+
+static void _sgu1_service_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
+    switch (reg) {
+        case SGU1_SVC_SAMPLE_OFF_LO: sgu->svc_sample_offset = (sgu->svc_sample_offset & 0xFF00u) | data; break;
+        case SGU1_SVC_SAMPLE_OFF_HI:
+            sgu->svc_sample_offset = (uint16_t)((sgu->svc_sample_offset & 0x00FFu) | ((uint16_t)data << 8));
+            break;
+        case SGU1_SVC_SAMPLE_BANK: sgu->svc_sample_bank = data; break;
+        case SGU1_SVC_SAMPLE_DATA:
+            if (sgu->svc_sample_bank == 0) {
+                sgu->sgu.pcm[sgu->svc_sample_offset] = (int8_t)data;
+            }
+            sgu->svc_sample_offset++;
+            break;
+        case SGU1_SVC_MASTER_VOL: sgu->svc_master_vol = data; break;
+        default: break;
+    }
+}
+
 uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
-    uint8_t data;
+    reg &= SGU_REGS_PER_CH - 1;
     if (reg == SGU_REGS_PER_CH - 1) {
-        data = sgu->selected_channel;
+        return sgu->selected_channel;
     }
-    else {
-        data = ((unsigned char*)sgu->sgu.chan)[(sgu->selected_channel % SGU_CHNS) << 6 | (reg & (SGU_REGS_PER_CH - 1))];
+    if (sgu->selected_channel < SGU_CHNS) {
+        return ((uint8_t*)sgu->sgu.chan)[(sgu->selected_channel << 6) | reg];
     }
-    return data;
+    if (sgu->selected_channel == SGU1_SERVICE_BANK) {
+        return _sgu1_service_read(sgu, reg);
+    }
+    return 0xFF;
 }
 
 void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
     if (sgu->dump_file) {
         sgu->dirty = true;
     }
+    reg &= SGU_REGS_PER_CH - 1;
     if (reg == SGU_REGS_PER_CH - 1) {
         sgu->selected_channel = data;
+        return;
     }
-    else {
-        // ((unsigned char*)sgu->sgu.chan)[(sgu->selected_channel % SGU_CHNS) << 6 | (reg & (SGU_REGS_PER_CH - 1))] =
-        // data;
-        SGU_Write(&sgu->sgu, (uint16_t)((sgu->selected_channel % SGU_CHNS) << 6) | (reg & (SGU_REGS_PER_CH - 1)), data);
+    if (sgu->selected_channel < SGU_CHNS) {
+        SGU_Write(&sgu->sgu, (uint16_t)(sgu->selected_channel << 6) | reg, data);
+    }
+    else if (sgu->selected_channel == SGU1_SERVICE_BANK) {
+        _sgu1_service_write(sgu, reg, data);
     }
 }
 
