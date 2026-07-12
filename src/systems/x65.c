@@ -531,6 +531,7 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         return false;
     }
     const uint8_t* ptr = (uint8_t*)data.ptr;
+    const uint8_t* const end = ptr + data.size;
 
     bool reset_lo_loaded = false;
     bool reset_hi_loaded = false;
@@ -543,20 +544,14 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         return false;
     }
 
-    while (ptr < ((uint8_t*)data.ptr + data.size)) {
-        size_t data_left = (uint8_t*)data.ptr + data.size - ptr;
-        if (data_left < 4) {
+    while (ptr < end) {
+        if ((size_t)(end - ptr) >= 2 && ptr[0] == 0xff && ptr[1] == 0xff) {
+            // optional block header marker
+            ptr += 2;
+        }
+        if ((size_t)(end - ptr) < 4) {
             LOG_ERROR("File truncated");
             return false;
-        }
-        if (ptr[0] == 0xff && ptr[1] == 0xff) {
-            // skip header
-            ptr += 2;
-            data_left -= 2;
-            if (data_left < 4) {
-                LOG_ERROR("File truncated");
-                return false;
-            }
         }
 
         const uint16_t start_addr = ptr[1] << 8 | ptr[0];
@@ -564,29 +559,35 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         const uint16_t end_addr = ptr[1] << 8 | ptr[0];
         ptr += 2;
 
-        const bool skip_chunk = start_addr == 0xFC00 && load_bank == 0x00;
-        LOG_INFO("%s block: $%04X-$%04X", skip_chunk ? "Skipping" : "Loading", start_addr, end_addr);
-
-        data_left = (uint8_t*)data.ptr + data.size - ptr;
-        if (data_left < (end_addr - start_addr + 1) || start_addr > end_addr) {
+        if (start_addr > end_addr) {
+            LOG_ERROR("Invalid block header: $%04X-$%04X", start_addr, end_addr);
+            return false;
+        }
+        // compare against the delta, never the length: a $0000-$FFFF block is 0x10000 bytes long,
+        // which does not fit a 16-bit count, but end_addr - start_addr always does
+        if ((size_t)(end - ptr) <= (size_t)(end_addr - start_addr)) {
             LOG_ERROR("Block truncated");
             return false;
         }
+
         if (start_addr == end_addr && start_addr == 0xFFFE) {
             load_bank = *ptr++;
             LOG_INFO("Loading to bank: $%02X", load_bank);
+            continue;
         }
-        else if (skip_chunk) {
-            ptr += (end_addr - start_addr + 1);
-        }
-        else {
-            uint16_t addr = start_addr;
-            while (addr <= end_addr && addr >= start_addr) {
+
+        const bool skip_chunk = start_addr == 0xFC00 && load_bank == 0x00;
+        LOG_INFO("%s block: $%04X-$%04X", skip_chunk ? "Skipping" : "Loading", start_addr, end_addr);
+
+        uint16_t addr = start_addr;
+        do {
+            const uint8_t value = *ptr++;
+            if (!skip_chunk) {
                 if (addr == 0xfffc) reset_lo_loaded = true;
                 if (addr == 0xfffd) reset_hi_loaded = true;
-                mem_wr(sys, load_bank, addr++, *ptr++);
+                mem_wr(sys, load_bank, addr, value);
             }
-        }
+        } while (addr++ < end_addr);
     }
 
     if (reset_lo_loaded && reset_hi_loaded) {
