@@ -220,6 +220,8 @@ uint8_t ria816_hid_dev(const ria816_t* c);
 uint8_t ria816_rgb_read(ria816_t* c, uint8_t reg);
 void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data);
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no);
+uint8_t ria816_buzzer_read(ria816_t* c, uint8_t reg);
+void ria816_buzzer_write(ria816_t* c, uint8_t reg, uint8_t data);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -287,6 +287,17 @@ void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data) {
     }
 }
 
+// Buzzer registers (4 total)
+// FREQ_LO ($FFA8), FREQ_HI ($FFA9), DUTY ($FFAA), UNUSED ($FFAB)
+static uint8_t buzzer_regs[4] = { 0 };
+
+uint8_t ria816_buzzer_read(ria816_t* c, uint8_t reg) {
+    return buzzer_regs[reg & 0x03];
+}
+void ria816_buzzer_write(ria816_t* c, uint8_t reg, uint8_t data) {
+    buzzer_regs[reg & 0x03] = data;
+}
+
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no) {
     *leds = RGB_LEDS;
     *leds_no = led_used_no;

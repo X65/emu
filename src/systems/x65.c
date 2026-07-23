@@ -246,13 +246,18 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
+    // tick beeper
+    {
+        beeper_tick(&sys->beeper);
+    }
+
     // tick the SGU
     {
         sgu_pins = sgu1_tick(&sys->sgu, sgu_pins);
         if (sgu_pins & SGU1_SAMPLE) {
             // new audio sample ready
-            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sgu.sample[0];
-            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sgu.sample[1];
+            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sgu.sample[0] + sys->beeper.sample;
+            sys->audio.sample_buffer[sys->audio.sample_pos++] = sys->sgu.sample[1] + sys->beeper.sample;
             if (sys->audio.sample_pos == sys->audio.num_samples) {
                 if (sys->audio.callback.func) {
                     sys->audio.callback.func(
@@ -312,7 +317,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
             return 0xFF;
         }
         else if (addr >= X65_IO_BUZZER_BASE) {
-            return 0xFF;
+            return ria816_buzzer_read(&sys->ria, addr & RIA816_BUZZER_RS);
         }
         else if (addr >= X65_IO_RGB_BASE) {
             return ria816_rgb_read(&sys->ria, addr & RIA816_HID_RS);
@@ -353,6 +358,8 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
             return;
         }
         else if (addr >= X65_IO_BUZZER_BASE) {
+            const uint8_t reg = addr & RIA816_BUZZER_RS;
+            ria816_buzzer_write(&sys->ria, reg, data);
             return;
         }
         else if (addr >= X65_IO_RGB_BASE) {
