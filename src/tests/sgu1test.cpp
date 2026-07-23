@@ -119,11 +119,12 @@ TEST_CASE("channel selection and reset retain wrapper semantics") {
     CHECK(sgu.selected_channel == 0);
     CHECK(sgu.svc_sample_offset == 0);
     CHECK(sgu.svc_sample_bank == 0);
-    CHECK(sgu.svc_master_vol == 0xFF);
+    CHECK(sgu.svc_master_vol == 0);
 }
 
 TEST_CASE("master volume linearly scales final stereo output") {
     auto sgu = make_sgu();
+    sgu.svc_master_vol = 0xFF;
     next_left = 16384;
     next_right = -8192;
     sgu1_tick(&sgu, 0);

@@ -2,6 +2,7 @@
 #include "../log.h"
 
 #include "common.h"
+#include "imgui.h"
 #include "imgui_internal.h"
 #include "IconsLucide.h"
 #include "args.h"
@@ -146,6 +147,32 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             }
             ImGui::EndMenu();
         }
+
+        int vol_int = ui->sgu.sgu->svc_master_vol;
+        const float slider_width = 150.0f;
+        const char* icon = vol_int == 0 ? ICON_LC_VOLUME_X : vol_int < 85 ? ICON_LC_VOLUME : vol_int < 170 ? ICON_LC_VOLUME_1 : ICON_LC_VOLUME_2;
+        const float icon_width = ImGui::CalcTextSize(icon).x;
+        const float total_width = icon_width + slider_width + ImGui::GetStyle().ItemInnerSpacing.x;
+        float right_align_x = ImGui::GetWindowWidth() - total_width - ImGui::GetStyle().ItemSpacing.x;
+        if (right_align_x > ImGui::GetCursorPosX()) {
+            ImGui::SetCursorPosX(right_align_x);
+        }
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(icon);
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::PushItemWidth(slider_width);
+        char overlay[32];
+        if (vol_int == 0) {
+            snprintf(overlay, sizeof(overlay), "Mute (-60.0 dB)");
+        } else {
+            float db = 20.0f * std::log10((float)vol_int / 255.0f);
+            snprintf(overlay, sizeof(overlay), "%.1f dB", db);
+        }
+        if (ImGui::SliderInt("##vol", &vol_int, 0, 255, overlay, ImGuiSliderFlags_AlwaysClamp)) {
+            ui->sgu.sgu->svc_master_vol = (uint8_t)vol_int;
+        }
+        ImGui::PopItemWidth();
+
         ImGui::EndMainMenuBar();
     }
 }

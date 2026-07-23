@@ -57,7 +57,7 @@ void sgu1_reset(sgu1_t* sgu) {
     sgu->selected_channel = 0;
     sgu->svc_sample_offset = 0;
     sgu->svc_sample_bank = 0;
-    sgu->svc_master_vol = 0xFF;
+    sgu->svc_master_vol = 0;
 }
 
 /* tick the sound generation, return true when new sample ready */
