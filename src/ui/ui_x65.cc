@@ -80,6 +80,21 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
                 }
                 ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu(ICON_LC_VOLUME_2 " Volume")) {
+                float vol_master = (float)ui->sgu.sgu->svc_master_vol / 255.0f;
+                ImGui::TextUnformatted("Mixer ");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##vol_master", &vol_master, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) {
+                    ui->sgu.sgu->svc_master_vol = (uint8_t)(vol_master * 255.0f);
+                }
+                float vol_beeper = ui->x65->beeper.volume;
+                ImGui::TextUnformatted("Beeper");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##vol_beeper", &vol_beeper, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) {
+                    ui->x65->beeper.volume = vol_beeper;
+                }
+                ImGui::EndMenu();
+            }
 #ifdef __EMSCRIPTEN__
             const char* fullscreen_shortcut = "F11";
 #else

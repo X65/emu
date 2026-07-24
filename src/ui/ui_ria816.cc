@@ -160,6 +160,9 @@ static void _ui_ria816_draw_state(ui_ria816_t* win) {
     ImGui::SeparatorText("Interrupts");
     ui_util_b8("RIA   : ", ria->irq_enable);
     ui_util_b8("Status: ", ria->int_status);
+    ImGui::SeparatorText("Buzzer");
+    ui_util_u16("Freq: ", ria->buzzer_freq);
+    ui_util_u8 ("Duty: ", ria->buzzer_duty);
     if (ImGui::BeginTable("##cpu_vectors", 3)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 64);
         ImGui::TableSetupColumn("Emulated", ImGuiTableColumnFlags_WidthFixed, 72);

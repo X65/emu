@@ -193,8 +193,8 @@ typedef struct {
     // Buzzer state
     uint32_t buzzer_phase;
     uint32_t buzzer_period;
-    uint16_t buzzer_prev_freq;
-    uint8_t  buzzer_prev_duty;
+    uint16_t buzzer_freq;
+    uint8_t  buzzer_duty;
     // API callback
     ria816_api_call_t api_cb;
     // optional user-data for the API callback

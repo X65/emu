@@ -305,7 +305,7 @@ bool ria816_buzzer_tick(ria816_t* c) {
     uint16_t freq16 = (uint16_t)((buzzer_regs[1] << 8) | buzzer_regs[0]);
 
     // Check if we need to recompute period due to change in frequency or duty
-    if ((freq16 != c->buzzer_prev_freq) || (duty != c->buzzer_prev_duty)) {
+    if ((freq16 != c->buzzer_freq) || (duty != c->buzzer_duty)) {
         // Calculate frequency in Hz using the same formula as firmware
         // f = 20 * 2^(OCTAVES * freq16 / 65535)
         // OCTAVES ≈ 9.965784285
@@ -316,8 +316,8 @@ bool ria816_buzzer_tick(ria816_t* c) {
         uint32_t tick_hz = (uint32_t)c->ticks_per_ms * 1000000 / RIA816_FIXEDPOINT_SCALE;
         c->buzzer_period = (uint32_t)((double)tick_hz * (double)RIA816_FIXEDPOINT_SCALE / f);
 
-        c->buzzer_prev_freq = freq16;
-        c->buzzer_prev_duty = duty;
+        c->buzzer_freq = freq16;
+        c->buzzer_duty = duty;
     }
 
     // Advance phase by 1 tick in fixed-point units
