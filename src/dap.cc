@@ -75,7 +75,7 @@ static struct {
 #undef LOG_INFO
 #define LOG_INFO(...) {};
 
-std::shared_ptr<dap::Writer> log;
+std::shared_ptr<dap::Writer> dap_log;
 
 #define EMU_RAM_SIZE (1 << 24)  // 16MB
 
@@ -1175,8 +1175,8 @@ void dap_init(const dap_desc_t* desc) {
         // the Initialize request.
         std::shared_ptr<dap::Reader> in = dap::file(stdin, false);
         std::shared_ptr<dap::Writer> out = dap::file(stdout, false);
-        if (log) {
-            session->bind(spy(in, log), spy(out, log));
+        if (dap_log) {
+            session->bind(spy(in, dap_log), spy(out, dap_log));
         }
         else {
             session->bind(in, out);
@@ -1243,7 +1243,8 @@ void dap_init(const dap_desc_t* desc) {
 
 void dap_shutdown() {
 #ifdef LOG_TO_FILE
-    log->close();
+    dap_log->close();
+    dap_log.reset();  // release the shared_ptr
 #endif
 
 #ifndef _WIN32
