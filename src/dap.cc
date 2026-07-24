@@ -632,10 +632,10 @@ void dap_register_session(dap::Session* session) {
 
         do_dap_boot = true;
 
-        dap::InitializeResponse response;
+        dap::InitializeResponse  = {0};
         response.supportTerminateDebuggee = true;
         response.supportSuspendDebuggee = true;
-        response.supportsCompletionsRequest = true;
+        response.supportsCompletionsRequest = false;
         response.supportsConfigurationDoneRequest = true;
         response.supportsDisassembleRequest = true;
         response.supportsEvaluateForHovers = false;
@@ -777,13 +777,22 @@ void dap_register_session(dap::Session* session) {
             return response;
         });
 
+    // The SetExceptionBreakpoints request configures the debugger's handling of
+    // thrown exceptions.
+    // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints
+    session->registerHandler(
+        [&](const dap::SetExceptionBreakpointsRequest&)
+            -> dap::ResponseOrError<dap::SetExceptionBreakpointsResponse> {
+            return dap::Error("SetExceptionBreakpoints not supported");
+        });
+
     // The SetInstructionBreakpoints request instructs the debugger to clear and set a number
     // of instruction breakpoints.
     // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetInstructionBreakpoints
     session->registerHandler(
         [&](const dap::SetInstructionBreakpointsRequest&)
             -> dap::ResponseOrError<dap::SetInstructionBreakpointsResponse> {
-            return dap::Error("SetInstructionBreakpoints not implemented yet");
+            return dap::Error("SetInstructionBreakpoints not supported");
         });
 
     // The Threads request queries the debugger's list of active threads.
