@@ -1,9 +1,11 @@
+#include <stdio.h>
 #define CHIPS_IMPL
 #include "chips/m6526.h"
 #undef CHIPS_IMPL
 
 #include "ria816.h"
 #include "sys/mem.h"
+#include <math.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -298,6 +300,42 @@ void ria816_buzzer_write(ria816_t* c, uint8_t reg, uint8_t data) {
     buzzer_regs[reg & 0x03] = data;
 }
 
+bool ria816_buzzer_tick(ria816_t* c) {
+    uint8_t duty = buzzer_regs[2];
+    uint16_t freq16 = (uint16_t)((buzzer_regs[1] << 8) | buzzer_regs[0]);
+
+    // Check if we need to recompute period due to change in frequency or duty
+    if ((freq16 != c->buzzer_prev_freq) || (duty != c->buzzer_prev_duty)) {
+        // Calculate frequency in Hz using the same formula as firmware
+        // f = 20 * 2^(OCTAVES * freq16 / 65535)
+        // OCTAVES ≈ 9.965784285
+        const double OCTAVES = 9.965784285;
+        double f = 20.0 * pow(2.0, OCTAVES * (double)freq16 / 65535.0);
+
+        // Convert to fixed-point period
+        uint32_t tick_hz = (uint32_t)c->ticks_per_ms * 1000000 / RIA816_FIXEDPOINT_SCALE;
+        c->buzzer_period = (uint32_t)((double)tick_hz * (double)RIA816_FIXEDPOINT_SCALE / f);
+
+        c->buzzer_prev_freq = freq16;
+        c->buzzer_prev_duty = duty;
+    }
+
+    // Advance phase by 1 tick in fixed-point units
+    c->buzzer_phase += RIA816_FIXEDPOINT_SCALE;
+
+    // Wrap phase if needed
+    if (c->buzzer_phase >= c->buzzer_period) {
+        c->buzzer_phase -= c->buzzer_period;
+    }
+
+    // Calculate duty cycle threshold (in fixed-point units)
+    // duty is 0-255, so duty * period / 256 gives us the on-time
+    uint32_t duty_threshold = (c->buzzer_period * duty) >> 8;
+
+    // Return true if we're in the "on" portion of the period
+    return (c->buzzer_phase < duty_threshold);
+}
+
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no) {
     *leds = RGB_LEDS;
     *leds_no = led_used_no;
@@ -326,6 +364,19 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
         else {
             uint8_t data = RIA816_GET_DATA(pins);
             ria816_hid_write(c, addr, data);
+        }
+        pins |= RIA816_CS;  // signal data merge to main loop
+    }
+    if (pins & RIA816_BUZZER_CS) {
+        // BUZZER
+        const uint8_t addr = pins & RIA816_BUZZER_RS;
+        if (pins & M6526_RW) {
+            uint8_t data = ria816_buzzer_read(c, addr);
+            RIA816_SET_DATA(pins, data);
+        }
+        else {
+            uint8_t data = RIA816_GET_DATA(pins);
+            ria816_buzzer_write(c, addr, data);
         }
         pins |= RIA816_CS;  // signal data merge to main loop
     }

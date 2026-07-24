@@ -246,8 +246,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         }
     }
 
-    // tick beeper
+    // tick beeper with buzzer
     {
+        beeper_set(&sys->beeper, ria816_buzzer_tick(&sys->ria));
         beeper_tick(&sys->beeper);
     }
 

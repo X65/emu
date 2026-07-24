@@ -190,6 +190,11 @@ typedef struct {
     int ticks_per_ms;
     int ticks_counter;
     uint64_t pins;
+    // Buzzer state
+    uint32_t buzzer_phase;
+    uint32_t buzzer_period;
+    uint16_t buzzer_prev_freq;
+    uint8_t  buzzer_prev_duty;
     // API callback
     ria816_api_call_t api_cb;
     // optional user-data for the API callback
@@ -222,6 +227,7 @@ void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data);
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no);
 uint8_t ria816_buzzer_read(ria816_t* c, uint8_t reg);
 void ria816_buzzer_write(ria816_t* c, uint8_t reg, uint8_t data);
+bool ria816_buzzer_tick(ria816_t* c);
 
 #ifdef __cplusplus
 }  // extern "C"
