@@ -11,7 +11,6 @@
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
-#include <csignal>
 #include <map>
 #include <vector>
 
@@ -632,7 +631,7 @@ void dap_register_session(dap::Session* session) {
 
         do_dap_boot = true;
 
-        dap::InitializeResponse  = {0};
+        dap::InitializeResponse response;
         response.supportTerminateDebuggee = true;
         response.supportSuspendDebuggee = true;
         response.supportsCompletionsRequest = false;
@@ -1332,8 +1331,12 @@ void dap_process() {
             source = dap_breakpoints_update.begin()->first;
             add_addresses = std::move(dap_breakpoints_update.begin()->second);
             dap_breakpoints_update.erase(dap_breakpoints_update.begin());
-            remove_addresses = std::move(dap_breakpoints.find(source)->second);
-            dap_breakpoints[source] = add_addresses;
+            auto it = dap_breakpoints.find(source);
+            if (it != dap_breakpoints.end()) {
+                remove_addresses = std::move(it->second);
+                dap_breakpoints.erase(it);
+            }
+            dap_breakpoints[source] = std::move(add_addresses);
         }
         for (auto address : remove_addresses) {
             dap_dbg_remove_breakpoint(address);
