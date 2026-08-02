@@ -1,6 +1,7 @@
 #include "./sgu1.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -31,7 +32,9 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_mag = desc->magnitude;
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
-    SGU_Init(&sgu->sgu, 65536);
+    int8_t* pcm = malloc(SGU_PCM_BANK_SIZE);
+    CHIPS_ASSERT(pcm);
+    SGU_Init(&sgu->sgu, pcm, SGU_PCM_BANK_SIZE);
     if (desc->dump_file) {
         sgu->dump_file = fopen(desc->dump_file, "w");
         if (!sgu->dump_file) {
@@ -42,6 +45,9 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
 
 void sgu1_discard(sgu1_t* sgu) {
     CHIPS_ASSERT(sgu);
+    free(sgu->sgu.pcm);
+    sgu->sgu.pcm = 0;
+    sgu->sgu.pcm_size = 0;
     if (sgu->dump_file) {
         fclose(sgu->dump_file);
         sgu->dump_file = 0;
@@ -86,13 +92,21 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     return pins;
 }
 
+static size_t _sgu1_service_pcm_address(const sgu1_t* sgu) {
+    return (size_t)sgu->svc_sample_bank * SGU_PCM_BANK_SIZE + sgu->svc_sample_offset;
+}
+
 static uint8_t _sgu1_service_read(sgu1_t* sgu, uint8_t reg) {
     switch (reg) {
         case SGU1_SVC_SAMPLE_OFF_LO: return (uint8_t)sgu->svc_sample_offset;
         case SGU1_SVC_SAMPLE_OFF_HI: return (uint8_t)(sgu->svc_sample_offset >> 8);
         case SGU1_SVC_SAMPLE_BANK: return sgu->svc_sample_bank;
         case SGU1_SVC_SAMPLE_DATA: {
-            uint8_t data = sgu->svc_sample_bank == 0 ? (uint8_t)sgu->sgu.pcm[sgu->svc_sample_offset] : 0;
+            size_t address = _sgu1_service_pcm_address(sgu);
+            uint8_t data = 0;
+            if (address < sgu->sgu.pcm_size) {
+                data = (uint8_t)sgu->sgu.pcm[address];
+            }
             sgu->svc_sample_offset++;
             return data;
         }
@@ -108,12 +122,14 @@ static void _sgu1_service_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
             sgu->svc_sample_offset = (uint16_t)((sgu->svc_sample_offset & 0x00FFu) | ((uint16_t)data << 8));
             break;
         case SGU1_SVC_SAMPLE_BANK: sgu->svc_sample_bank = data; break;
-        case SGU1_SVC_SAMPLE_DATA:
-            if (sgu->svc_sample_bank == 0) {
-                sgu->sgu.pcm[sgu->svc_sample_offset] = (int8_t)data;
+        case SGU1_SVC_SAMPLE_DATA: {
+            size_t address = _sgu1_service_pcm_address(sgu);
+            if (address < sgu->sgu.pcm_size) {
+                sgu->sgu.pcm[address] = (int8_t)data;
             }
             sgu->svc_sample_offset++;
             break;
+        }
         case SGU1_SVC_MASTER_VOL: sgu->svc_master_vol = data; break;
         default: break;
     }

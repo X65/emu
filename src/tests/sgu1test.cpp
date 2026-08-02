@@ -9,14 +9,14 @@ extern "C" {
 #include "chips/sgu1.h"
 }
 
-static int8_t pcm[SGU_PCM_RAM_SIZE];
 static int32_t next_left;
 static int32_t next_right;
 
 extern "C" {
-void SGU_Init(struct SGU* sgu, size_t) {
+void SGU_Init(struct SGU* sgu, int8_t* pcm, size_t pcm_size) {
     std::memset(sgu, 0, sizeof(*sgu));
     sgu->pcm = pcm;
+    sgu->pcm_size = pcm_size;
 }
 
 void SGU_Reset(struct SGU* sgu) {
@@ -56,7 +56,7 @@ static void set_offset(sgu1_t& sgu, uint16_t offset) {
 
 TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
     auto sgu = make_sgu();
-    std::memset(pcm, 0, sizeof(pcm));
+    std::memset(sgu.sgu.pcm, 0, sgu.sgu.pcm_size);
     select_bank(sgu, 0xFF);
     sgu1_reg_write(&sgu, 0x1E, 0);
     set_offset(sgu, 0xFFFE);
@@ -64,9 +64,9 @@ TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
     sgu1_reg_write(&sgu, 0x1F, 0x12);
     sgu1_reg_write(&sgu, 0x1F, 0x34);
     sgu1_reg_write(&sgu, 0x1F, 0x56);
-    CHECK(static_cast<uint8_t>(pcm[0xFFFE]) == 0x12);
-    CHECK(static_cast<uint8_t>(pcm[0xFFFF]) == 0x34);
-    CHECK(static_cast<uint8_t>(pcm[0]) == 0x56);
+    CHECK(static_cast<uint8_t>(sgu.sgu.pcm[0xFFFE]) == 0x12);
+    CHECK(static_cast<uint8_t>(sgu.sgu.pcm[0xFFFF]) == 0x34);
+    CHECK(static_cast<uint8_t>(sgu.sgu.pcm[0]) == 0x56);
     CHECK(sgu1_reg_read(&sgu, 0x1C) == 1);
     CHECK(sgu1_reg_read(&sgu, 0x1D) == 0);
 
@@ -79,10 +79,11 @@ TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
     sgu1_reg_write(&sgu, 0x1E, 1);
     set_offset(sgu, 0xFFFE);
     sgu1_reg_write(&sgu, 0x1F, 0x99);
-    CHECK(static_cast<uint8_t>(pcm[0xFFFE]) == 0x12);
+    CHECK(static_cast<uint8_t>(sgu.sgu.pcm[0xFFFE]) == 0x12);
     set_offset(sgu, 0xFFFE);
     CHECK(sgu1_reg_read(&sgu, 0x1F) == 0);
     CHECK(sgu1_reg_read(&sgu, 0x1C) == 0xFF);
+    sgu1_discard(&sgu);
 }
 
 TEST_CASE("service and reserved banks cannot alias channel registers") {
@@ -102,6 +103,7 @@ TEST_CASE("service and reserved banks cannot alias channel registers") {
     CHECK(sgu1_reg_read(&sgu, 0x00) == 0xFF);
     CHECK(sgu1_reg_read(&sgu, 0x3F) == SGU_CHNS);
     CHECK(std::memcmp(before, sgu.sgu.chan, sizeof(before)) == 0);
+    sgu1_discard(&sgu);
 }
 
 TEST_CASE("channel selection and reset retain wrapper semantics") {
@@ -120,6 +122,7 @@ TEST_CASE("channel selection and reset retain wrapper semantics") {
     CHECK(sgu.svc_sample_offset == 0);
     CHECK(sgu.svc_sample_bank == 0);
     CHECK(sgu.svc_master_vol == 0);
+    sgu1_discard(&sgu);
 }
 
 TEST_CASE("master volume linearly scales final stereo output") {
@@ -136,4 +139,5 @@ TEST_CASE("master volume linearly scales final stereo output") {
     sgu1_tick(&sgu, 0);
     CHECK(sgu.sample[0] == doctest::Approx(full_left * 128.0f / 255.0f));
     CHECK(sgu.sample[1] == doctest::Approx(full_right * 128.0f / 255.0f));
+    sgu1_discard(&sgu);
 }
