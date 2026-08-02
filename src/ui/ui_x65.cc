@@ -296,18 +296,21 @@ static void _ui_x65_draw_about(ui_x65_t* ui) {
 #define _UI_X65_MEMLAYER_CPU  (0) /* CPU visible mapping */
 #define _UI_X65_MEMLAYER_RAM  (1) /* RAM banks */
 #define _UI_X65_MEMLAYER_VRAM (2) /* CGIA VRAM banks */
-#define _UI_X65_MEMLAYER_NUM  (3)
+#define _UI_X65_MEMLAYER_PCM  (3) /* SGU PCM banks */
+#define _UI_X65_MEMLAYER_NUM  (4)
 #define _UI_X65_CODELAYER_NUM (3) /* number of valid layers for disassembler */
 
 static const char* _ui_x65_memlayer_names[_UI_X65_MEMLAYER_NUM] = {
     "CPU Mapped",
     "RAM Bank",
     "VRAM Cache Bank",
+    "SGU PCM Bank",
 };
 static const int _ui_x65_memlayer_banks[_UI_X65_MEMLAYER_NUM] = {
     256,
     256,
     2,
+    SGU1_PCM_BANKS,
 };
 
 static uint8_t _ui_x65_mem_read(int layer, int bank, uint16_t addr, void* user_data) {
@@ -318,6 +321,7 @@ static uint8_t _ui_x65_mem_read(int layer, int bank, uint16_t addr, void* user_d
         case _UI_X65_MEMLAYER_CPU: return mem_rd(x65, (uint8_t)bank, addr);
         case _UI_X65_MEMLAYER_RAM: return x65->ram[((bank & 0xFF) << 16) | addr];
         case _UI_X65_MEMLAYER_VRAM: return x65->cgia.vram[bank & 0x1][addr];
+        case _UI_X65_MEMLAYER_PCM: return (uint8_t)x65->sgu.sgu.pcm[(bank % SGU1_PCM_BANKS) * SGU_PCM_BANK_SIZE + addr];
         default: return 0xFF;
     }
 }
@@ -330,6 +334,9 @@ static void _ui_x65_mem_write(int layer, int bank, uint16_t addr, uint8_t data, 
         case _UI_X65_MEMLAYER_CPU: mem_wr(x65, (uint8_t)bank, addr, data); break;
         case _UI_X65_MEMLAYER_RAM: x65->ram[((bank & 0xFF) << 16) | addr] = data; break;
         case _UI_X65_MEMLAYER_VRAM: x65->cgia.vram[bank & 0x1][addr] = data; break;
+        case _UI_X65_MEMLAYER_PCM:
+            x65->sgu.sgu.pcm[(bank % SGU1_PCM_BANKS) * SGU_PCM_BANK_SIZE + addr] = (int8_t)data;
+            break;
     }
 }
 

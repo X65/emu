@@ -32,9 +32,10 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_mag = desc->magnitude;
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
-    int8_t* pcm = malloc(SGU_PCM_BANK_SIZE);
+    size_t pcm_size = SGU1_PCM_BANKS * SGU_PCM_BANK_SIZE;
+    int8_t* pcm = malloc(pcm_size);
     CHIPS_ASSERT(pcm);
-    SGU_Init(&sgu->sgu, pcm, SGU_PCM_BANK_SIZE);
+    SGU_Init(&sgu->sgu, pcm, pcm_size);
     if (desc->dump_file) {
         sgu->dump_file = fopen(desc->dump_file, "w");
         if (!sgu->dump_file) {

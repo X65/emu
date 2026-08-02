@@ -97,6 +97,8 @@ extern "C" {
 #define SGU1_CS        (1ULL << SGU1_PIN_CS)
 #define SGU1_SAMPLE    (1ULL << SGU1_PIN_SAMPLE)
 
+#define SGU1_PCM_BANKS (4)
+
 #define SGU1_AUDIO_CHANNELS (2)
 #define SGU1_AUDIO_SAMPLES  (1024)
 

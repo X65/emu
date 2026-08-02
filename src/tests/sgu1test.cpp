@@ -56,6 +56,7 @@ static void set_offset(sgu1_t& sgu, uint16_t offset) {
 
 TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
     auto sgu = make_sgu();
+    CHECK(sgu.sgu.pcm_size == SGU1_PCM_BANKS * SGU_PCM_BANK_SIZE);
     std::memset(sgu.sgu.pcm, 0, sgu.sgu.pcm_size);
     select_bank(sgu, 0xFF);
     sgu1_reg_write(&sgu, 0x1E, 0);
@@ -81,8 +82,14 @@ TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
     sgu1_reg_write(&sgu, 0x1F, 0x99);
     CHECK(static_cast<uint8_t>(sgu.sgu.pcm[0xFFFE]) == 0x12);
     set_offset(sgu, 0xFFFE);
-    CHECK(sgu1_reg_read(&sgu, 0x1F) == 0);
+    CHECK(sgu1_reg_read(&sgu, 0x1F) == 0x99);
     CHECK(sgu1_reg_read(&sgu, 0x1C) == 0xFF);
+
+    sgu1_reg_write(&sgu, 0x1E, SGU1_PCM_BANKS);
+    set_offset(sgu, 0xFFFE);
+    sgu1_reg_write(&sgu, 0x1F, 0x77);
+    set_offset(sgu, 0xFFFE);
+    CHECK(sgu1_reg_read(&sgu, 0x1F) == 0);
     sgu1_discard(&sgu);
 }
 
