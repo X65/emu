@@ -28,3 +28,6 @@
 [submodule "ext/optparse"]
 	path = ext/optparse
 	url = https://github.com/skeeto/optparse.git
+[submodule "ext/sgu-1"]
+	path = ext/sgu-1
+	url = git@github.com:X65/SGU-1.git

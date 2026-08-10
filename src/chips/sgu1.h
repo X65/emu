@@ -46,7 +46,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "snd/sgu.h"
+#include "sgu-1/sgu.h"
 
 #ifdef __cplusplus
 extern "C" {
