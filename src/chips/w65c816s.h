@@ -824,16 +824,30 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             _FETCH();
         }
         if (c->stopped == W65816_STOP_WAI) {
-            if (pins & (W65816_IRQ|W65816_NMI|W65816_ABORT|W65816_RES)) {
+            // Parked by WAI. The edge detector below does not run while
+            // parked, so watch the NMI input here. A pending NMI edge, an
+            // active IRQ, ABORT or RES ends the wait; a held NMI level with
+            // no new edge does not.
+            if (0 != ((pins & (pins ^ c->PINS)) & W65816_NMI)) {
+                c->nmi_pip |= 0x100;
+            }
+            c->PINS = pins;
+            const bool nmi_pending = (c->nmi_pip != 0);
+            if (nmi_pending || (pins & (W65816_IRQ|W65816_ABORT|W65816_RES))) {
+                // Wake up: fetch the instruction after WAI on the next tick,
+                // with the interrupt armed so that fetch turns into the
+                // interrupt sequence (pushing the post-WAI address). IRQ with
+                // the I flag set just resumes with the next instruction.
                 c->stopped = 0;
                 _FETCH();
-
-                if ((pins & W65816_IRQ) && ((c->P & W65816_IF))) {
-                    // IRQ prevented
-                    // fetch next instruction normally
-                    return pins;
+                if (nmi_pending) {
+                    c->nmi_pip = 0x100;
+                }
+                if ((pins & W65816_IRQ) && (0 == (c->P & W65816_IF))) {
+                    c->irq_pip |= 0x400;
                 }
             }
+            return pins;
         }
         if (c->stopped)
             return pins;
