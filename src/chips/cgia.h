@@ -189,7 +189,8 @@ typedef struct {
     uint h_period;
     uint v_count;
 
-    uint scan_line;  // currently rendered physical scan line
+    uint scan_line;        // currently rendered physical scan line
+    uint32_t frame_count;  // vertical blanks since power-on (scripting/tests)
 
     // CGIA internal registers
     uint8_t* chip;
@@ -245,6 +246,8 @@ void cgia_snapshot_onload(cgia_t* snapshot, cgia_t* sys);
 uint8_t cgia_reg_read(uint8_t reg_no);
 // write CGIA register
 void cgia_reg_write(uint8_t reg_no, uint8_t value);
+// read the 16-bit RASTER register (current raster line)
+uint16_t cgia_raster_line(void);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -38,6 +38,7 @@ extern void segfault_handler(int sig);
 #include "./args.h"
 #include "./dap.h"
 #include "./hid.h"
+#include "./script.h"
 
 extern const char* GIT_TAG;
 extern const char* GIT_REV;
@@ -58,6 +59,7 @@ typedef struct {
 
 static struct {
     x65_t x65;
+    bool rom_loaded;  // an image finished loading into the machine
     uint32_t frame_time_us;
     uint32_t ticks;
     double emu_time_ms;
@@ -368,6 +370,17 @@ void app_init(void) {
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
         app_load_rom_labels(arguments.rom);
     }
+    if (arguments.script) {
+        if (!script_load(arguments.script)) {
+            exit(EXIT_FAILURE);
+        }
+    }
+    else if (arguments.screenshot) {
+        script_screenshot(arguments.screenshot, arguments.frames);
+    }
+    else if (arguments.frames) {
+        LOG_WARNING("--frames has no effect without --screenshot");
+    }
     if (arguments.break_opcode) {
         int opcode;
         if (sscanf(arguments.break_opcode, "%x", &opcode) == 1) {
@@ -385,7 +398,17 @@ static void draw_status_bar(void);
 void app_frame(void) {
     state.frame_time_us = clock_frame_time();
     const uint64_t emu_start_time = stm_now();
-    state.ticks = x65_exec(&state.x65, state.frame_time_us);
+    if (!script_running()) {
+        state.ticks = x65_exec(&state.x65, state.frame_time_us);
+    }
+    else if (state.rom_loaded || !arguments.rom) {
+        // scripted run: deterministic 60 Hz frames, driven by the script
+        script_task(&state.x65);
+        state.ticks = 0;
+    }
+    else {
+        state.ticks = 0;  // script armed, holding the machine until the image is in
+    }
     state.emu_time_ms = stm_ms(stm_since(emu_start_time));
     if (!disable_gui) {
         draw_status_bar();
@@ -482,6 +505,7 @@ static void handle_file_loading(void) {
             load_success = x65_quickload_xex(&state.x65, fs_data(FS_CHANNEL_IMAGES));
         }
         if (load_success) {
+            state.rom_loaded = true;
             if (clock_frame_count_60hz() > (load_delay_frames + 10)) {
                 gfx_flash_success();
             }

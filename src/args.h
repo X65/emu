@@ -18,6 +18,9 @@ extern struct arguments {
     const char* break_opcode;
     const char* joystick;
     const char* sgu_dump;
+    const char* script;
+    const char* screenshot;
+    const char* frames;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

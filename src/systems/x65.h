@@ -45,7 +45,9 @@ extern "C" {
 #endif
 
 // bump snapshot version when x65_t memory layout changes
-#define X65_SNAPSHOT_VERSION (2)
+#define X65_SNAPSHOT_VERSION (3)
+
+#define X65_NO_BREAK_ADDR (0xFFFFFFFFu)  // x65_t.hooks.break_addr value that never matches
 
 #define X65_FREQUENCY             (3140000)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (2048)     // max number of audio samples in internal sample buffer
@@ -154,6 +156,15 @@ typedef struct {
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
     bool sgu_dump_wai_active;  // true while CPU is parked on WAI, for SGU dump edge detection
+
+    // host-side scripting/debug hooks (see script.h) - not machine state,
+    // so they are carried across a snapshot load instead of being restored
+    struct {
+        uint64_t tick_count;       // CPU ticks since power-on
+        uint32_t trace_remaining;  // print this many more opcode fetches to stdout
+        uint32_t break_addr;       // 24-bit address; opcode fetch here sets break_hit and stops x65_exec
+        bool break_hit;
+    } hooks;
 
     bool valid;
     chips_debug_t debug;

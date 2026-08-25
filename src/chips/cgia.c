@@ -98,7 +98,10 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
         }
         else {
             vpu->chip[CGIA_REG_RASTER] = 0;
-            if (vpu->v_count == 0) cgia_vbi();
+            if (vpu->v_count == 0) {
+                vpu->frame_count++;
+                cgia_vbi();
+            }
         }
     }
 
@@ -1014,6 +1017,10 @@ static void _vcache_dma_process_block(cgia_t* vpu) {
             }
         }
     }
+}
+
+uint16_t cgia_raster_line(void) {
+    return (uint16_t)(cgia_reg_read(CGIA_REG_RASTER) | (cgia_reg_read(CGIA_REG_RASTER + 1) << 8));
 }
 
 static void _copy_internal_regs(cgia_t* vpu) {

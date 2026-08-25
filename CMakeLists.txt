@@ -56,6 +56,7 @@ add_executable(emu
     src/x65-ui-impl.cc
     src/args.c
     src/hid.c
+    src/script.c
     src/ui/ui_cgia.cc
     src/ui/ui_vram_debugger.cc
     src/ui/ui_console.cc

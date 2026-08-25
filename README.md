@@ -93,6 +93,29 @@ Windows
 
 Options use the GNU `--option` style; run `emu --help` for the full list.
 
+### Headless scripting
+
+`--script FILE` drives the machine from a small line-oriented script instead
+of the keyboard: advance frames, feed joystick lines, take PNG screenshots,
+dump or check memory, print CPU/CGIA state, trace instructions, stop at an
+address. Emulation runs at a deterministic 60 Hz (several frames per host
+frame), a failed check exits with code 1, and `exit` ends the run, so scripts
+double as CI smoke tests. Combine with `--disable-gui` and `xvfb-run` for a
+fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
+`run N` / `shot FILE` / `exit`.
+
+    > cat drive.scr
+    run 60
+    joy up left
+    run 120
+    regs
+    shot "turning.png"
+    dump 0xD000 32
+    exit 0
+    > xvfb-run -a build/emu --disable-gui --script drive.scr roms/game.xex
+
+The verbs are documented in `src/script.h`.
+
 ### Opcode Breakpoints
 
 The emulator supports opcode based breakpoints, if an specified opcode is executed, the emulator will stop. Possible breakpoint values are EA (NOP) 42 (WDM #xx) and B8 (CLV).

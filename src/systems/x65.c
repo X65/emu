@@ -5,6 +5,7 @@
 
 #include "chips/clk.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  // memcpy, memset
 
@@ -35,6 +36,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
 
     sys->valid = true;
     sys->running = false;
+    sys->hooks.break_addr = X65_NO_BREAK_ADDR;
     sys->joystick_type = desc->joystick_type;
     sys->debug = desc->debug;
     sys->audio.callback = desc->audio.callback;
@@ -99,6 +101,25 @@ void x65_reset(x65_t* sys) {
 void x65_set_running(x65_t* sys, bool running) {
     CHIPS_ASSERT(sys && sys->valid);
     sys->running = running;
+}
+
+// print one line of instruction trace (see the `trace` script verb)
+static void _x65_trace(x65_t* sys, uint32_t addr, uint64_t pins) {
+    const w65816_t* c = &sys->cpu;
+    printf(
+        "T %02X:%04X %02X  A=%04X X=%04X Y=%04X S=%04X D=%04X DBR=%02X P=%02X E=%d\n",
+        (uint8_t)(addr >> 16),
+        (uint16_t)addr,
+        W65816_GET_DATA(pins),
+        c->C,
+        c->X,
+        c->Y,
+        c->S,
+        c->D,
+        c->DBR,
+        c->P,
+        c->emulation);
+    if (0 == --sys->hooks.trace_remaining) fflush(stdout);
 }
 
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
@@ -295,6 +316,12 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             mem_ram_write(sys, addr, W65816_GET_DATA(pins));
         }
     }
+    // scripting hooks: an opcode fetch asserts VPA and VDA on a read, and by
+    // now the data bus carries the fetched byte
+    if ((pins & (W65816_VPA | W65816_VDA | W65816_RW)) == (W65816_VPA | W65816_VDA | W65816_RW)) {
+        if (addr == sys->hooks.break_addr) sys->hooks.break_hit = true;
+        if (sys->hooks.trace_remaining) _x65_trace(sys, addr, pins);
+    }
     return pins;
 }
 
@@ -401,19 +428,21 @@ uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
     CHIPS_ASSERT(sys && sys->valid);
     uint32_t num_ticks = clk_us_to_ticks(X65_FREQUENCY, micro_seconds);
     uint64_t pins = sys->pins;
+    uint32_t ticks = 0;
     if (0 == sys->debug.callback.func) {
         // run without debug callback
-        for (uint32_t ticks = 0; ticks < num_ticks; ticks++) {
+        for (; ticks < num_ticks && !sys->hooks.break_hit; ticks++) {
             pins = _x65_tick(sys, pins);
         }
     }
     else {
         // run with debug callback
-        for (uint32_t ticks = 0; (ticks < num_ticks) && !(*sys->debug.stopped); ticks++) {
+        for (; (ticks < num_ticks) && !(*sys->debug.stopped) && !sys->hooks.break_hit; ticks++) {
             pins = _x65_tick(sys, pins);
             sys->debug.callback.func(sys->debug.callback.user_data, pins);
         }
     }
+    sys->hooks.tick_count += ticks;
     sys->pins = pins;
     return num_ticks;
 }
@@ -651,6 +680,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     chips_audio_callback_snapshot_onload(&im.audio.callback, &sys->audio.callback);
     w65816_snapshot_onload(&im.cpu, &sys->cpu);
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
+    im.hooks = sys->hooks;
     *sys = im;
     return true;
 }
