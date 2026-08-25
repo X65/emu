@@ -259,7 +259,7 @@ int main(int argc, char* argv[]) {
 
         uint8_t data = W65816_GET_DATA(pins);
         // reading a new instruction
-        if (cpu_read && (pins & W65816_VPA) && (pins & W65816_VDA)) {
+        if (cpu_read && W65816_IS_FETCH(pins)) {
             // handle special cases
             switch (data) {
                 case 0x00:  // BRK
@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
             memset(dasm_buffer, 0, sizeof(dasm_buffer));
             w65816dasm_op(
                 (uint16_t)addr,
-                w65816_p(&cpu) | (w65816_e(&cpu) ? W65816_UF : 0),
+                w65816_p(&cpu),
                 dasm_in_cb,
                 dasm_out_cb,
                 &dasm_context);

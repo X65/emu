@@ -69,13 +69,14 @@ A_STR = 22      # Stack Relative - d,s
 A_SII = 23      # Stack Relative Indirect Indexed with Y - (d,s),y
 A_STS = 24      # Stack with Signature - s
 A_STP = 25      # Special STP instruction - do nothing
-A_INV = 26      # an invalid instruction
+A_DPP = 26      # Direct Page Pointer (word pushed by PEI) - (d)
+A_INV = 27      # an invalid instruction
 
 # addressing mode strings
 addr_mode_str = [
     'a', '(a,x)', 'a,x', 'a,y', '(a)', 'al,x', 'al', 'A', 'xyc', '(d,x)', 'd,x', 'd,y',
     '(d),y', '[d],y', '[d]', '(d)', 'd', '#', 'i', 'rl', 'r', 's', 'd,s', '(d,s),y', 's',
-    '', 'INVALID'
+    '', '(d)', 'INVALID'
 ]
 
 # memory access modes
@@ -95,7 +96,7 @@ ops = [
         [[A_STC,M__W],[A_STC,M___],[A_STC,M__W],[A_STC,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABS,M_R_],[A_ABS,M___],[A_ABI,M_R_],[A_ABS,M__W],[A_ABS,M_R_],[A_ABS,M_R_],[A_ABS,M_R_]],
         [[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_],[A_PCR,M_R_]],
-        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_DID,M_RW],[A_IMM,M__W]],
+        [[A_DIR,M_RW],[A_DIX,M_R_],[A_BMV,M_RW],[A_DIX,M__W],[A_DIX,M__W],[A_DIX,M_R_],[A_DPP,M_RW],[A_IMM,M__W]],
         [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___]],
         [[A_ABS,M_RW],[A_ABX,M_R_],[A_ALN,M___],[A_AXI,M_R_],[A_ABS,M__W],[A_ABX,M_R_],[A_ABI,M___],[A_AXI,M_R_]]
     ],
@@ -125,13 +126,13 @@ ops = [
     ],
     # cc = 03
     [
-        [[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_RW]],
+        [[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M__W],[A_STR,M_R_],[A_STR,M_R_],[A_STR,M_R_]],
         [[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M__W],[A_DIL,M_R_],[A_DIL,M_R_],[A_DIL,M_R_]],
         [[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STC,M__W],[A_STC,M_R_],[A_STP,M_R_],[A_IMP,M___]],
         [[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M__W],[A_ALN,M_R_],[A_ALN,M_R_],[A_ALN,M_R_]],
         [[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M__W],[A_SII,M_R_],[A_SII,M_R_],[A_SII,M_R_]],
         [[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M__W],[A_DLY,M_R_],[A_DLY,M_R_],[A_DLY,M_R_]],
-        [[A_IMP,M___],[A_IMP,M_RW],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_STP,M___],[A_IMP,M___]],
+        [[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_IMP,M___],[A_STP,M___],[A_IMP,M___]],
         [[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M__W],[A_ALX,M_R_],[A_ALX,M_R_],[A_ALX,M_R_]]
     ]
 ]
@@ -142,6 +143,7 @@ class opcode:
         self.cmt = None
         self.i = 0
         self.src = [None] * 9
+        self.nxt = 'far'    # how to reach the high byte of a 16-bit operand, see rd_next()
     def t(self, src):
         self.src[self.i] = src
         self.i += 1
@@ -193,6 +195,74 @@ def invalid_opcode(op):
     return addr_mode == A_INV
 
 #-------------------------------------------------------------------------------
+#   Reaching the second (high) byte of a 16-bit operand. 'imm' takes the next
+#   program byte; 'bank0' (direct page and stack relative) wraps inside bank 0;
+#   'far' uses the full 24-bit address and carries into the next bank.
+#
+def rd_next(o):
+    if o.nxt == 'imm':
+        return '_VPA();_SA(c->PC++);'
+    elif o.nxt == 'bank0':
+        return '_VDA(0);_SA(_GA()+1);'
+    else:
+        return '_VDA(_GB());_SAL(_GAL()+1);'
+
+#   Write the other byte of a 16-bit operand, delta=+1 high byte, -1 low byte.
+def wr_at(o, delta, data):
+    if o.nxt == 'bank0':
+        return '_VDA(0);_SAD(_GA()%+d,%s);_WR();' % (delta, data)
+    else:
+        return '_VDA(_GB());_SALD(_GAL()%+d,%s);_WR();' % (delta, data)
+
+#-------------------------------------------------------------------------------
+#   Data cycle of an indexed access: the effective address is the 24-bit
+#   bank:base sum, so indexing carries into the next bank.
+#
+def ea_cycle(bank, idx):
+    return '_VDAX('+bank+',c->AD,'+idx+');'
+
+#   Indexed penalty cycle: reads skip it when the index is 8-bit and no page
+#   is crossed; writes, read-modify-writes and 16-bit index always take it.
+#   When skipped, this cycle is the data access itself.
+#
+def idx_cycle(mem_access, idx):
+    if mem_access == M_R_:
+        return ('if(_i8(c)&&!_PGX(c->AD,'+idx+')){c->IR++;'+ea_cycle('c->DBR', idx)
+                + '}else{_SA(c->AD+'+idx+');}')
+    else:
+        return '_SA(c->AD+'+idx+');'
+
+#-------------------------------------------------------------------------------
+#   Shared cycle groups of the direct page addressing modes. The operand fetch
+#   costs one extra cycle when the direct register is not page aligned.
+#
+def dp_operand(op, reg='c->AD'):
+    op.t('_VPA();_SA(c->PC);if((c->D&0xFF)==0){c->IR++;c->PC++;}')
+    op.t(reg+'=_GD();_SA(c->PC++);')
+    op.t('_VDA(0);if((c->D&0xFF)==0)'+reg+'=_GD();_SA(_DPN('+reg+'));')
+    op.nxt = 'bank0'
+
+def dp_indexed(op, idx):
+    op.t('_VPA();_SA(c->PC);')
+    op.t('c->AD=_GD();_SA(c->PC);if((c->D&0xFF)==0){c->IR++;c->PC++;}')
+    op.t('_SA(c->PC++);')
+    op.t('_VDA(0);_SA(_DPW(c->AD+'+idx+'));')
+    op.nxt = 'bank0'
+
+#   [d] and [d],y: the three pointer bytes never wrap inside the direct page.
+def dp_long_pointer(op):
+    dp_operand(op, 'c->DO')
+    op.t('_VDA(0);_SA(_DPN(c->DO+1));c->AD=_GD();')
+    op.t('_VDA(0);_SA(_DPN(c->DO+2));c->AD|=_GD()<<8;')
+    op.nxt = 'far'
+
+def abs_indexed(op, mem_access, idx):
+    op.t('_VPA();_SA(c->PC++);')
+    op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
+    op.t('c->AD|=_GD()<<8;' + idx_cycle(mem_access, idx))
+    op.t(ea_cycle('c->DBR', idx))
+
+#-------------------------------------------------------------------------------
 def enc_addr(op, addr_mode, mem_access):
     if addr_mode == A_IMP or addr_mode == A_ACC or addr_mode == A_STC:
         # no addressing, this still puts the PC on the address bus without
@@ -206,24 +276,16 @@ def enc_addr(op, addr_mode, mem_access):
         # immediate mode
         # and others pulling at least one argument byte after the instruction code
         op.t('_VPA();_SA(c->PC++);')
-        return True
+        op.nxt = 'imm'
     elif addr_mode == A_DIR:
-        # direct page
-        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->AD=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
+        # direct page, always bank 0
+        dp_operand(op)
     elif addr_mode == A_DIX:
-        # direct page + X
-        op.t('_VPA();_SA(c->PC);')
-        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('_SA(c->PC++);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):(c->D+c->AD+_X(c)));')
+        # direct page + X (wraps within the page in emulation mode with DL == 0)
+        dp_indexed(op, '_X(c)')
     elif addr_mode == A_DIY:
         # direct page + Y
-        op.t('_VPA();_SA(c->PC);')
-        op.t('c->AD=_GD();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('_SA(c->PC++);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+_Y(c))&0xFF):(c->D+c->AD+_Y(c)));')
+        dp_indexed(op, '_Y(c)')
     elif addr_mode == A_ABS:
         # absolute
         op.t('_VPA();_SA(c->PC++);')
@@ -236,88 +298,67 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VPA();_SA(c->PC++);c->AD=(_GD()<<8)|c->AD;')
         op.t('_VDA(_GD());_SA(c->AD);')
     elif addr_mode == A_ABX:
-        # absolute + X
-        # this needs to check if a page boundary is crossed, which costs
-        # and additional cycle, but this early-out only happens when the
-        # instruction doesn't need to write back to memory
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA(c->AD+_X(c));')
-        if mem_access == M_R_:
-            # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_X(c))>>8)))&1;')
-        op.t('_VDA(c->DBR);_SA(c->AD+_X(c));')
+        # absolute + X, 24-bit effective address (carries into the bank)
+        abs_indexed(op, mem_access, '_X(c)')
     elif addr_mode == A_ABY:
         # absolute + Y
-        # same page-boundary-crossed special case as absolute+X
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA(c->AD+_Y(c));')
-        if mem_access == M_R_:
-            # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
-        op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
+        abs_indexed(op, mem_access, '_Y(c)')
     elif addr_mode == A_ALX:
         # absolute long + X
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
         op.t('_VPA();_SA(c->PC++);c->AD|=_GD()<<8;')
-        op.t('_VDA(_GD());_SA(c->AD+_X(c));')
+        op.t(ea_cycle('_GD()', '_X(c)'))
     elif addr_mode == A_ABI:
+        # (a): the pointer is always in bank 0
         op.t('_VPA();_SA(c->PC++);')
         op.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-        op.t('_VDA(_GB());c->AD|=_GD()<<8;_SA(c->AD);')
-        op.t('_VDA(_GB());_SA(c->AD+1);c->AD=_GD();')
+        op.t('_VDA(0);c->AD|=_GD()<<8;_SA(c->AD);')
+        op.t('_VDA(0);_SA(c->AD+1);c->AD=_GD();')
     elif addr_mode == A_AXI:
         # (absolute + X)
         op.t('_VPA();_SA(c->PC++);')
     elif addr_mode == A_DID:
-        # (d)
-        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->AD=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->AD=_GD();_SA((_E(c)?0:c->D)+c->AD);')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+1)&0xFF):c->D+c->AD+1);c->AD=_GD();')
+        # (d): pointer in bank 0, its high byte wrapping inside the direct page
+        # in emulation mode with DL == 0; the data itself lives in the data bank
+        dp_operand(op)
+        op.t('_VDA(0);_SA(_DPW(c->AD+1));c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
+        op.nxt = 'far'
+    elif addr_mode == A_DPP:
+        # direct page pointer, pushed as a word by PEI: unlike (d) the high
+        # byte is read from D+DO+1 without wrapping inside the page
+        dp_operand(op)
+        op.t('_VDA(0);_SA(_DPN(c->AD+1));c->AD=_GD();')
     elif addr_mode == A_DXI:
         # (d,x)
         op.t('_VPA();_SA(c->PC);')
         op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}')
         op.t('_SA(c->PC++);') # add 1 cycle for direct register low not equal 0
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c))&0xFF):c->D+c->AD+_X(c));')
-        op.t('_VDA(0);_SA(_E(c)?((c->AD+_X(c)+1)&0xFF):c->D+c->AD+_X(c)+1);c->AD=_GD();')
+        op.t('_VDA(0);_SA(_DPW(c->AD+_X(c)));')
+        op.t('_VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DII:
-        # (d),y
-        # same page-boundary-crossed special case as absolute+X
-        op.t('_VPA();_SA(c->PC++);')
-        op.t('_VDA(c->DBR);c->AD=_GD();_SA(_E(c)?c->AD:(c->D+c->AD));')
-        op.t('_VDA(c->DBR);_SA(_E(c)?((c->AD+1)&0xFF):(c->D+c->AD+1));c->AD=_GD();')
-        op.t('c->AD|=_GD()<<8;_SA(c->AD+_Y(c));')
-        if mem_access == M_R_:
-            # skip next tick if read access and page not crossed
-            op.ta('c->IR+=(~((c->AD>>8)-((c->AD+_Y(c))>>8)))&1;')
-        op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
+        # (d),y: pointer in bank 0, 24-bit effective address
+        dp_operand(op)
+        op.t('_VDA(0);_SA(_DPW(c->AD+1));c->AD=_GD();')
+        op.t('c->AD|=_GD()<<8;' + idx_cycle(mem_access, '_Y(c)'))
+        op.t(ea_cycle('c->DBR', '_Y(c)'))
+        op.nxt = 'far'
     elif addr_mode == A_DIL:
         # [d]
-        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->DO=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->DO=_GD();_SA(_E(c)?((c->AD)&0xFF):c->D+c->DO);')
-        op.t('_VDA(0);_SA(_E(c)?((c->DO+1)&0xFF):c->D+c->DO+1);c->AD=_GD();')
-        op.t('_VDA(0);_SA(_E(c)?((c->DO+2)&0xFF):c->D+c->DO+2);c->AD|=_GD()<<8;')
+        dp_long_pointer(op)
         op.t('_VDA(_GD());_SA(c->AD);')
     elif addr_mode == A_DLY:
-        # [d],y
-        op.t('_VPA();_SA(c->PC);if(_E(c)||(c->D&0xFF)==0){c->IR++;c->PC++;}')
-        op.t('c->DO=_GD();_SA(c->PC++);')
-        op.t('_VDA(0);if(_E(c)||(c->D&0xFF)==0)c->DO=_GD();_SA(_E(c)?((c->DO)&0xFF):c->D+c->DO);')
-        op.t('_VDA(0);_SA(_E(c)?((c->DO+1)&0xFF):c->D+c->DO+1);c->AD=_GD();')
-        op.t('_VDA(0);_SA(_E(c)?((c->DO+2)&0xFF):c->D+c->DO+2);c->AD|=_GD()<<8;')
-        op.t('_VDA(_GD());_SA(c->AD+_Y(c));')
+        # [d],y: no page-cross penalty, 24-bit effective address
+        dp_long_pointer(op)
+        op.t(ea_cycle('_GD()', '_Y(c)'))
     elif addr_mode == A_STR:
-        # d,s
+        # d,s (bank 0)
         op.t('_VPA();_SA(c->PC++);')
         op.t('c->AD=_GD();')
         op.t('_VDA(0);_SA(c->AD+_S(c));')
+        op.nxt = 'bank0'
     elif addr_mode == A_SII:
         # (d,s),y
         op.t('_VPA();_SA(c->PC++);')
@@ -325,7 +366,7 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_VDA(0);_SA(c->AD+_S(c));')
         op.t('_VDA(0);_SA(c->AD+_S(c)+1);c->AD=_GD();')
         op.t('c->AD|=_GD()<<8;')
-        op.t('_VDA(c->DBR);_SA(c->AD+_Y(c));')
+        op.t(ea_cycle('c->DBR', '_Y(c)'))
     elif addr_mode == A_STP:
         pass
     else:
@@ -336,34 +377,39 @@ def enc_addr(op, addr_mode, mem_access):
 #-------------------------------------------------------------------------------
 def i_brk(o):
     cmt(o, 'BRK')
-    o.t('_VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}else{c->emulation=true;}')
+    # PBR is pushed in native mode only, and cleared in both modes
+    o.t('_VDA(0);if(0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))){c->PC++;}if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);}c->PBR=0;if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);if(0==(c->brk_flags&W65816_BRK_RESET)){_WR();}')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}')
-    o.t('_VDA(0);_SA(c->AD++);c->P|=(W65816_IF);if(_E(c)){c->P|=(W65816_BF);}c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
-    o.t('_VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
+    o.t('_VDA(0);_SAD(_SP(_S(c)--),_w65816_push_p(c,0==(c->brk_flags&(W65816_BRK_IRQ|W65816_BRK_NMI))));if(c->brk_flags&W65816_BRK_RESET){c->AD=0xFFFC;}else{_WR();if(c->brk_flags&W65816_BRK_NMI){c->AD=_E(c)?0xFFFA:0xFFEA;}else{c->AD=_E(c)?0xFFFE:(c->brk_flags&(W65816_BRK_IRQ)?0xFFEE:0xFFE6);}}')
+    o.t('_VDA(0);_ON(W65816_VPB);_SA(c->AD++);c->P|=W65816_IF;c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
+    o.t('_VDA(0);_ON(W65816_VPB);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_cop(o):
     cmt(o,'COP')
-    o.t('_VDA(0);c->PC++;if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);c->PBR=0;}_WR();')
+    o.t('_VDA(0);c->PC++;if(_E(c)){_SAD(_SP(_S(c)--),c->PC>>8);c->IR++;}else{_SAD(_SP(_S(c)--),c->PBR);}c->PBR=0;_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;')
-    o.t('_VDA(0);_SA(c->AD++);c->P|=W65816_IF;c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
-    o.t('_VDA(0);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
+    o.t('_VDA(0);_SAD(_SP(_S(c)--),_w65816_push_p(c,true));_WR();c->AD=_E(c)?0xFFF4:0xFFE4;')
+    o.t('_VDA(0);_ON(W65816_VPB);_SA(c->AD++);c->P|=W65816_IF;c->P&=~W65816_DF;c->brk_flags=0; /* RES/NMI hijacking */')
+    o.t('_VDA(0);_ON(W65816_VPB);_SA(c->AD);c->AD=_GD(); /* NMI "half-hijacking" not possible */')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
+def i_park(o, name, state):
+    # two internal cycles, then the CPU parks until it is woken
+    cmt(o,name)
+    o.t('_SA(c->PC);')
+    o.t('_SA(c->PC);c->stopped='+state+';')
+
 def i_wai(o):
-    cmt(o,'WAI')
-    o.t('c->stopped=W65816_STOP_WAI;')
+    i_park(o, 'WAI', 'W65816_STOP_WAI')
 
 #-------------------------------------------------------------------------------
 def i_stp(o):
-    cmt(o,'STP')
-    o.t('c->stopped=W65816_STOP_STP;')
+    i_park(o, 'STP', 'W65816_STOP_STP')
 
 #-------------------------------------------------------------------------------
 def i_nop(o):
@@ -381,46 +427,46 @@ def i_wdm(o):
     o.t('')
 
 #-------------------------------------------------------------------------------
-def i_lda(o, imm):
+def i_lda(o):
     cmt(o,'LDA')
-    o.t('_A(c)=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_A(c)=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_B(c)=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_ldx(o, imm):
+def i_ldx(o):
     cmt(o,'LDX')
-    o.t('_XL(c)=_GD();if(_i8(c)){_NZ(_XL(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_XL(c)=_GD();if(_i8(c)){_NZ(_XL(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_XH(c)=_GD();_NZ16(_X(c));')
 
 #-------------------------------------------------------------------------------
-def i_ldy(o, imm):
+def i_ldy(o):
     cmt(o,'LDY')
-    o.t('_YL(c)=_GD();if(_i8(c)){_NZ(_YL(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_YL(c)=_GD();if(_i8(c)){_NZ(_YL(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_YH(c)=_GD();_NZ16(_Y(c));')
 
 #-------------------------------------------------------------------------------
 def i_stz(o):
     cmt(o,'STZ')
     o.ta('_SD(0);_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,0);_WR();}')
+    o.t('if(_a8(c)){_FETCH();}else{' + wr_at(o, 1, '0') + '}')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
     cmt(o,'STA')
     o.ta('_SD(_A(c));_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_B(c));_WR();}')
+    o.t('if(_a8(c)){_FETCH();}else{' + wr_at(o, 1, '_B(c)') + '}')
 
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
     o.ta('_SD(_XL(c));_WR();')
-    o.t('if(_i8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_XH(c));_WR();}')
+    o.t('if(_i8(c)){_FETCH();}else{' + wr_at(o, 1, '_XH(c)') + '}')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
     o.ta('_SD(_YL(c));_WR();')
-    o.t('if(_i8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_YH(c));_WR();}')
+    o.t('if(_i8(c)){_FETCH();}else{' + wr_at(o, 1, '_YH(c)') + '}')
 
 #-------------------------------------------------------------------------------
 def i_tax(o):
@@ -465,7 +511,7 @@ def i_tsx(o):
 #-------------------------------------------------------------------------------
 def i_tsc(o):
     cmt(o,'TSC')
-    o.t('c->C=c->S;_NZ(c->C);')
+    o.t('c->C=c->S;_NZ16(c->C);')
 
 #-------------------------------------------------------------------------------
 def i_tcs(o):
@@ -475,18 +521,18 @@ def i_tcs(o):
 #-------------------------------------------------------------------------------
 def i_tsb(o):
     cmt(o,'TSB')
-    o.t('c->AD=_GD();                    if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD=_GD();                    if(_a8(c)){ if(_E(c)){_WR();} }else{' + rd_next(o) + '}')
     o.t('if(_a8(c)){_VDA(_GB());_SD(_A(c)|c->AD);_WR();_Z(_A(c)&c->AD);}else{c->AD|=_GD()<<8;}')
     o.t('if(_a8(c)){_FETCH();                                          }else{_VDA(_GB());_SD(_B(c)|(c->AD>>8));_WR();_Z16(_C(c)&c->AD);}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,_A(c)|(c->AD&0xFF));_WR();')
+    o.t(wr_at(o, -1, '_A(c)|(c->AD&0xFF)'))
 
 #-------------------------------------------------------------------------------
 def i_trb(o):
     cmt(o,'TRB')
-    o.t('c->AD=_GD();                     if(_a8(c)){ if(_E(c)){_WR();} }else{_VDA(_GB());_SAL(_GAL()+1);}')
+    o.t('c->AD=_GD();                     if(_a8(c)){ if(_E(c)){_WR();} }else{' + rd_next(o) + '}')
     o.t('if(_a8(c)){_VDA(_GB());_SD(~_A(c)&c->AD);_WR();_Z(_A(c)&c->AD);}else{c->AD|=_GD()<<8;}')
     o.t('if(_a8(c)){_FETCH();                                           }else{_VDA(_GB());_SD(~_B(c)&(c->AD>>8));_WR();_Z16(_C(c)&c->AD);}')
-    o.t('_VDA(_GB());_SALD(_GAL()-1,~_A(c)&(c->AD&0xFF));_WR();')
+    o.t(wr_at(o, -1, '~_A(c)&(c->AD&0xFF)'))
 
 #-------------------------------------------------------------------------------
 def i_tcd(o):
@@ -496,7 +542,7 @@ def i_tcd(o):
 #-------------------------------------------------------------------------------
 def i_tdc(o):
     cmt(o,'TDC')
-    o.t('c->C=c->D;_NZ(c->C);')
+    o.t('c->C=c->D;_NZ16(c->C);')
 
 #-------------------------------------------------------------------------------
 def i_xba(o):
@@ -554,14 +600,14 @@ def i_ply(o):
 #-------------------------------------------------------------------------------
 def i_php(o):
     cmt(o,'PHP')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),(_E(c)?c->P|W65816_UF:c->P));_WR();')
+    o.t('_VDA(0);_SAD(_SP(_S(c)--),_w65816_push_p(c,true));_WR();')
 
 #-------------------------------------------------------------------------------
 def i_plp(o):
     cmt(o,'PLP')
     o.t('_SA(c->PC);') # second junk read from current PC
     o.t('_VDA(0);_SA(_SP(++_S(c)));')   # read actual byte
-    o.t('c->P=_GD();if(_E(c))c->P=(c->P|W65816_BF)&~W65816_UF;');
+    o.t('c->P=_GD();');
 
 #-------------------------------------------------------------------------------
 def i_phb(o):
@@ -609,7 +655,7 @@ def i_pea(o):
 #-------------------------------------------------------------------------------
 def i_pei(o):
     cmt(o,'PEI')
-    o.ta('_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();')
+    o.t('_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();')
     o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
@@ -633,13 +679,13 @@ def i_cl(o, f):
 #-------------------------------------------------------------------------------
 def i_sep(o):
     cmt(o,'SEP')
-    o.t('c->P|=_GD();_SA(c->PC);')
+    o.t('c->P|=_GD()&(_E(c)?0xCF:0xFF);_SA(c->PC);')
     o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
 def i_rep(o):
     cmt(o,'REP')
-    o.t('c->P&=~_GD();_SA(c->PC);')
+    o.t('c->P&=~(_GD()&(_E(c)?0xCF:0xFF));_SA(c->PC);')
     o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
@@ -648,7 +694,7 @@ def i_br(o, m, v):
     # if branch not taken?
     o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();if((c->P&'+hex(m)+')!='+hex(v)+'){_FETCH();};')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -658,7 +704,7 @@ def i_bra(o):
     # branch is always taken - adds a cycle
     o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if((c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -687,7 +733,7 @@ def i_jmpi(o):
 #-------------------------------------------------------------------------------
 def i_jmpil(o):
     cmt(o,'JML')
-    o.t('_VDA(_GB());_SA(_GA()+1);c->PC=(_GD()<<8)|c->AD;')
+    o.t('_VDA(0);_SA(_GA()+1);c->PC=(_GD()<<8)|c->AD;')
     o.t('c->PBR=_GD();')
 
 #-------------------------------------------------------------------------------
@@ -695,8 +741,9 @@ def i_jmpx(o):
     cmt(o,'JMP')
     o.t('_VPA();_SA(c->PC);c->AD=_GD();')
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
-    o.t('_VDA(c->DBR);_SA(c->AD+_X(c));')
-    o.t('_VDA(c->DBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
+    # the pointer table is in the program bank
+    o.t('_VPA();_SA(c->AD+_X(c));')
+    o.t('_VPA();_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -723,8 +770,9 @@ def i_jsrx(o):
     # put PC on addr bus, next cycle is a junk read
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     # load PC from pointed address
-    o.t('_VDA(c->DBR);_SA(c->AD+_X(c));')
-    o.t('_VDA(c->DBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
+    # the pointer table is in the program bank
+    o.t('_VPA();_SA(c->AD+_X(c));')
+    o.t('_VPA();_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -779,86 +827,94 @@ def i_rti(o):
     # load processor status flag from stack
     o.t('_VDA(0);_SA(_SP(++_S(c)));')
     # load return address low byte from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));c->P=_GD();if(_E(c))c->P=(c->P|W65816_BF)&~W65816_UF;')
+    o.t('_VDA(0);_SA(_SP(++_S(c)));c->P=_GD();')
     # load return address high byte from stack
     o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
     # update PC (which is already placed on the right return-to instruction)
     # and possibly load program bank register byte from stack
     o.t('c->PC=(_GD()<<8)|c->AD;if(_E(c)){_FETCH();}else{_VDA(0);_SA(_SP(++_S(c)));}')
-    # load program bank register byte from stack
-    o.t('_VDA(0);c->PBR=_GD();')
-    # next tick is opcode fetch
-    o.t('');
+    # load program bank register byte from stack, next tick is opcode fetch
+    o.t('c->PBR=_GD();')
 
 #-------------------------------------------------------------------------------
-def i_ora(o, imm):
+def i_ora(o):
     cmt(o,'ORA')
-    o.t('_A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_B(c)|=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_and(o, imm):
+def i_and(o):
     cmt(o,'AND')
-    o.t('_A(c)&=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_A(c)&=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_B(c)&=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_eor(o, imm):
+def i_eor(o):
     cmt(o,'EOR')
-    o.t('_A(c)^=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('_A(c)^=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{' + rd_next(o) + '}')
     o.t('_B(c)^=_GD();_NZ16(_C(c));')
 
 #-------------------------------------------------------------------------------
-def i_adc(o, imm):
+def i_adc(o):
     cmt(o,'ADC')
-    o.t('if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
     o.t('_w65816_adc16(c,c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_sbc(o, imm):
+def i_sbc(o):
     cmt(o,'SBC')
-    o.t('if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
     o.t('_w65816_sbc16(c,c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cmp(o, imm):
+def i_cmp(o):
     cmt(o,'CMP')
-    o.t('if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
     o.t('_w65816_cmp16(c, _C(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cpx(o, imm):
+def i_cpx(o):
     cmt(o,'CPX')
-    o.t('if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_i8(c)){_w65816_cmp(c, _XL(c), _GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
     o.t('_w65816_cmp16(c, _X(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_cpy(o, imm):
+def i_cpy(o):
     cmt(o,'CPY')
-    o.t('if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
+    o.t('if(_i8(c)){_w65816_cmp(c, _YL(c), _GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
     o.t('_w65816_cmp16(c, _Y(c), c->AD|(_GD()<<8));')
 
 #-------------------------------------------------------------------------------
-def i_bit(o, imm):
+def i_bit(o):
     cmt(o,'BIT')
-    o.t('if(_a8(c)){_w65816_bit(c,_GD());_FETCH();}else{c->AD=_GD();' + ('_VPA();_SA(c->PC++);' if imm else '_VDA(_GB());_SAL(_GAL()+1);') + '}')
-    o.t('_w65816_bit16(c,c->AD|(_GD()<<8));')
+    if o.nxt == 'imm':
+        # BIT # affects only Z
+        o.t('if(_a8(c)){_Z(_A(c)&_GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
+        o.t('_Z16(_C(c)&(c->AD|(_GD()<<8)));')
+    else:
+        o.t('if(_a8(c)){_w65816_bit(c,_GD());_FETCH();}else{c->AD=_GD();' + rd_next(o) + '}')
+        o.t('_w65816_bit16(c,c->AD|(_GD()<<8));')
+
+#-------------------------------------------------------------------------------
+#   Read-modify-write instructions: read the operand (low byte first when the
+#   accumulator is 16 bit), modify it, then write it back high byte first. In
+#   emulation mode the modify cycle rewrites the old value instead of being an
+#   internal cycle. 'modify' is the emitted body of the first write cycle.
+#
+def i_rmw(o, name, modify):
+    cmt(o,name)
+    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{' + rd_next(o) + '}')
+    o.t('c->AD|=_GD()<<8;')
+    o.t('_VDA(_GB());' + modify + '_WR();')
+    o.t('if(_a8(c)){_FETCH();}else{' + wr_at(o, -1, 'c->AD') + '}')
 
 #-------------------------------------------------------------------------------
 def i_dec(o):
-    cmt(o,'DEC')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());c->AD--;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'DEC', 'c->AD--;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_inc(o):
-    cmt(o,'INC')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());c->AD++;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'INC', 'c->AD++;if(_a8(c)){_NZ(c->AD);_SD(c->AD);}else{_NZ16(c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_inca(o):
@@ -892,11 +948,7 @@ def i_iny(o):
 
 #-------------------------------------------------------------------------------
 def i_asl(o):
-    cmt(o,'ASL')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_asl(c,c->AD));}else{c->AD=_w65816_asl16(c,c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'ASL', 'if(_a8(c)){_SD(_w65816_asl(c,c->AD));}else{c->AD=_w65816_asl16(c,c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_asla(o):
@@ -905,11 +957,7 @@ def i_asla(o):
 
 #-------------------------------------------------------------------------------
 def i_lsr(o):
-    cmt(o,'LSR')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_lsr(c,c->AD));}else{c->AD=_w65816_lsr16(c,c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'LSR', 'if(_a8(c)){_SD(_w65816_lsr(c,c->AD));}else{c->AD=_w65816_lsr16(c,c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_lsra(o):
@@ -918,11 +966,7 @@ def i_lsra(o):
 
 #-------------------------------------------------------------------------------
 def i_rol(o):
-    cmt(o,'ROL')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_rol(c,c->AD));}else{c->AD=_w65816_rol16(c,c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'ROL', 'if(_a8(c)){_SD(_w65816_rol(c,c->AD));}else{c->AD=_w65816_rol16(c,c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_rola(o):
@@ -931,11 +975,7 @@ def i_rola(o):
 
 #-------------------------------------------------------------------------------
 def i_ror(o):
-    cmt(o,'ROR')
-    o.t('c->AD=_GD();if(_a8(c)){c->IR++;if(_E(c)){_WR();}}else{_VDA(_GB());_SAL(_GAL()+1);}')
-    o.t('c->AD|=_GD()<<8;')
-    o.t('_VDA(_GB());if(_a8(c)){_SD(_w65816_ror(c,c->AD));}else{c->AD=_w65816_ror16(c,c->AD);_SD(c->AD>>8);}_WR();')
-    o.t('if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()-1,c->AD);_WR();}')
+    i_rmw(o, 'ROR', 'if(_a8(c)){_SD(_w65816_ror(c,c->AD));}else{c->AD=_w65816_ror16(c,c->AD);_SD(c->AD>>8);}')
 
 #-------------------------------------------------------------------------------
 def i_rora(o):
@@ -984,7 +1024,7 @@ def enc_op(op):
     addr_mode = ops[cc][bbb][aaa][0]
     mem_access = ops[cc][bbb][aaa][1]
     # addressing mode
-    imm = enc_addr(o, addr_mode, mem_access);
+    enc_addr(o, addr_mode, mem_access);
     # actual instruction
     if cc == 0:
         if aaa == 0:
@@ -1002,7 +1042,7 @@ def enc_op(op):
             elif bbb == 2:      i_plp(o)
             elif bbb == 4:      i_br(o, NF, NF) # BMI
             elif bbb == 6:      i_se(o, CF)
-            else:               i_bit(o, imm)
+            else:               i_bit(o)
         elif aaa == 2:
             if bbb == 0:        i_rti(o)
             elif bbb == 1:      i_mvp(o)
@@ -1032,55 +1072,55 @@ def enc_op(op):
             if bbb == 2:        i_tay(o)
             elif bbb == 4:      i_br(o, CF, CF) # BCS
             elif bbb == 6:      i_cl(o, VF)
-            else:               i_ldy(o, imm)
+            else:               i_ldy(o)
         elif aaa == 6:
             if bbb == 2:        i_iny(o)
             elif bbb == 4:      i_br(o, ZF, 0)  # BNE
             elif bbb == 5:      i_pei(o)
             elif bbb == 6:      i_cl(o, DF)
             elif bbb == 7:      i_jmpil(o)
-            else:               i_cpy(o, imm)
+            else:               i_cpy(o)
         elif aaa == 7:
             if bbb == 2:        i_inx(o)
             elif bbb == 4:      i_br(o, ZF, ZF) # BEQ
             elif bbb == 5:      i_pea(o)
             elif bbb == 6:      i_se(o, DF)
             elif bbb == 7:      i_jsrx(o)
-            else:               i_cpx(o, imm)
+            else:               i_cpx(o)
     elif cc == 1:
-        if aaa == 0:    i_ora(o, imm)
-        elif aaa == 1:  i_and(o, imm)
-        elif aaa == 2:  i_eor(o, imm)
-        elif aaa == 3:  i_adc(o, imm)
+        if aaa == 0:    i_ora(o)
+        elif aaa == 1:  i_and(o)
+        elif aaa == 2:  i_eor(o)
+        elif aaa == 3:  i_adc(o)
         elif aaa == 4:
-            if bbb == 2:    i_bit(o, imm)
+            if bbb == 2:    i_bit(o)
             else:           i_sta(o)
-        elif aaa == 5:  i_lda(o, imm)
-        elif aaa == 6:  i_cmp(o, imm)
-        else:           i_sbc(o, imm)
+        elif aaa == 5:  i_lda(o)
+        elif aaa == 6:  i_cmp(o)
+        else:           i_sbc(o)
     elif cc == 2:
         if aaa == 0:
             if bbb == 0:    i_cop(o)
             elif bbb == 2:  i_asla(o)
-            elif bbb == 4:  i_ora(o, imm)
+            elif bbb == 4:  i_ora(o)
             elif bbb == 6:  i_inca(o)
             else:           i_asl(o)
         elif aaa == 1:
             if bbb == 0:    i_jsl(o)
             elif bbb == 2:  i_rola(o)
-            elif bbb == 4:  i_and(o, imm)
+            elif bbb == 4:  i_and(o)
             elif bbb == 6:  i_deca(o)
             else:           i_rol(o)
         elif aaa == 2:
             if bbb == 0:    i_wdm(o)
             elif bbb == 2:  i_lsra(o)
-            elif bbb == 4:  i_eor(o, imm)
+            elif bbb == 4:  i_eor(o)
             elif bbb == 6:  i_phy(o)
             else:           i_lsr(o)
         elif aaa == 3:
             if bbb == 0:    i_per(o)
             elif bbb == 2:  i_rora(o)
-            elif bbb == 4:  i_adc(o, imm)
+            elif bbb == 4:  i_adc(o)
             elif bbb == 6:  i_ply(o)
             else:           i_ror(o)
         elif aaa == 4:
@@ -1092,38 +1132,38 @@ def enc_op(op):
             else:           i_stx(o)
         elif aaa == 5:
             if bbb == 2:    i_tax(o)
-            elif bbb == 4:  i_lda(o, imm)
+            elif bbb == 4:  i_lda(o)
             elif bbb == 6:  i_tsx(o)
-            else:           i_ldx(o, imm)
+            else:           i_ldx(o)
         elif aaa == 6:
             if bbb == 0:        i_rep(o)
             elif bbb == 2:      i_dex(o)
-            elif bbb == 4:      i_cmp(o, imm)
+            elif bbb == 4:      i_cmp(o)
             elif bbb == 6:      i_phx(o)
             else:               i_dec(o)
         elif aaa == 7:
             if bbb == 0:        i_sep(o)
             elif bbb == 2:      i_nop(o)
-            elif bbb == 4:      i_sbc(o, imm)
+            elif bbb == 4:      i_sbc(o)
             elif bbb == 6:      i_plx(o)
             else:               i_inc(o)
     elif cc == 3:
         if aaa == 0:
             if bbb == 2:    i_phd(o)
             elif bbb == 6:  i_tcs(o)
-            else:           i_ora(o, imm)
+            else:           i_ora(o)
         elif aaa == 1:
             if bbb == 2:    i_pld(o)
             elif bbb == 6:  i_tsc(o)
-            else:           i_and(o, imm)
+            else:           i_and(o)
         elif aaa == 2:
             if bbb == 2:    i_phk(o)
             elif bbb == 6:  i_tcd(o)
-            else:           i_eor(o, imm)
+            else:           i_eor(o)
         elif aaa == 3:
             if bbb == 2:    i_rtl(o)
             elif bbb == 6:  i_tdc(o)
-            else:           i_adc(o, imm)
+            else:           i_adc(o)
         elif aaa == 4:
             if bbb == 2:    i_phb(o)
             elif bbb == 6:  i_txy(o)
@@ -1131,15 +1171,15 @@ def enc_op(op):
         elif aaa == 5:
             if bbb == 2:    i_plb(o)
             elif bbb == 6:  i_tyx(o)
-            else:           i_lda(o, imm)
+            else:           i_lda(o)
         elif aaa == 6:
             if bbb == 2:    i_wai(o)
             elif bbb == 6:  i_stp(o)
-            else:           i_cmp(o, imm)
+            else:           i_cmp(o)
         elif aaa == 7:
             if bbb == 2:    i_xba(o)
             elif bbb == 6:  i_xce(o)
-            else:           i_sbc(o, imm)
+            else:           i_sbc(o)
     # fetch next opcode byte
     if addr_mode == A_STP:
         pass

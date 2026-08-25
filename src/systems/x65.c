@@ -147,15 +147,17 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
 
     /*  address decoding
 
-        When the RDY pin is active (during bad lines), no CPU/chip
-        communication takes place starting with the first read access.
+        Bus cycles with neither VDA nor VPA asserted are internal CPU
+        operations: the address and bank are not valid and must not be
+        decoded, exactly like the qualified glue logic on the real board.
+        (Stalling on RDY is the CPU's own business, see w65816_tick.)
     */
     bool mem_access = false;
-    uint64_t cgia_pins = pins & W65816_PIN_MASK;
-    uint64_t ria_pins = pins & W65816_PIN_MASK;
-    uint64_t gpio_pins = pins & W65816_PIN_MASK;
-    uint64_t sgu_pins = pins & W65816_PIN_MASK;
-    if ((pins & (W65816_RDY | W65816_RW)) != (W65816_RDY | W65816_RW)) {
+    uint64_t cgia_pins = pins & W65816_BUS_PIN_MASK;
+    uint64_t ria_pins = pins & W65816_BUS_PIN_MASK;
+    uint64_t gpio_pins = pins & W65816_BUS_PIN_MASK;
+    uint64_t sgu_pins = pins & W65816_BUS_PIN_MASK;
+    if (W65816_IS_BUS_ACCESS(pins)) {
         if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
             const uint8_t slot = (addr & 0xFF) >> 5;
             if ((sys->ria.reg[RIA816_EXT_IO] & (1U << slot))) switch (slot) {
@@ -318,7 +320,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     }
     // scripting hooks: an opcode fetch asserts VPA and VDA on a read, and by
     // now the data bus carries the fetched byte
-    if ((pins & (W65816_VPA | W65816_VDA | W65816_RW)) == (W65816_VPA | W65816_VDA | W65816_RW)) {
+    if (W65816_IS_FETCH(pins) && (pins & W65816_RW)) {
         if (addr == sys->hooks.break_addr) sys->hooks.break_hit = true;
         if (sys->hooks.trace_remaining) _x65_trace(sys, addr, pins);
     }
