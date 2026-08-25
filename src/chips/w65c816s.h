@@ -811,6 +811,17 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 #define _Z16(v) c->P=((c->P&~W65816_ZF)|((v&0xFFFF)?(0):W65816_ZF))
 /* get full 16-bit stack pointer */
 #define _SP(v) (_E(c)?(0x0100|(v&0xFF)):(v))
+/* interrupt pipelines: an interrupt is armed with *_PIP_ARM, shifted left once
+   per tick, and tested at the next opcode fetch against *_PIP_TEST. The WAI
+   path returns before the shift, so it arms at *_PIP_WAKE instead, where the
+   very next fetch already sees it. */
+#define _W65816_NMI_PIP_ARM  (0x40)
+#define _W65816_NMI_PIP_WAKE (0x100)  /* lowest bit of _W65816_NMI_PIP_TEST */
+#define _W65816_NMI_PIP_TEST (0xFF00)
+#define _W65816_IRQ_PIP_ARM  (0x100)
+#define _W65816_IRQ_PIP_TEST (0x400)
+#define _W65816_IRQ_PIP_WAKE _W65816_IRQ_PIP_TEST
+#define _W65816_IRQ_PIP_MASK (0x3FF)
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -819,20 +830,13 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 
 uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
     if (c->stopped) {
-        if (c->stopped == W65816_STOP_STP && (pins & W65816_RES)) {
-            c->stopped = 0;
-            _FETCH();
-        }
         if (c->stopped == W65816_STOP_WAI) {
-            // Parked by WAI. The edge detector below does not run while
-            // parked, so watch the NMI input here. A pending NMI edge, an
-            // active IRQ, ABORT or RES ends the wait; a held NMI level with
-            // no new edge does not.
-            if (0 != ((pins & (pins ^ c->PINS)) & W65816_NMI)) {
-                c->nmi_pip |= 0x100;
-            }
+            // Parked by WAI. The shared interrupt detection below does not run
+            // while parked, so watch the NMI input here. A pending NMI edge, an
+            // active IRQ, ABORT or RES ends the wait; a held NMI level with no
+            // new edge does not.
+            const bool nmi_pending = (c->nmi_pip != 0) || (0 != ((pins & (pins ^ c->PINS)) & W65816_NMI));
             c->PINS = pins;
-            const bool nmi_pending = (c->nmi_pip != 0);
             if (nmi_pending || (pins & (W65816_IRQ|W65816_ABORT|W65816_RES))) {
                 // Wake up: fetch the instruction after WAI on the next tick,
                 // with the interrupt armed so that fetch turns into the
@@ -841,27 +845,31 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
                 c->stopped = 0;
                 _FETCH();
                 if (nmi_pending) {
-                    c->nmi_pip = 0x100;
+                    c->nmi_pip = _W65816_NMI_PIP_WAKE;
                 }
                 if ((pins & W65816_IRQ) && (0 == (c->P & W65816_IF))) {
-                    c->irq_pip |= 0x400;
+                    c->irq_pip |= _W65816_IRQ_PIP_WAKE;
                 }
             }
             return pins;
         }
-        if (c->stopped)
+        // stopped by STP: only RES restarts the CPU
+        if ((c->stopped != W65816_STOP_STP) || (0 == (pins & W65816_RES))) {
             return pins;
+        }
+        c->stopped = 0;
+        _FETCH();
     }
     if (pins & (W65816_VPA|W65816_VDA|W65816_IRQ|W65816_NMI|W65816_RDY|W65816_RES)) {
         // interrupt detection also works in RDY phases, but only NMI is "sticky"
 
         // NMI is edge-triggered
         if (0 != ((pins & (pins ^ c->PINS)) & W65816_NMI)) {
-            c->nmi_pip |= 0x40;
+            c->nmi_pip |= _W65816_NMI_PIP_ARM;
         }
         // IRQ test is level triggered
         if ((pins & W65816_IRQ) && (0 == (c->P & W65816_IF))) {
-            c->irq_pip |= 0x100;
+            c->irq_pip |= _W65816_IRQ_PIP_ARM;
         }
 
         // RDY pin is only checked during read cycles
@@ -882,17 +890,17 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
             //  - RES behaves slightly different than on a real 65816, we go
             //    into RES state as soon as the pin goes active, from there
             //    on, behaviour is 'standard'
-            if (0 != (c->irq_pip & 0x400)) {
+            if (0 != (c->irq_pip & _W65816_IRQ_PIP_TEST)) {
                 c->brk_flags |= W65816_BRK_IRQ;
             }
-            if (0 != (c->nmi_pip & 0xFF00)) {
+            if (0 != (c->nmi_pip & _W65816_NMI_PIP_TEST)) {
                 c->brk_flags |= W65816_BRK_NMI;
                 c->nmi_pip = 0x00;
             }
             if (0 != (pins & W65816_RES)) {
                 c->brk_flags |= W65816_BRK_RESET;
             }
-            c->irq_pip &= 0x3FF;
+            c->irq_pip &= _W65816_IRQ_PIP_MASK;
 
             // if interrupt or reset was requested, force a BRK instruction
             if (c->brk_flags) {
@@ -3520,4 +3528,11 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
 #undef _NZ16
 #undef _Z
 #undef _Z16
+#undef _W65816_NMI_PIP_ARM
+#undef _W65816_NMI_PIP_WAKE
+#undef _W65816_NMI_PIP_TEST
+#undef _W65816_IRQ_PIP_ARM
+#undef _W65816_IRQ_PIP_TEST
+#undef _W65816_IRQ_PIP_WAKE
+#undef _W65816_IRQ_PIP_MASK
 #endif /* CHIPS_IMPL */
