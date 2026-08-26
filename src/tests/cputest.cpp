@@ -749,6 +749,41 @@ TEST_CASE("emulation mode direct page uses D and wraps only when DL == 0") {
         h.step();
         CHECK(h.cpu.C == 0x0045);
     }
+    SUBCASE("(d,x) makes its two wrapping decisions independently") {
+        // Forming the pointer follows the usual direct page rule - wrap only
+        // when DL == 0 - but fetching the pointer's high byte always wraps
+        // inside the page the low byte came from while E is set. So with
+        // DL != 0 the pointer is formed with a carry and then read back with
+        // a wrap, which no other indirect mode does.
+        Harness h(0x4000);
+        h.cpu.D = 0x011A;
+        h.cpu.X = 0x00EE;
+        h.poke(0x02FF, 0x34);  // pointer low, at D+d+X with the carry allowed
+        h.poke(0x0200, 0x12);  // high byte, wrapped back into that page
+        h.poke(0x0300, 0x99);  // where an unwrapped +1 would have read
+        h.poke(0x7F1234, 0x5A);
+        h.cpu.DBR = 0x7F;
+        h.poke(0x4000, { 0xA1, 0xF7 });  // LDA ($F7,X)
+        h.step();
+        CHECK(h.cpu.C == 0x005A);
+    }
+    SUBCASE("(d),y does not share the (d,x) high byte wrap") {
+        // The same shape - DL != 0, pointer low byte at the end of a page -
+        // but here the +1 carries out of it. (d),y has no index to add while
+        // forming the pointer, so D itself has to place it at $02FF.
+        Harness h(0x4000);
+        h.cpu.D = 0x0201;
+        h.cpu.Y = 0x0000;
+        h.poke(0x02FF, 0x34);  // pointer low, at D+d
+        h.poke(0x0200, 0x12);  // a (d,x)-style wrap would find this -> $1234
+        h.poke(0x0300, 0x40);  // the carry lands here instead -> $4034
+        h.poke(0x7F1234, 0x5A);
+        h.poke(0x7F4034, 0x6B);
+        h.cpu.DBR = 0x7F;
+        h.poke(0x4000, { 0xB1, 0xFE });  // LDA ($FE),Y
+        h.step();
+        CHECK(h.cpu.C == 0x006B);
+    }
     SUBCASE("(d) pointer high byte wraps within the page, [d] and PEI do not") {
         Harness h(0x4000);
         h.cpu.D = 0x1200;

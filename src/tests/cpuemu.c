@@ -50,9 +50,13 @@ struct arguments {
     char* write;
 } arguments = { 0, -1, -1, -1, 0, 0, 0, NULL };
 
-uint16_t load_addr = 0;
+// Load address of the positional binaries. Note that argp permutes: every
+// file is loaded at the *last* --addr on the command line, not at the one
+// preceding it. Loading two images at two addresses needs two invocations,
+// or ARGP_IN_ORDER in args_parse().
+uint32_t load_addr = 0;
 
-static void load_bin(const char* filename, uint16_t addr) {
+static void load_bin(const char* filename, uint32_t addr) {
     FILE* f = fopen(filename, "rb");
     if (!f) {
         fprintf(stderr, "Error: can't open file %s\n", filename);
@@ -61,8 +65,8 @@ static void load_bin(const char* filename, uint16_t addr) {
     fseek(f, 0, SEEK_END);
     size_t size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (size > 0xFFFF) {
-        fprintf(stderr, "Error: file %s is too large\n", filename);
+    if (size > sizeof(mem) - addr) {
+        fprintf(stderr, "Error: file %s does not fit at %06X\n", filename, addr);
         exit(1);
     }
     fread(mem + addr, 1, size, f);
@@ -77,7 +81,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
         case 's': args->silent = 1; break;
         case 'v': args->silent = 0; break;
 
-        case 'a': load_addr = (uint16_t)strtoul(arg, NULL, 16); break;
+        case 'a': load_addr = (uint32_t)strtoul(arg, NULL, 16) & 0xFFFFFF; break;
         case 'r':
             uint16_t reset_addr = (uint16_t)strtoul(arg, NULL, 16);
             mem[0xFFFC] = reset_addr & 0xFF;
@@ -270,10 +274,13 @@ int main(int argc, char* argv[]) {
                 case 0xDB:  // STP
                     exit_with_message("STP instruction reached");
             }
-            // exit on infinite loop
+            // exit on infinite loop. MVN and MVP rewind PC to re-fetch
+            // themselves once per byte moved, so they legitimately fetch at
+            // the same address over and over.
             static uint32_t last_addr = 0;
             static uint8_t last_instr = 0;
-            if (last_addr == addr && last_instr != 0x60 /* RTS */) {
+            const bool block_move = (data == 0x54 /* MVN */) || (data == 0x44 /* MVP */);
+            if (last_addr == addr && last_instr != 0x60 /* RTS */ && !block_move) {
                 exit_with_message("Infinite loop detected");
             }
             last_addr = addr;

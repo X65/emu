@@ -49,6 +49,12 @@
     not a bus pin, so it sits outside W65816_BUS_PIN_MASK - the mask a system
     uses when handing the CPU pins to a peripheral.
 
+    Emulation mode confines the stack to page 1, but not for JSL, JSR (a,x),
+    PEA, PEI, PER, PHD, PLD and RTL, which the datasheet's stack addressing
+    section allows to step outside 000100-0001FF while accessing multi-byte
+    stack data, nor for PLB, which does the same for its single-byte pull. See
+    _SP and _SPW. The (d,x) pointer has its own quirk, see _DPX.
+
     Not emulated: the ABORTB input (the pin exists, but only to wake the CPU
     from WAI - there is no abort sequence, abort vector or register-write
     suppression), and the MLB, E and MX outputs.
@@ -820,11 +826,16 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
    every one of its accesses inside page 1, wrapping there rather than stepping
    out (BRK, COP, JSR, RTS, RTI, PHA/PHP/PHX/PHY/PHB/PHK, PLA/PLP/PLX/PLY). */
 #define _SP(v) (_E(c)?(0x0100|(v&0xFF)):(v))
-/* Stack address of a 65816-specific stack instruction (PHD, PLD, PLB, PEA,
-   PEI, PER, JSL, RTL). These walk the full 16-bit stack pointer even in
-   emulation mode, so a multi-byte push or pull that starts at the edge of
-   page 1 steps out of it - PLB with S=01FF really does read from 000200. The
-   page 1 base is re-established at the instruction boundary, see w65816_tick(). */
+/* Stack address of a 65816-specific stack instruction. The datasheet's "Stack
+   Addressing" section names the eight that may increment or decrement outside
+   000100-0001FF while accessing multi-byte stack data in emulation mode:
+
+       JSL, JSR (a,x), PEA, PEI, PER, PHD, PLD, RTL
+
+   so a push or pull starting at the edge of page 1 steps out of it. PLB
+   belongs with them even though the list omits it, being a single-byte pull:
+   it too ignores the page 1 wrap, reading 000200 with S=01FF. The page 1 base
+   is re-established at the instruction boundary, see w65816_tick(). */
 #define _SPW(v) (v)
 /* direct page address that never wraps within the page (plain d, and the
    2nd/3rd pointer byte of [d], [d],y and PEI) */
@@ -832,6 +843,11 @@ void w65816_snapshot_onload(w65816_t* snapshot, w65816_t* sys) {
 /* direct page effective address (always bank 0): in emulation mode with DL==0
    the address wraps within the direct page, otherwise it is a 16-bit sum */
 #define _DPW(off) ((_E(c)&&((c->D&0xFF)==0))?(uint16_t)((c->D&0xFF00)|((uint16_t)(off)&0xFF)):_DPN(off))
+/* Second byte of the (d,x) indirect pointer, given the first one still on the
+   address bus. In emulation mode the increment wraps inside the page the low
+   byte came from, whatever DL is - undocumented, and unique to this addressing
+   mode: (d), [d] and PEI all read their second byte without that wrap. */
+#define _DPX(addr) (_E(c)?(uint16_t)(((addr)&0xFF00)|(((addr)+1)&0xFF)):(uint16_t)((addr)+1))
 /* valid data address at bank:base+index, carrying the index into the bank */
 #define _VDAX(bank,base,idx) _ON(W65816_VDA);_SAL(((((uint32_t)(bank))<<16)|(uint16_t)(base))+(uint32_t)(idx))
 /* Address held during the cycle that carries an index: the data bank, the
@@ -977,7 +993,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x01<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0x01<<4)|2: _SA(c->PC++);break;
         case (0x01<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0x01<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0x01<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0x01<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0x01<<4)|6: _A(c)|=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0x01<<4)|7: _B(c)|=_GD();_NZ16(_C(c));_FETCH();break;
@@ -1297,7 +1313,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x21<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0x21<<4)|2: _SA(c->PC++);break;
         case (0x21<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0x21<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0x21<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0x21<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0x21<<4)|6: _A(c)&=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0x21<<4)|7: _B(c)&=_GD();_NZ16(_C(c));_FETCH();break;
@@ -1617,7 +1633,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x41<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0x41<<4)|2: _SA(c->PC++);break;
         case (0x41<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0x41<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0x41<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0x41<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0x41<<4)|6: _A(c)^=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0x41<<4)|7: _B(c)^=_GD();_NZ16(_C(c));_FETCH();break;
@@ -1937,7 +1953,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x61<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0x61<<4)|2: _SA(c->PC++);break;
         case (0x61<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0x61<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0x61<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0x61<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0x61<<4)|6: if(_a8(c)){_w65816_adc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0x61<<4)|7: _w65816_adc16(c,c->AD|(_GD()<<8));_FETCH();break;
@@ -2257,7 +2273,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0x81<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0x81<<4)|2: _SA(c->PC++);break;
         case (0x81<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0x81<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0x81<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0x81<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);_SD(_A(c));_WR();break;
         case (0x81<<4)|6: if(_a8(c)){_FETCH();}else{_VDA(_GB());_SALD(_GAL()+1,_B(c));_WR();}break;
         case (0x81<<4)|7: _FETCH();break;
@@ -2577,7 +2593,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xA1<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0xA1<<4)|2: _SA(c->PC++);break;
         case (0xA1<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0xA1<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0xA1<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0xA1<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0xA1<<4)|6: _A(c)=_GD();if(_a8(c)){_NZ(_A(c));_FETCH();}else{_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xA1<<4)|7: _B(c)=_GD();_NZ16(_C(c));_FETCH();break;
@@ -2897,7 +2913,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xC1<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0xC1<<4)|2: _SA(c->PC++);break;
         case (0xC1<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0xC1<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0xC1<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0xC1<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0xC1<<4)|6: if(_a8(c)){_w65816_cmp(c, _A(c), _GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xC1<<4)|7: _w65816_cmp16(c, _C(c), c->AD|(_GD()<<8));_FETCH();break;
@@ -3217,7 +3233,7 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xE1<<4)|1: _SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}break;
         case (0xE1<<4)|2: _SA(c->PC++);break;
         case (0xE1<<4)|3: _VDA(0);_SA(_DPW(c->AD+_X(c)));break;
-        case (0xE1<<4)|4: _VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();break;
+        case (0xE1<<4)|4: _VDA(0);_SA(_DPX(_GA()));c->AD=_GD();break;
         case (0xE1<<4)|5: _VDA(c->DBR);_SA((_GD()<<8)|c->AD);break;
         case (0xE1<<4)|6: if(_a8(c)){_w65816_sbc(c,_GD());_FETCH();}else{c->AD=_GD();_VDA(_GB());_SAL(_GAL()+1);}break;
         case (0xE1<<4)|7: _w65816_sbc16(c,c->AD|(_GD()<<8));_FETCH();break;
@@ -3484,8 +3500,8 @@ uint64_t w65816_tick(w65816_t* c, uint64_t pins) {
         case (0xFB<<4)|8: assert(false);break;
     /* JSR (a,x) */
         case (0xFC<<4)|0: _VPA();_SA(c->PC++);break;
-        case (0xFC<<4)|1: _VDA(0);c->AD=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();break;
-        case (0xFC<<4)|2: _VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();break;
+        case (0xFC<<4)|1: _VDA(0);c->AD=_GD();_SAD(_SPW(_S(c)--),c->PC>>8);_WR();break;
+        case (0xFC<<4)|2: _VDA(0);_SAD(_SPW(_S(c)--),c->PC);_WR();break;
         case (0xFC<<4)|3: _VPA();_SA(c->PC);break;
         case (0xFC<<4)|4: _SA(c->PC);c->AD=(_GD()<<8)|c->AD;break;
         case (0xFC<<4)|5: _VDA(c->PBR);_SA(c->AD+_X(c));break;

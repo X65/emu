@@ -336,7 +336,7 @@ def enc_addr(op, addr_mode, mem_access):
         op.t('_SA(c->PC);c->AD=_GD();if(!(c->D&0xFF)){c->IR++;c->PC++;}')
         op.t('_SA(c->PC++);') # add 1 cycle for direct register low not equal 0
         op.t('_VDA(0);_SA(_DPW(c->AD+_X(c)));')
-        op.t('_VDA(0);_SA(_DPW(c->AD+_X(c)+1));c->AD=_GD();')
+        op.t('_VDA(0);_SA(_DPX(_GA()));c->AD=_GD();')
         op.t('_VDA(c->DBR);_SA((_GD()<<8)|c->AD);')
     elif addr_mode == A_DII:
         # (d),y: pointer in bank 0, 24-bit effective address
@@ -764,9 +764,9 @@ def i_jsr(o):
 def i_jsrx(o):
     cmt(o,'JSR')
     # get address low and write PC high byte to stack
-    o.t('_VDA(0);c->AD=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
+    o.t('_VDA(0);c->AD=_GD();_SAD(_SPW(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->PC);_WR();')
     # load target address high byte
     o.t('_VPA();_SA(c->PC);')
     # put PC on addr bus, next cycle is a junk read

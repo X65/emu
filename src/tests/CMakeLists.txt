@@ -25,5 +25,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(cpuemu cpuemu.c)
     add_test(NAME AllSuiteA COMMAND cpuemu -a 4000 ${CMAKE_CURRENT_SOURCE_DIR}/AllSuiteA.bin -r 4000 -d 0210 -w ${CMAKE_CURRENT_BINARY_DIR}/AllSuiteA.log)
     add_test(NAME AllSuiteA_log COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_CURRENT_BINARY_DIR}/AllSuiteA.log ${CMAKE_CURRENT_SOURCE_DIR}/AllSuiteA.log)
+    # CTest matches a fixture name against FIXTURES_SETUP, not against a test
+    # name, so without this the two can race for the log file under ctest -j.
+    set_tests_properties(AllSuiteA PROPERTIES FIXTURES_SETUP AllSuiteA)
     set_tests_properties(AllSuiteA_log PROPERTIES FIXTURES_REQUIRED AllSuiteA)
+
+    # gilyon's 65816 instruction suite, built by src/tests/cputest816/ and
+    # committed as a ROM so this needs no toolchain. -b because several tests
+    # execute BRK; the harness plants STP at the handlers to catch stray ones.
+    add_test(NAME CPU816Suite COMMAND cpuemu -a 8000 ${CMAKE_CURRENT_SOURCE_DIR}/cputest816.bin -o 7f01 -d 7f00 -b)
+    set_tests_properties(CPU816Suite PROPERTIES
+        PASS_REGULAR_EXPRESSION "Success"
+        FAIL_REGULAR_EXPRESSION "Failed|Invalid test order"
+        TIMEOUT 60)
 endif()
