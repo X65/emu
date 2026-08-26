@@ -42,13 +42,14 @@ static struct argp_option options[] = {
     { "write", 'w', "FILE", 0, "Write output to file" },
     { "uart", 'u', 0, 0, "Emulate X65 CDC-UART" },
     { "no-brk", 'b', 0, 0, "Do not stop on BRK instruction" },
+    { "intr", 'I', "HEX", 0, "Interrupt request port (HEX=IRQ delay, HEX+1=NMI delay)" },
     { 0 }
 };
 
 struct arguments {
-    int silent, dump, input, output, crlf, uart, nbrk;
+    int silent, dump, input, output, crlf, uart, nbrk, intr;
     char* write;
-} arguments = { 0, -1, -1, -1, 0, 0, 0, NULL };
+} arguments = { 0, -1, -1, -1, 0, 0, 0, -1, NULL };
 
 // Load address of the positional binaries. Note that argp permutes: every
 // file is loaded at the *last* --addr on the command line, not at the one
@@ -107,6 +108,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* argp_state) {
             break;
 
         case 'b': args->nbrk = 1; break;
+        case 'I': args->intr = (uint16_t)strtoul(arg, NULL, 16); break;
 
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -166,6 +168,11 @@ void cli_cleanup(int _status, void* _arg) {
 
 FILE* output = NULL;
 
+// Interrupt request lines driven by the --intr port: index 0 is IRQ, 1 is NMI.
+// A countdown of -1 means idle, 0 means the line is active.
+static int intr_countdown[2] = { -1, -1 };
+static bool intr_active[2] = { false, false };
+
 void __attribute__((__noreturn__)) exit_with_message(const char* message) {
     fprintf(stderr, "%s\n", message);
     if (arguments.dump >= 0 && arguments.dump < sizeof(mem)) {
@@ -201,6 +208,19 @@ int main(int argc, char* argv[]) {
         static ssize_t in_n = 0;
         if (in_n == 0 && (arguments.input >= 0 || arguments.uart)) {
             in_n = read(STDIN_FILENO, &in_c, 1);
+        }
+
+        for (int line = 0; line < 2; line++) {
+            if (intr_countdown[line] > 0 && --intr_countdown[line] == 0) {
+                intr_active[line] = true;
+            }
+        }
+        pins &= ~(W65816_IRQ | W65816_NMI);
+        if (intr_active[0]) {
+            pins |= W65816_IRQ;
+        }
+        if (intr_active[1]) {
+            pins |= W65816_NMI;
         }
 
         // run the CPU emulation for one tick
@@ -256,6 +276,17 @@ int main(int argc, char* argv[]) {
                 putc(data, stdout);
                 fflush(stdout);
             }
+            else if (arguments.intr >= 0 && (addr == (uint32_t)arguments.intr || addr == (uint32_t)arguments.intr + 1)) {
+                // Interrupt request port: writing N schedules the line to go
+                // active N bus cycles from now, writing 0 releases it at once.
+                // A delay is what makes WAI testable - a parked CPU cannot
+                // write the port that is supposed to wake it.
+                const int line = (addr == (uint32_t)arguments.intr) ? 0 : 1;
+                intr_countdown[line] = data ? data : -1;
+                if (!data) {
+                    intr_active[line] = false;
+                }
+            }
             else {
                 mem[addr] = data;
             }
@@ -270,6 +301,9 @@ int main(int argc, char* argv[]) {
                     if (arguments.nbrk) break;
                     exit_with_message("BRK instruction reached");
                 case 0xCB:  // WAI
+                    // With an interrupt source wired up, waiting is something
+                    // the program means to do; without one it can only hang.
+                    if (arguments.intr >= 0) break;
                     exit_with_message("WAI instruction reached");
                 case 0xDB:  // STP
                     exit_with_message("STP instruction reached");

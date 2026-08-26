@@ -158,7 +158,14 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
     uint64_t gpio_pins = pins & W65816_BUS_PIN_MASK;
     uint64_t sgu_pins = pins & W65816_BUS_PIN_MASK;
     if (W65816_IS_BUS_ACCESS(pins)) {
-        if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
+        if (addr > 0xFFFF) {
+            // The chips sit in bank 0 only; everything above $00FFFF is plain
+            // RAM and must not see a chip select. The window tests and the
+            // sub-decoding below compare against 16-bit constants, so they
+            // only mean what they say once the bank is known to be zero.
+            mem_access = true;
+        }
+        else if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
             const uint8_t slot = (addr & 0xFF) >> 5;
             if ((sys->ria.reg[RIA816_EXT_IO] & (1U << slot))) switch (slot) {
                     case 0x00: {

@@ -38,4 +38,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         PASS_REGULAR_EXPRESSION "Success"
         FAIL_REGULAR_EXPRESSION "Failed|Invalid test order"
         TIMEOUT 60)
+
+    # WAI interrupt wake regression, built by src/tests/waitest/. -I wires up
+    # cpuemu's interrupt request port, which is also what lets WAI run instead
+    # of ending the simulation.
+    add_test(NAME WaiInterrupt COMMAND cpuemu -a 8000 ${CMAKE_CURRENT_SOURCE_DIR}/waitest.bin -o 7f01 -d 7f00 -I 7f02)
+    set_tests_properties(WaiInterrupt PROPERTIES
+        PASS_REGULAR_EXPRESSION "WAI interrupt wake OK"
+        FAIL_REGULAR_EXPRESSION "FAIL:"
+        TIMEOUT 30)
 endif()
