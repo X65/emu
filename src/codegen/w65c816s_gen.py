@@ -228,9 +228,9 @@ def ea_cycle(bank, idx):
 def idx_cycle(mem_access, idx):
     if mem_access == M_R_:
         return ('if(_i8(c)&&!_PGX(c->AD,'+idx+')){c->IR++;'+ea_cycle('c->DBR', idx)
-                + '}else{_SA(c->AD+'+idx+');}')
+                + '}else{_IAX(c->DBR,c->AD,'+idx+');}')
     else:
-        return '_SA(c->AD+'+idx+');'
+        return '_IAX(c->DBR,c->AD,'+idx+');'
 
 #-------------------------------------------------------------------------------
 #   Shared cycle groups of the direct page addressing modes. The operand fetch
@@ -424,6 +424,8 @@ def u_nop(o):
 #-------------------------------------------------------------------------------
 def i_wdm(o):
     cmt(o,'WDM')
+    # the signature byte is consumed, but the cycle is not a program fetch
+    o.to('_SB(c->PBR);_SA(c->PC++);')
     o.t('')
 
 #-------------------------------------------------------------------------------
@@ -618,7 +620,7 @@ def i_phb(o):
 def i_plb(o):
     cmt(o,'PLB')
     o.t('_SA(c->PC);') # second junk read from current PC
-    o.t('_VDA(0);_SA(_SP(++_S(c)));')   # read actual byte
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));')   # read actual byte
     o.t('c->DBR=_GD();_NZ(c->DBR);')
 
 #-------------------------------------------------------------------------------
@@ -630,41 +632,41 @@ def i_phk(o):
 def i_phd(o):
     cmt(o,'PHD')
     # write Direct page high byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->D>>8);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->D>>8);_WR();')
     # write Direct page low byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->D);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->D);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_pld(o):
     cmt(o,'PLD')
     o.t('_SA(c->PC);') # second junk read from current PC
     # load D low byte from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));')
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));')
     # load D high byte from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
-    # put address in D
-    o.t('c->D=(_GD()<<8)|c->AD;')
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));c->AD=_GD();')
+    # put address in D, N and Z come from the full 16-bit value
+    o.t('c->D=(_GD()<<8)|c->AD;_NZ16(c->D);')
 
 #-------------------------------------------------------------------------------
 def i_pea(o):
     cmt(o,'PEA')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),_GD());_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_pei(o):
     cmt(o,'PEI')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),_GD());_WR();')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),_GD());_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_per(o):
     cmt(o,'PER')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
     o.t('c->AD=c->PC+((_GD()<<8)|c->AD);')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD>>8);_WR();')
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->AD);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->AD>>8);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->AD);_WR();')
 
 #-------------------------------------------------------------------------------
 def i_se(o, f):
@@ -679,22 +681,22 @@ def i_cl(o, f):
 #-------------------------------------------------------------------------------
 def i_sep(o):
     cmt(o,'SEP')
-    o.t('c->P|=_GD()&(_E(c)?0xCF:0xFF);_SA(c->PC);')
+    o.t('c->P|=_GD()&(_E(c)?0xCF:0xFF);_SA(c->PC-1);')
     o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
 def i_rep(o):
     cmt(o,'REP')
-    o.t('c->P&=~(_GD()&(_E(c)?0xCF:0xFF));_SA(c->PC);')
+    o.t('c->P&=~(_GD()&(_E(c)?0xCF:0xFF));_SA(c->PC-1);')
     o.t('') # junk read during P operation
 
 #-------------------------------------------------------------------------------
 def i_br(o, m, v):
     cmt(o,branch_name(m,v))
     # if branch not taken?
-    o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();if((c->P&'+hex(m)+')!='+hex(v)+'){_FETCH();};')
+    o.t('_SA(c->PC-1);c->AD=c->PC+(int8_t)_GD();if((c->P&'+hex(m)+')!='+hex(v)+'){_FETCH();};')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA(c->PC-1);if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -702,9 +704,9 @@ def i_br(o, m, v):
 def i_bra(o):
     cmt(o,'BRA')
     # branch is always taken - adds a cycle
-    o.t('_SA(c->PC);c->AD=c->PC+(int8_t)_GD();')
+    o.t('_SA(c->PC-1);c->AD=c->PC+(int8_t)_GD();')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('_SA((c->PC&0xFF00)|(c->AD&0xFF));if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
+    o.t('_SA(c->PC-1);if(!_E(c)||(c->AD&0xFF00)==(c->PC&0xFF00)){c->PC=c->AD;c->irq_pip>>=1;c->nmi_pip>>=1;_FETCH();};')
     # page crossed extra cycle:
     o.t('c->PC=c->AD;')
 
@@ -712,7 +714,7 @@ def i_bra(o):
 def i_brl(o):
     cmt(o,'BRL')
     o.t('_VPA();_SA(c->PC++);c->AD=_GD();')
-    o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
+    o.t('_SA(c->PC-1);c->AD=(_GD()<<8)|c->AD;')
     o.t('c->PC+=c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -741,9 +743,9 @@ def i_jmpx(o):
     cmt(o,'JMP')
     o.t('_VPA();_SA(c->PC);c->AD=_GD();')
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
-    # the pointer table is in the program bank
-    o.t('_VPA();_SA(c->AD+_X(c));')
-    o.t('_VPA();_SA(c->AD+_X(c)+1);c->AD=_GD();')
+    # the pointer table is in the program bank, but read as data
+    o.t('_VDA(c->PBR);_SA(c->AD+_X(c));')
+    o.t('_VDA(c->PBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
@@ -770,24 +772,24 @@ def i_jsrx(o):
     # put PC on addr bus, next cycle is a junk read
     o.t('_SA(c->PC);c->AD=(_GD()<<8)|c->AD;')
     # load PC from pointed address
-    # the pointer table is in the program bank
-    o.t('_VPA();_SA(c->AD+_X(c));')
-    o.t('_VPA();_SA(c->AD+_X(c)+1);c->AD=_GD();')
+    # the pointer table is in the program bank, but read as data
+    o.t('_VDA(c->PBR);_SA(c->AD+_X(c));')
+    o.t('_VDA(c->PBR);_SA(c->AD+_X(c)+1);c->AD=_GD();')
     o.t('c->PC=(_GD()<<8)|c->AD;')
 
 #-------------------------------------------------------------------------------
 def i_jsl(o):
     cmt(o,'JSL')
     # write Program Bank Register to stack
-    o.to('_VDA(0);c->AD=(_GD()<<8)|c->AD;_SAD(_SP(_S(c)),c->PBR);_WR();')
+    o.to('_VDA(0);c->AD=(_GD()<<8)|c->AD;_SAD(_SPW(_S(c)),c->PBR);_WR();')
     # put SP on addr bus, next cycle is a junk read
-    o.t('_SA(_SP(_S(c)--));')
+    o.t('_SA(_SPW(_S(c)--));')
     # read bank of target address
     o.t('_VPA();_SA(c->PC);')
     # write PC high byte to stack
-    o.t('_VDA(0);c->PBR=_GD();_SAD(_SP(_S(c)--),c->PC>>8);_WR();')
+    o.t('_VDA(0);c->PBR=_GD();_SAD(_SPW(_S(c)--),c->PC>>8);_WR();')
     # write PC low byte to stack
-    o.t('_VDA(0);_SAD(_SP(_S(c)--),c->PC);_WR();')
+    o.t('_VDA(0);_SAD(_SPW(_S(c)--),c->PC);_WR();')
     # load PC and done
     o.t('c->PC=c->AD;')
 
@@ -811,11 +813,11 @@ def i_rtl(o):
     # put PC on stack and do a second junk read
     o.t('_SA(c->PC);')
     # load return address low byte from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));')
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));')
     # load return address high byte from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));c->AD=_GD();')
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));c->AD=_GD();')
     # put return address in PC, read PBR from stack
-    o.t('_VDA(0);_SA(_SP(++_S(c)));c->PC=(_GD()<<8)|c->AD;')
+    o.t('_VDA(0);_SA(_SPW(++_S(c)));c->PC=(_GD()<<8)|c->AD;')
     # next tick is opcode fetch
     o.t('c->PBR=_GD();++c->PC;');
 

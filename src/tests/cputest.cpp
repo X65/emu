@@ -338,8 +338,10 @@ TEST_CASE("testing instruction matrix") {
                     // provide marker for instruction data
                     W65816_SET_DATA(pins, 0xAA);
                 }
-                if (mem_addr == end_pc && (pins & W65816_VPA)) {
-                    // advance running program counter if program memory is read
+                // advance running program counter if program memory is read.
+                // WDM is the one instruction whose operand byte arrives on an
+                // unqualified cycle, so VPA alone does not account for it.
+                if (mem_addr == end_pc && ((pins & W65816_VPA) || instr == 0x42)) {
                     end_pc = mem_addr + 1;
                 }
             }
@@ -1059,4 +1061,82 @@ TEST_CASE("VPB is asserted during the two vector fetch cycles") {
     REQUIRE(vpb_addrs.size() == 2);
     CHECK(vpb_addrs[0] == 0xFFFE);
     CHECK(vpb_addrs[1] == 0xFFFF);
+}
+
+TEST_CASE("PLD sets N and Z from the full 16-bit direct register") {
+    Harness h(0x4000);
+    h.native(true, true);
+    h.cpu.S = 0x01FC;
+    // a value whose low byte alone would read as zero, and as positive
+    h.poke(0x0001FD, { 0x00, 0x80 });
+    h.poke(0x4000, { 0x2B });  // PLD
+    h.step();
+    CHECK(h.cpu.D == 0x8000);
+    CHECK((h.cpu.P & W65816_NF) != 0);  // bit 15 of the pulled value
+    CHECK((h.cpu.P & W65816_ZF) == 0);  // non-zero as a 16-bit quantity
+    h.cpu.S = 0x01FC;
+    h.poke(0x0001FD, { 0x00, 0x00 });
+    h.poke(0x4001, { 0x2B });
+    h.step();
+    CHECK(h.cpu.D == 0x0000);
+    CHECK((h.cpu.P & W65816_NF) == 0);
+    CHECK((h.cpu.P & W65816_ZF) != 0);
+}
+
+TEST_CASE("emulation mode confines the 6502 stack instructions to page 1") {
+    // PHA and friends wrap inside page 01 rather than stepping out of it,
+    // even when the pointer starts at its edge.
+    Harness h(0x4000);
+    REQUIRE(h.cpu.emulation);
+    h.cpu.S = 0x0100;
+    h.poke(0x4000, { 0x48, 0x48 });  // PHA, PHA
+    h.cpu.C = 0x0011;
+    h.step();
+    CHECK(h.peek(0x000100) == 0x11);
+    CHECK(h.cpu.S == 0x01FF);  // wrapped to the top of page 1, not down to 00FF
+    h.cpu.C = 0x0022;
+    h.step();
+    CHECK(h.peek(0x0001FF) == 0x22);
+    CHECK(h.cpu.S == 0x01FE);
+}
+
+TEST_CASE("emulation mode lets the 65816 stack instructions leave page 1") {
+    // PHD, PLB and RTL use the full 16-bit stack pointer even while E=1, so a
+    // multi-byte access starting at the edge of page 01 steps out of it. The
+    // pointer is back inside page 01 by the end of the instruction.
+    SUBCASE("PHD pushes below page 1") {
+        Harness h(0x4000);
+        REQUIRE(h.cpu.emulation);
+        h.cpu.S = 0x0100;
+        h.cpu.D = 0x1234;
+        h.poke(0x4000, { 0x0B });  // PHD
+        h.step();
+        CHECK(h.peek(0x000100) == 0x12);  // high byte at the base
+        CHECK(h.peek(0x0000FF) == 0x34);  // low byte below page 1
+        CHECK(h.cpu.S == 0x01FE);
+    }
+    SUBCASE("PLB pulls above page 1") {
+        // the behaviour gilyon's SNES test ROM documents: with S=01FF the
+        // pulled byte comes from 000200, not from 000100
+        Harness h(0x4000);
+        REQUIRE(h.cpu.emulation);
+        h.cpu.S = 0x01FF;
+        h.poke(0x000200, 0x7E);
+        h.poke(0x000100, 0x99);
+        h.poke(0x4000, { 0xAB });  // PLB
+        h.step();
+        CHECK(h.cpu.DBR == 0x7E);
+        CHECK(h.cpu.S == 0x0100);
+    }
+    SUBCASE("RTL pulls its return address across the page boundary") {
+        Harness h(0x4000);
+        REQUIRE(h.cpu.emulation);
+        h.cpu.S = 0x01FF;
+        h.poke(0x000200, { 0x33, 0x12, 0x07 });  // PCL, PCH, PBR
+        h.poke(0x4000, { 0x6B });                // RTL
+        h.step();
+        CHECK(h.cpu.PC == 0x1234);  // RTL returns to the pushed address + 1
+        CHECK(h.cpu.PBR == 0x07);
+        CHECK(h.cpu.S == 0x0102);
+    }
 }
