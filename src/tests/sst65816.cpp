@@ -479,9 +479,11 @@ class machine_t
 std::mutex g_print;
 
 std::string read_file(const std::filesystem::path& path) {
-    FILE* f = fopen(path.c_str(), "rb");
+    // not path.c_str(): that is wchar_t on Windows
+    const std::string name = path.string();
+    FILE* f = fopen(name.c_str(), "rb");
     if (!f) {
-        throw json_error(path.string() + ": " + strerror(errno));
+        throw json_error(name + ": " + strerror(errno));
     }
     std::string data;
     char buf[1 << 16];
@@ -492,7 +494,7 @@ std::string read_file(const std::filesystem::path& path) {
     const bool failed = ferror(f);
     fclose(f);
     if (failed) {
-        throw json_error(path.string() + ": read error");
+        throw json_error(name + ": read error");
     }
     return data;
 }
