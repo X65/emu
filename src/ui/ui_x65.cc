@@ -7,6 +7,7 @@
 #include "IconsLucide.h"
 #include "args.h"
 #include "ui.h"
+#include <cmath>
 #include <filesystem>
 
 extern "C" void app_set_disable_gui(bool hidden);
