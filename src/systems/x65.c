@@ -626,6 +626,21 @@ bool x65_quickload_xex(x65_t* sys, chips_range_t data) {
         const bool skip_chunk = start_addr == 0xFC00 && load_bank == 0x00;
         LOG_INFO("%s block: $%04X-$%04X", skip_chunk ? "Skipping" : "Loading", start_addr, end_addr);
 
+        // A block that runs off the top of bank 0 into the I/O window is almost
+        // always an accident: the CPU-side write lands on a register, while the
+        // CGIA's DMA keeps reading the memory cell underneath, so the data is
+        // silently missing from video memory. Blocks that start inside the
+        // window (vectors, register presets) are deliberate - say nothing.
+        if (!skip_chunk && load_bank == 0x00 && start_addr < X65_IO_SGU_BASE && end_addr >= X65_IO_SGU_BASE) {
+            LOG_WARNING(
+                "Block $%04X-$%04X crosses the $%04X-$FFFF I/O window: its last %u bytes go to "
+                "registers, not memory - the video chip will read whatever the cells hold",
+                start_addr,
+                end_addr,
+                X65_IO_SGU_BASE,
+                (unsigned)(end_addr - X65_IO_SGU_BASE + 1));
+        }
+
         uint16_t addr = start_addr;
         do {
             const uint8_t value = *ptr++;

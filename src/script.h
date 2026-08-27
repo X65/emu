@@ -20,6 +20,9 @@
       dump <addr> [count] ["file"]   hex-dump memory (or write it raw to file)
       peek <addr> <byte>...     fail unless memory matches
       poke <addr> <byte>...     write memory
+      vdump/vpeek/vpoke ...     same three, but bypassing the MMIO decode: they
+                                see the memory cell the CGIA's DMA reads, which
+                                under $FEC0-$FFFF is not what the CPU addresses
       regs                      print CPU registers
       cgia                      print CGIA registers and internal plane state
       trace [n]                 print the next N executed instructions (default 32)

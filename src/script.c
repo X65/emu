@@ -207,14 +207,22 @@ static void print_cgia(x65_t* sys) {
     fflush(stdout);
 }
 
-static void hex_dump(x65_t* sys, uint32_t addr, long count) {
+// Read a byte the way the CPU sees it (MMIO decoded) or the way the video chip
+// sees it (raw RAM). The two differ under $FEC0-$FFFF, where a CPU access lands
+// on a register while the CGIA's DMA still reads the memory cell underneath -
+// so data a program tried to store there is invisible to `dump`.
+static uint8_t script_read(x65_t* sys, uint32_t addr, bool raw) {
+    return raw ? mem_ram_read(sys, addr) : mem_rd(sys, (uint8_t)(addr >> 16), (uint16_t)addr);
+}
+
+static void hex_dump(x65_t* sys, uint32_t addr, long count, bool raw) {
     for (long i = 0; i < count; i += 16) {
         printf("%06X:", (unsigned)(addr + i) & 0xFFFFFF);
         char ascii[17] = { 0 };
         for (long j = 0; j < 16; j++) {
             if (i + j < count) {
                 uint32_t a = (addr + i + j) & 0xFFFFFF;
-                uint8_t v = mem_rd(sys, (uint8_t)(a >> 16), (uint16_t)a);
+                uint8_t v = script_read(sys, a, raw);
                 printf(" %02X", v);
                 ascii[j] = isprint(v) ? (char)v : '.';
             }
@@ -317,39 +325,47 @@ static void script_command(x65_t* sys, const char* line) {
         if (got != (uint32_t)want) script_error("display crc %08X, expected %08lX", got, want);
         return;
     }
-    if (!strcasecmp(cmd, "dump")) {
+    if (!strcasecmp(cmd, "dump") || !strcasecmp(cmd, "vdump")) {
+        const bool raw = cmd[0] == 'v' || cmd[0] == 'V';
         long addr, count;
-        if (!script_number(&p, &addr)) script_error("dump wants an address");
-        if (!script_number_opt(&p, &count, 64)) script_error("dump: bad count");
+        if (!script_number(&p, &addr)) script_error("%s wants an address", cmd);
+        if (!script_number_opt(&p, &count, 64)) script_error("%s: bad count", cmd);
         if (!*skip_ws(p)) {
-            hex_dump(sys, (uint32_t)addr, count);
+            hex_dump(sys, (uint32_t)addr, count, raw);
             return;
         }
         char path[256];
-        if (!script_string(&p, path, sizeof path)) script_error("dump: bad file name");
+        if (!script_string(&p, path, sizeof path)) script_error("%s: bad file name", cmd);
         FILE* f = fopen(path, "wb");
-        if (!f) script_error("dump: cannot write %s", path);
+        if (!f) script_error("%s: cannot write %s", cmd, path);
         for (long i = 0; i < count; i++) {
             uint32_t a = ((uint32_t)addr + i) & 0xFFFFFF;
-            fputc(mem_rd(sys, (uint8_t)(a >> 16), (uint16_t)a), f);
+            fputc(script_read(sys, a, raw), f);
         }
         fclose(f);
-        printf("dump %06lX +%ld -> %s\n", addr, count, path);
+        printf("%s %06lX +%ld -> %s\n", cmd, addr, count, path);
         fflush(stdout);
         return;
     }
-    if (!strcasecmp(cmd, "peek") || !strcasecmp(cmd, "poke")) {
-        bool write = !strcasecmp(cmd, "poke");
+    if (!strcasecmp(cmd, "peek") || !strcasecmp(cmd, "poke") || !strcasecmp(cmd, "vpeek")
+        || !strcasecmp(cmd, "vpoke")) {
+        const bool raw = cmd[0] == 'v' || cmd[0] == 'V';
+        const bool write = !strcasecmp(cmd, raw ? "vpoke" : "poke");
         long addr, v;
         if (!script_number(&p, &addr)) script_error("%s wants an address", cmd);
         int n = 0;
         while (script_number(&p, &v)) {
             uint32_t a = ((uint32_t)addr + n) & 0xFFFFFF;
             if (write) {
-                mem_wr(sys, (uint8_t)(a >> 16), (uint16_t)a, (uint8_t)v);
+                if (raw)
+                    // straight into the memory cell, and into the CGIA's copy of it,
+                    // so it takes effect on the very next scanline
+                    mem_ram_write(sys, a, (uint8_t)v);
+                else
+                    mem_wr(sys, (uint8_t)(a >> 16), (uint16_t)a, (uint8_t)v);
             }
             else {
-                uint8_t got = mem_rd(sys, (uint8_t)(a >> 16), (uint16_t)a);
+                uint8_t got = script_read(sys, a, raw);
                 if (got != (uint8_t)v) script_error("$%06X is %02X, expected %02lX", a, got, v & 0xFF);
             }
             n++;
