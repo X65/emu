@@ -18,7 +18,7 @@ Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu
    $04      VER_MAJOR   $01                                read-only
    $05      VER_MINOR   $00                                read-only
    $06-$0D  UNIQUE_ID   8 bytes, RP2350 board id on hw     read-only
-   $0E      PCM_BANKS   count of 64 KiB PCM banks          read-only
+   $0E      PCM_BANKS   count of 64 KB PCM banks          read-only
    $0F      SVC_BANKS   additional service banks ($00 now) read-only
    $10      STATUS      b0 = CLIP                          read-to-clear
    $11-$17  reserved    future status registers
@@ -34,12 +34,12 @@ Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu
    - `$00..$03` — **MAGIC**, the ASCII bytes `SGU1`. The chip-detection handshake.
    - `$04` / `$05` — **version** major / minor. There is no patch byte.
    - `$06..$0D` — **UNIQUE_ID**, the 8-byte RP2350 board id (`pico_get_unique_board_id`, `PICO_UNIQUE_BOARD_ID_SIZE_BYTES` = 8) on hardware. **The emulator reports all zeros**: it has no board, and silicon never reports an all-zero id, so all-zero is how software tells it is talking to an emulated chip.
-   - `$0E` — **PCM_BANKS**, the number of 64 KiB PCM banks actually backed. A discovery register tells the truth about the build it runs on: `SGU1_PCM_BANKS` = 4 in the emulator, 1 on hardware (`pcm_mem[SGU_PCM_BANK_SIZE]`).
+   - `$0E` — **PCM_BANKS**, the number of 64 KB PCM banks actually backed. A discovery register tells the truth about the build it runs on: `SGU1_PCM_BANKS` = 4 in the emulator, 1 on hardware (`pcm_mem[SGU_PCM_BANK_SIZE]`).
    - `$0F` — **SVC_BANKS**, service banks beyond `$FF`. `$00` today; the anticipated `$FE` bank carrying DSP registers and programming would make it 1.
-   - `$10` — **STATUS**, read-to-clear. Bit 0 is `CLIP`: the output stage saturated at least once since the last read. Backed by the core's `SGU_GetFlags`, whose read-and-clear is a single atomic exchange, so a clip latched by the render path concurrently is either reported by this read or survives to the next — never lost. Writes are ignored. Note the debugger's `mem_rd` path also lands here: parking a memory editor on this address eats clip events, exactly as a debugger read would on hardware.
+   - `$10` — **STATUS**, read-to-clear. Bit 0 is `CLIP`: the output stage saturated at least once since the last read. `SGU_GetFlags` is self-clearing and expects a single reader, so the wrapper's per-sample tick is that reader: it takes the core's status word once per generated sample and accumulates it into a host-side latch. It accumulates the *whole* word rather than the bits it recognises — anything not passed along is lost there with nothing to point at the loss, so a flag added to the core later still reaches the guest. The latch is the core's width, not the register's, and a read of `$10` clears only the bits it actually returned; a flag above bit 7 survives for whichever of `$11..$17` eventually exposes it. Writes are ignored. Note the debugger's `mem_rd` path also lands here, so parking a memory editor on this address eats the guest's status bits, exactly as a debugger read would on hardware — the emulator's own clip indicator is driven by a separate monotonic counter and is unaffected either way.
    - `$18` — **CHIP_RESET**, write-only (reads `$00`). See below.
    - `$1C` / `$1D` — sample offset low / high byte (read/write, plain readback).
-   - `$1E` — sample bank number (read/write; store the byte verbatim and address PCM as `bank * 64 KiB + offset`, reading `$00` and dropping writes past the end of the backed memory — see `$0E` for how much that is).
+   - `$1E` — sample bank number (read/write; store the byte verbatim and address PCM as `bank * 64 KB + offset`, reading `$00` and dropping writes past the end of the backed memory — see `$0E` for how much that is).
    - `$1F` — sample data port: **write** stores to the chip PCM RAM at the current offset, **read** returns the byte at the current offset; **both auto-increment `$1C/$1D`** (16-bit wrap `$FFFF → $0000`; the bank byte is NOT auto-bumped — confirm with firmware).
    - `$20` — **master volume**, applied by the post-mixing DSP to the final stereo output (composes with the existing `magnitude` scale, sgu1.h:106). **Reset = 0, i.e. muted** — see the note below. **Mirror the exact volume law from the firmware DSP source** (the SGU-1 is firmware on a microcontroller — locate the mixer master-volume application there); if genuinely undocumented, implement provisional linear `value/255` unity-at-`$FF` and mark it in a comment.
    - All other service offsets: reserved — writes ignored, reads `$00` — until the firmware documents them (chip service data / DSP params live here; do not invent).
@@ -58,7 +58,7 @@ Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu
 
    Two deliberate exclusions:
 
-   - **PCM sample memory is never cleared by any reset.** It is host-loaded data rather than chip state, and a 64 KiB memset inside the 48 kHz sample deadline (~20.8 µs) would overrun the hardware's render budget.
+   - **PCM sample memory is never cleared by any reset.** It is host-loaded data rather than chip state, and a 64 KB memset inside the 48 kHz sample deadline (~20.8 µs) would overrun the hardware's render budget.
    - **The SVC bit does not clear the channel select at `$3F`.** The select is the register *window*, shared by every bank, not service state — clearing it would deselect the service bank out from under the very sequence issuing the reset. Only a chip reset clears it.
 
 5. **Reset (`sgu1_reset`):** select 0, sample offset 0, sample bank 0, **master volume 0 (muted)**.
@@ -76,6 +76,8 @@ Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu
 - Master volume: render the same tone at full vs half `$20` → output RMS follows the implemented law.
 - Identification: `$00..$03` read `SGU1`, `$04`/`$05` read `$01`/`$00`, `$06..$0D` read zero, `$0E` reads `SGU1_PCM_BANKS`, `$0F` reads `$00`; every byte of the block ignores writes.
 - STATUS: with a clip latched, `$10` reads bit 0 set and the next read returns `$00`; writes never set a bit.
+- STATUS accumulation: several clips before any read coalesce into one latch while the host-side clip counter counts each; a status bit the wrapper does not special-case still reaches `$10` and does not count as a clip; a bit above bit 7 outlives a read of `$10`.
+- Inspection: peeking the service bank reports the same values with no side effects — the sample port does not advance and the status latch is not cleared.
 - CHIP_RESET: `$00`/`$07`/`$0F`/`$5A`/`$B7`/`$FF` request nothing; `$A0` requests nothing; `$A1`/`$A2`/`$A4` request one domain each; `$A7` requests all three. `$18` reads `$00`.
 - CHIP_RESET SVC bit: `$A8` zeroes offset/bank/master volume, requests no core reset, and leaves the select at `$FF`.
 - Reserved offsets `$11..$17`, `$19..$1B`, `$21..$3E` read `$00` and ignore writes.

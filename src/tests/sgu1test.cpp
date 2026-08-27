@@ -197,20 +197,121 @@ TEST_CASE("service bank identifies the chip") {
     sgu1_discard(&sgu);
 }
 
-TEST_CASE("STATUS reports the clip latch and clears on read") {
+// Run the chip until it has generated at least one sample, so the tick picks up
+// whatever the stubbed core has staged in pending_flags.
+static void tick_one_sample(sgu1_t& sgu) {
+    for (int i = 0; i < 4096; i++) {
+        if (sgu1_tick(&sgu, 0) & SGU1_SAMPLE) {
+            return;
+        }
+    }
+    FAIL("no sample generated");
+}
+
+TEST_CASE("STATUS latches the clip flag and clears on read") {
     auto sgu = make_sgu();
     select_bank(sgu, 0xFF);
-
     CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
 
     pending_flags = SGU_FLAG_CLIP;
-    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU_FLAG_CLIP) != 0);
+    tick_one_sample(sgu);
+
+    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU1_STATUS_CLIP) != 0);
     CHECK(sgu1_reg_read(&sgu, 0x10) == 0);  // read-to-clear
+    // The UI's signal is a separate counter and the guest's reads must not
+    // touch it -- that is the whole point of the fan-out.
+    CHECK(sgu.clip_count == 1);
 
     // Writes never set status bits.
-    pending_flags = 0;
     sgu1_reg_write(&sgu, 0x10, 0xFF);
     CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("the guest coalesces clips that the UI counter still counts") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    for (int i = 0; i < 3; i++) {
+        pending_flags = SGU_FLAG_CLIP;
+        tick_one_sample(sgu);
+    }
+    CHECK(sgu.clip_count == 3);
+    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU1_STATUS_CLIP) != 0);  // one latch
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+    CHECK(sgu.clip_count == 3);  // untouched by the reads
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("a status flag the wrapper does not know about still reaches the guest") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    // SGU_GetFlags is self-clearing and the wrapper is its only caller, so
+    // anything it does not pass along is lost for good. Guard that: a bit the
+    // wrapper has no name for must survive to STATUS, and must not be mistaken
+    // for a clip.
+    constexpr uint32_t future_flag = 1u << 3;
+    pending_flags = future_flag;
+    tick_one_sample(sgu);
+
+    CHECK((sgu1_reg_read(&sgu, 0x10) & future_flag) != 0);
+    CHECK(sgu.clip_count == 0);
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("STATUS clears only the bits the guest actually read") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    // The latch is the core's width because $11..$17 is reserved for further
+    // status registers; a flag above bit 7 must outlive a read of $10.
+    pending_flags = SGU_FLAG_CLIP | (1u << 16);
+    tick_one_sample(sgu);
+
+    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU1_STATUS_CLIP) != 0);
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);      // low byte gone
+    CHECK((sgu.svc_status & (1u << 16)) != 0);  // high bit still held
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("CHIP_RESET mix domain clears the status latch") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+    pending_flags = SGU_FLAG_CLIP;
+    tick_one_sample(sgu);
+    REQUIRE(sgu.svc_status != 0);
+
+    sgu1_reg_write(&sgu, 0x18, 0xA4);  // MIX
+    CHECK(sgu.svc_status == 0);
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("sgu1_svc_peek reports service registers without side effects") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    CHECK(sgu1_svc_peek(&sgu, 0x00) == 'S');
+    CHECK(sgu1_svc_peek(&sgu, 0x0E) == SGU1_PCM_BANKS);
+
+    // Peeking the sample port must not walk the pointer, however often a debug
+    // window redraws.
+    set_offset(sgu, 0x1234);
+    sgu1_reg_write(&sgu, 0x1E, 0);
+    for (int i = 0; i < 8; i++) {
+        (void)sgu1_svc_peek(&sgu, 0x1F);
+    }
+    CHECK(sgu.svc_sample_offset == 0x1234);
+
+    // Peeking STATUS must not steal the guest's latch.
+    pending_flags = SGU_FLAG_CLIP;
+    tick_one_sample(sgu);
+    for (int i = 0; i < 8; i++) {
+        CHECK((sgu1_svc_peek(&sgu, 0x10) & SGU1_STATUS_CLIP) != 0);
+    }
+    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU1_STATUS_CLIP) != 0);  // still there for the guest
     sgu1_discard(&sgu);
 }
 

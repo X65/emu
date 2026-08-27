@@ -1,5 +1,6 @@
 #include "./ui_sgu1.h"
 #include "imgui.h"
+#include "imgui_internal.h" /* TableGetHeaderRowHeight */
 #include "imgui_toggle.h"
 #include "ui/ui_util.h"
 #include <algorithm>
@@ -38,6 +39,34 @@ void ui_sgu1_init(ui_sgu1_t* win, const ui_sgu1_desc_t* desc) {
 void ui_sgu1_discard(ui_sgu1_t* win) {
     CHIPS_ASSERT(win && win->valid);
     win->valid = false;
+}
+
+// Flash duration for the clip indicator. Long enough for a human to catch a
+// single isolated clip, short enough that repeated clips read as a flicker
+// rather than a solid light.
+#define UI_SGU1_CLIP_HOLD_SECS (0.2f)
+
+void ui_sgu1_tick_clip(ui_sgu1_t* win) {
+    CHIPS_ASSERT(win && win->valid);
+    // Compare, never subtract: clip_count is monotonic but a chip reset or a
+    // snapshot restore can move it backwards, and "!=" cannot wedge the lamp on.
+    if (win->sgu->clip_count != win->clip_seen) {
+        win->clip_seen = win->sgu->clip_count;
+        win->clip_hold = UI_SGU1_CLIP_HOLD_SECS;  // retrigger, don't accumulate
+    }
+    else if (win->clip_hold > 0.0f) {
+        // Wall clock, not emulated time: a paused machine makes no new clips so
+        // the flash still decays, and fast-forward cannot blink it past noticing.
+        win->clip_hold -= ImGui::GetIO().DeltaTime;
+        if (win->clip_hold < 0.0f) {
+            win->clip_hold = 0.0f;
+        }
+    }
+}
+
+bool ui_sgu1_clip_active(const ui_sgu1_t* win) {
+    CHIPS_ASSERT(win);
+    return win->clip_hold > 0.0f;
 }
 
 static void ui_util_s8(int8_t val) {
@@ -109,6 +138,90 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
     const float cw = 62.0f;
     const float h = ImGui::GetTextLineHeight();
 
+    if (ImGui::CollapsingHeader("Chip")) {
+        // Everything here goes through sgu1_svc_peek, never sgu1_reg_read: this
+        // panel redraws every frame and the real read path would walk the sample
+        // pointer and eat the guest's status latch as a side effect.
+        char magic[5];
+        for (int i = 0; i < 4; i++) {
+            magic[i] = (char)sgu1_svc_peek(sgu, (uint8_t)(SGU1_SVC_MAGIC + i));
+        }
+        magic[4] = '\0';
+
+        ImGui::Text("%s v%u.%u", magic, sgu1_svc_peek(sgu, SGU1_SVC_VER_MAJOR), sgu1_svc_peek(sgu, SGU1_SVC_VER_MINOR));
+
+        char uid[SGU1_SVC_UNIQUE_ID_LEN * 3];
+        bool uid_zero = true;
+        for (int i = 0; i < SGU1_SVC_UNIQUE_ID_LEN; i++) {
+            const uint8_t b = sgu1_svc_peek(sgu, (uint8_t)(SGU1_SVC_UNIQUE_ID + i));
+            uid_zero = uid_zero && (b == 0);
+            snprintf(uid + i * 3, 4, "%02X ", b);
+        }
+        // Real silicon reads its id out of OTP and never reports all-zero, so
+        // all-zero is how software knows it is talking to an emulated chip.
+        ImGui::Text("Unique ID  %s%s", uid, uid_zero ? " (emulated)" : "");
+        ImGui::Text(
+            "PCM banks  %u  (x %u KB)",
+            sgu1_svc_peek(sgu, SGU1_SVC_PCM_BANKS),
+            (unsigned)(SGU_PCM_BANK_SIZE / 1024));
+        ImGui::Text("Svc banks  %u", sgu1_svc_peek(sgu, SGU1_SVC_SVC_BANKS));
+
+        ImGui::Separator();
+
+        // The lamp runs off clip_count, so a guest read of STATUS cannot blind
+        // it and this window cannot steal clips from the guest.
+        const bool clip = ui_sgu1_clip_active(win);
+        if (clip) {
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xFF0000FF);
+        }
+        ImGui::Text("CLIP  %s", clip ? "###" : "---");
+        if (clip) {
+            ImGui::PopStyleColor();
+        }
+        ImGui::SameLine();
+        ImGui::Text("  %u events", sgu->clip_count);
+        // The guest's own latch, peeked rather than read, so you can tell
+        // whether guest code has picked its status up yet.
+        const uint8_t guest_status = sgu1_svc_peek(sgu, SGU1_SVC_STATUS);
+        ImGui::Text("STATUS  %02X %s", guest_status, guest_status ? "(pending guest read)" : "");
+
+        ImGui::Separator();
+
+        ImGui::Text("Sample ptr  bank %02X  offset %04X", sgu->svc_sample_bank, sgu->svc_sample_offset);
+        ImGui::Text("Master vol  %02X", sgu->svc_master_vol);
+
+        ImGui::Separator();
+
+        // Issue real $Ax writes through the register path rather than calling
+        // the reset helpers directly, so these buttons exercise the magic gate,
+        // the domain mapping and the core's deferred reset exactly as guest code
+        // would. The select is restored afterwards; the guest never observes the
+        // change because the UI draws between emulated frames.
+        // Plain text sits at the top of the line box while buttons carry frame
+        // padding, so without this the label rides high against them.
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Reset");
+        struct {
+            const char* label;
+            uint8_t bits;
+        } const resets[] = {
+            { "Voices",   SGU1_RESET_VOICES                                                         },
+            { "Timebase", SGU1_RESET_TIMEBASE                                                       },
+            { "Mix",      SGU1_RESET_MIX                                                            },
+            { "Service",  SGU1_RESET_SVC                                                            },
+            { "All",      SGU1_RESET_VOICES | SGU1_RESET_TIMEBASE | SGU1_RESET_MIX | SGU1_RESET_SVC },
+        };
+        for (size_t i = 0; i < sizeof(resets) / sizeof(resets[0]); i++) {
+            ImGui::SameLine();
+            if (ImGui::Button(resets[i].label)) {
+                const uint8_t saved_select = sgu->selected_channel;
+                sgu1_reg_write(sgu, SGU_REGS_PER_CH - 1, SGU1_SERVICE_BANK);
+                sgu1_reg_write(sgu, SGU1_SVC_CHIP_RESET, (uint8_t)(SGU1_RESET_MAGIC | resets[i].bits));
+                sgu1_reg_write(sgu, SGU_REGS_PER_CH - 1, saved_select);
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("Channels Output", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImVec4 on_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         ImVec4 off_ch_col = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
@@ -119,7 +232,7 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
                 ImGui::PushID(i);
                 ImVec2 area = ImGui::GetContentRegionAvail();
                 area.y = h * 4.0f;
-                snprintf(buf, sizeof(buf), "Chn%d", i);
+                snprintf(buf, sizeof(buf), "CH%d", i);
 
                 ImGui::PushStyleColor(
                     ImGuiCol_PlotLines,
@@ -143,16 +256,47 @@ static void _ui_sgu1_draw_state(ui_sgu1_t* win) {
 
     if (ImGui::BeginTable("##su_channels", SGU_CHNS + 1)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
-        ImGui::TableSetupColumn("Chn0", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn1", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn2", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn3", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn4", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn5", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn6", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn7", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableSetupColumn("Chn8", ImGuiTableColumnFlags_WidthFixed, cw);
-        ImGui::TableHeadersRow();
+        ImGui::TableSetupColumn("CH0", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH1", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH2", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH3", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH4", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH5", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH6", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH7", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("CH8", ImGuiTableColumnFlags_WidthFixed, cw);
+
+        // Hand-rolled header row rather than TableHeadersRow(), so each channel
+        // heading can carry its own level meter -- the same shape the Volume
+        // row uses in its cells, bar behind and label on top. The meter shows
+        // what the voice is actually emitting: SGU_GetEnvelope weights each
+        // operator's envelope by its OUT routing and honours the mute toggles,
+        // as opposed to the "Volume" row below, which is the programmed
+        // register value. Apart from the bar this mirrors TableHeadersRow(),
+        // including pushing the column index as the id, which is what keeps the
+        // per-column popups addressable.
+        ImGui::TableNextRow(ImGuiTableRowFlags_Headers, ImGui::TableGetHeaderRowHeight());
+        for (int col = 0; col < SGU_CHNS + 1; col++) {
+            if (!ImGui::TableSetColumnIndex(col)) {
+                continue;
+            }
+            ImGui::PushID(col);
+            if (col > 0) {
+                float level = (float)SGU_GetEnvelope(su, (uint8_t)(col - 1)) / 8192.0f;
+                level = level < 0.0f ? 0.0f : (level > 1.0f ? 1.0f : level);
+                // Painted straight into the cell instead of as a widget: it
+                // takes no layout space, so the header keeps its normal height,
+                // and it lands above the header-row background but below the
+                // label drawn by TableHeader() right after.
+                const ImRect cell = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), col);
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    cell.Min,
+                    ImVec2(cell.Min.x + (cell.Max.x - cell.Min.x) * level, cell.Max.y),
+                    ImGui::GetColorU32(ImGuiCol_FrameBgHovered));
+            }
+            ImGui::TableHeader(ImGui::TableGetColumnName(col));
+            ImGui::PopID();
+        }
 
         ImGui::TableNextColumn();
         ImGui::Text("Muted");

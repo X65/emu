@@ -64,9 +64,22 @@ typedef struct ui_sgu1_t {
     bool last_open;
     bool valid;
     ui_chip_t chip;
+    /* Clip indicator, shared by this window's lamp and the main menu bar's
+       volume icon so the two cannot drift apart. clip_seen is the last
+       sgu1_t.clip_count observed; clip_hold is the remaining flash time in
+       seconds. Advanced once per frame by ui_sgu1_tick_clip(). */
+    float clip_hold;
+    uint32_t clip_seen;
 } ui_sgu1_t;
 
 void ui_sgu1_init(ui_sgu1_t* win, const ui_sgu1_desc_t* desc);
+/* Advance the clip indicator. Call exactly once per rendered frame, before
+   anything that draws it -- both this window and the menu-bar volume icon read
+   the result, and neither may be the one to tick it or closing a window would
+   change the other's decay rate. */
+void ui_sgu1_tick_clip(ui_sgu1_t* win);
+/* True while the clip indicator should be lit. */
+bool ui_sgu1_clip_active(const ui_sgu1_t* win);
 void ui_sgu1_discard(ui_sgu1_t* win);
 void ui_sgu1_draw(ui_sgu1_t* win);
 void ui_sgu1_save_settings(ui_sgu1_t* win, ui_settings_t* settings);

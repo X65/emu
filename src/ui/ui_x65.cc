@@ -174,7 +174,14 @@ static void _ui_x65_draw_menu(ui_x65_t* ui) {
             ImGui::SetCursorPosX(right_align_x);
         }
         ImGui::AlignTextToFramePadding();
+        const bool clipped = ui_sgu1_clip_active(&ui->sgu);
+        if (clipped) {
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xFF0000FF);
+        }
         ImGui::TextUnformatted(icon);
+        if (clipped) {
+            ImGui::PopStyleColor();
+        }
         ImGui::SameLine(0.0f, 0.0f);
         ImGui::PushItemWidth(slider_width);
         char overlay[32];
@@ -749,6 +756,10 @@ void ui_x65_discard(ui_x65_t* ui) {
 
 void ui_x65_draw(ui_x65_t* ui, const ui_x65_frame_t* frame) {
     CHIPS_ASSERT(ui && ui->x65 && frame);
+    // Once per frame, ahead of both readers: the menu bar's volume icon and the
+    // SGU-1 window's lamp share this timer, and if either ticked it themselves,
+    // opening or closing that window would change the other's decay rate.
+    ui_sgu1_tick_clip(&ui->sgu);
     _ui_x65_draw_menu(ui);
     _ui_x65_draw_about(ui);
     ui_audio_draw(&ui->audio, ui->x65->audio.sample_pos);

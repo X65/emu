@@ -18,42 +18,9 @@
 /* move bit into first position */
 #define SGU1_BIT(val, bitnr) ((val >> bitnr) & 1)
 
-#define SGU1_SERVICE_BANK (0xFF)
-
-/* Service bank register map. The identification block occupies $00..$0F, the
-   status block starts at $10 and the control block at $18; the gaps between
-   them are reserved so the two blocks can grow without moving anything. */
-#define SGU1_SVC_MAGIC         (0x00) /* $00..$03, "SGU1" */
-#define SGU1_SVC_MAGIC_END     (0x03)
-#define SGU1_SVC_VER_MAJOR     (0x04)
-#define SGU1_SVC_VER_MINOR     (0x05)
-#define SGU1_SVC_UNIQUE_ID     (0x06) /* $06..$0D, 8 bytes */
-#define SGU1_SVC_UNIQUE_ID_END (0x0D)
-#define SGU1_SVC_PCM_BANKS     (0x0E)
-#define SGU1_SVC_SVC_BANKS     (0x0F)
-#define SGU1_SVC_STATUS        (0x10)
-#define SGU1_SVC_CHIP_RESET    (0x18)
-#define SGU1_SVC_SAMPLE_OFF_LO (0x1C)
-#define SGU1_SVC_SAMPLE_OFF_HI (0x1D)
-#define SGU1_SVC_SAMPLE_BANK   (0x1E)
-#define SGU1_SVC_SAMPLE_DATA   (0x1F)
-#define SGU1_SVC_MASTER_VOL    (0x20)
-
-#define SGU1_VERSION_MAJOR (0x01)
-#define SGU1_VERSION_MINOR (0x00)
-
 // Service banks beyond $FF. The $FE bank that will carry DSP registers and
 // programming does not exist yet, so software must discover zero of them.
 #define SGU1_SVC_EXTRA_BANKS (0)
-
-// CHIP_RESET: the high nybble must be the magic $A or the write is ignored, so
-// a stray store cannot silence the chip. The low nybble names what to reset.
-#define SGU1_RESET_MAGIC      (0xA0)
-#define SGU1_RESET_MAGIC_MASK (0xF0)
-#define SGU1_RESET_VOICES     (1 << 0) /* -> SGU_RESET_VOICES   */
-#define SGU1_RESET_TIMEBASE   (1 << 1) /* -> SGU_RESET_TIMEBASE */
-#define SGU1_RESET_MIX        (1 << 2) /* -> SGU_RESET_MIX      */
-#define SGU1_RESET_SVC        (1 << 3) /* the service registers below, host-side */
 
 static const uint8_t _sgu1_svc_magic[] = { 'S', 'G', 'U', '1' };
 
@@ -109,6 +76,9 @@ static void _sgu1_service_reset(sgu1_t* sgu) {
 void sgu1_reset(sgu1_t* sgu) {
     CHIPS_ASSERT(sgu);
     SGU_Reset(&sgu->sgu);
+    sgu->svc_status = 0;
+    // clip_count deliberately survives: it is a host-side diagnostic, and the
+    // UI compares it with != so a reset cannot wedge the indicator on.
     sgu->tick_counter = sgu->tick_period;
     sgu->sample[0] = sgu->sample[1] = 0.0f;
     sgu->pins = 0;
@@ -125,6 +95,18 @@ static uint64_t _sgu1_tick(sgu1_t* sgu, uint64_t pins) {
         sgu->tick_counter += sgu->tick_period;
         int32_t l, r;
         SGU_NextSample(&sgu->sgu, &l, &r);
+
+        // Take the chip's status word once per sample and fan it out. This is
+        // the only SGU_GetFlags call in the emulator, which is what the core's
+        // single-reader contract asks for: were the UI to call it too, the two
+        // would steal clip events from each other. Accumulate everything it
+        // returns -- SGU_GetFlags is self-clearing, so a flag this wrapper does
+        // not know about yet is lost right here unless it is passed along.
+        const uint32_t flags = SGU_GetFlags(&sgu->sgu);
+        sgu->svc_status |= flags;
+        if (flags & SGU_FLAG_CLIP) {
+            sgu->clip_count++;
+        }
         // The hardware volume law is not documented yet. Keep the service-bank
         // implementation linear, with 0xFF exactly equal to the prior output.
         float master_gain = (float)sgu->svc_master_vol / 255.0f;
@@ -160,12 +142,19 @@ static uint8_t _sgu1_service_read(sgu1_t* sgu, uint8_t reg) {
         // emulator maps more PCM than the hardware does.
         case SGU1_SVC_PCM_BANKS: return SGU1_PCM_BANKS;
         case SGU1_SVC_SVC_BANKS: return SGU1_SVC_EXTRA_BANKS;
-        // Read-to-clear. The core accumulates the flags and hands them over in
-        // one atomic exchange, so a clip latched by the render path is either
-        // reported here or survives to the next read. Note the debugger's
-        // mem_rd path lands here too: parking a memory editor on this address
-        // eats clip events, exactly as a debugger read would on real hardware.
-        case SGU1_SVC_STATUS: return (uint8_t)(SGU_GetFlags(&sgu->sgu) & 0xFFu);
+        // Read-to-clear, from the latch the tick accumulates. Clear only the
+        // bits actually handed over: the latch is 32 bits wide because $11..$17
+        // is reserved for further status registers, and a flag above bit 7 must
+        // survive this read to reach whichever register eventually exposes it.
+        // Note the debugger's mem_rd path lands here too, so parking a memory
+        // editor on this address eats the guest's status bits -- exactly as a
+        // debugger read would on real hardware. The UI's clip indicator runs off
+        // clip_count instead and is unaffected.
+        case SGU1_SVC_STATUS: {
+            const uint8_t data = (uint8_t)(sgu->svc_status & 0xFFu);
+            sgu->svc_status &= ~(uint32_t)data;
+            return data;
+        }
         case SGU1_SVC_SAMPLE_OFF_LO: return (uint8_t)sgu->svc_sample_offset;
         case SGU1_SVC_SAMPLE_OFF_HI: return (uint8_t)(sgu->svc_sample_offset >> 8);
         case SGU1_SVC_SAMPLE_BANK: return sgu->svc_sample_bank;
@@ -193,7 +182,7 @@ static uint8_t _sgu1_service_read(sgu1_t* sgu, uint8_t reg) {
    only by this bus, so they reset straight away.
 
    PCM sample memory is never cleared by any reset: it is host-loaded data
-   rather than chip state, and a 64 KiB memset inside the 48 kHz sample deadline
+   rather than chip state, and a 64 KB memset inside the 48 kHz sample deadline
    would overrun the hardware's render budget. */
 static void _sgu1_service_chip_reset(sgu1_t* sgu, uint8_t data) {
     if ((data & SGU1_RESET_MAGIC_MASK) != SGU1_RESET_MAGIC) {
@@ -208,6 +197,10 @@ static void _sgu1_service_chip_reset(sgu1_t* sgu, uint8_t data) {
     }
     if (data & SGU1_RESET_MIX) {
         parts |= SGU_RESET_MIX;
+        // The status latch belongs to the mix domain. The core's half of that
+        // domain is deferred to the next sample; this half is ours, so it goes
+        // now -- the guest asked for the status to be clear.
+        sgu->svc_status = 0;
     }
     if (parts) {
         SGU_RequestReset(&sgu->sgu, parts);
@@ -243,6 +236,37 @@ static void _sgu1_service_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {
         }
         case SGU1_SVC_MASTER_VOL: sgu->svc_master_vol = data; break;
         default: break;
+    }
+}
+
+/* Inspection-only view of the service bank: same values sgu1_reg_read would
+   report, minus every side effect. The sample data port does not advance the
+   offset and STATUS does not clear, so a debug window polling this every frame
+   cannot disturb the machine it is watching. */
+uint8_t sgu1_svc_peek(const sgu1_t* sgu, uint8_t reg) {
+    CHIPS_ASSERT(sgu);
+    reg &= SGU_REGS_PER_CH - 1;
+    if (reg >= SGU1_SVC_MAGIC && reg <= SGU1_SVC_MAGIC_END) {
+        return _sgu1_svc_magic[reg - SGU1_SVC_MAGIC];
+    }
+    if (reg >= SGU1_SVC_UNIQUE_ID && reg <= SGU1_SVC_UNIQUE_ID_END) {
+        return _sgu1_svc_unique_id[reg - SGU1_SVC_UNIQUE_ID];
+    }
+    switch (reg) {
+        case SGU1_SVC_VER_MAJOR: return SGU1_VERSION_MAJOR;
+        case SGU1_SVC_VER_MINOR: return SGU1_VERSION_MINOR;
+        case SGU1_SVC_PCM_BANKS: return SGU1_PCM_BANKS;
+        case SGU1_SVC_SVC_BANKS: return SGU1_SVC_EXTRA_BANKS;
+        case SGU1_SVC_STATUS: return (uint8_t)(sgu->svc_status & 0xFFu);
+        case SGU1_SVC_SAMPLE_OFF_LO: return (uint8_t)sgu->svc_sample_offset;
+        case SGU1_SVC_SAMPLE_OFF_HI: return (uint8_t)(sgu->svc_sample_offset >> 8);
+        case SGU1_SVC_SAMPLE_BANK: return sgu->svc_sample_bank;
+        case SGU1_SVC_SAMPLE_DATA: {
+            const size_t address = _sgu1_service_pcm_address(sgu);
+            return address < sgu->sgu.pcm_size ? (uint8_t)sgu->sgu.pcm[address] : 0;
+        }
+        case SGU1_SVC_MASTER_VOL: return sgu->svc_master_vol;
+        default: return 0;
     }
 }
 

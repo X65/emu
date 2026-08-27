@@ -45,12 +45,17 @@
 #include <speex_resampler.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
-#include "sgu-1/sgu.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// sgu.h is a plain C header and carries no linkage guard of its own, so giving
+// it one is this header's job. Its standard includes are pulled in above,
+// outside the block, leaving only its own declarations inside it.
+#include "sgu-1/sgu.h"
 
 // address bus pins A0..A5
 #define SGU1_PIN_A0 (0)
@@ -99,6 +104,45 @@ extern "C" {
 
 #define SGU1_PCM_BANKS (4)
 
+// Service bank ($FF channel select) register map. The identification block
+// occupies $00..$0F, the status block starts at $10 and the control block at
+// $18; the gaps between them are reserved so either block can grow without
+// moving anything.
+#define SGU1_SERVICE_BANK (0xFF)
+
+#define SGU1_SVC_MAGIC         (0x00)  // $00..$03, "SGU1"
+#define SGU1_SVC_MAGIC_END     (0x03)
+#define SGU1_SVC_VER_MAJOR     (0x04)
+#define SGU1_SVC_VER_MINOR     (0x05)
+#define SGU1_SVC_UNIQUE_ID     (0x06)  // $06..$0D, 8 bytes
+#define SGU1_SVC_UNIQUE_ID_END (0x0D)
+#define SGU1_SVC_UNIQUE_ID_LEN (8)
+#define SGU1_SVC_PCM_BANKS     (0x0E)
+#define SGU1_SVC_SVC_BANKS     (0x0F)
+#define SGU1_SVC_STATUS        (0x10)
+#define SGU1_SVC_CHIP_RESET    (0x18)
+#define SGU1_SVC_SAMPLE_OFF_LO (0x1C)
+#define SGU1_SVC_SAMPLE_OFF_HI (0x1D)
+#define SGU1_SVC_SAMPLE_BANK   (0x1E)
+#define SGU1_SVC_SAMPLE_DATA   (0x1F)
+#define SGU1_SVC_MASTER_VOL    (0x20)
+
+#define SGU1_VERSION_MAJOR (0x01)
+#define SGU1_VERSION_MINOR (0x00)
+
+// STATUS ($10) bits. Read-to-clear.
+#define SGU1_STATUS_CLIP (1 << 0)  // the output stage saturated at least once
+
+// CHIP_RESET ($18): the high nybble must be the magic $A or the write is
+// ignored, so a stray store cannot silence the chip. The low nybble names what
+// to reset; $A0 is a no-op, $A7 the whole core, $AF core plus service state.
+#define SGU1_RESET_MAGIC      (0xA0)
+#define SGU1_RESET_MAGIC_MASK (0xF0)
+#define SGU1_RESET_VOICES     (1 << 0)  // -> SGU_RESET_VOICES
+#define SGU1_RESET_TIMEBASE   (1 << 1)  // -> SGU_RESET_TIMEBASE
+#define SGU1_RESET_MIX        (1 << 2)  // -> SGU_RESET_MIX
+#define SGU1_RESET_SVC        (1 << 3)  // the service registers, host-side
+
 #define SGU1_AUDIO_CHANNELS (2)
 #define SGU1_AUDIO_SAMPLES  (1024)
 
@@ -117,6 +161,16 @@ typedef struct {
     uint16_t svc_sample_offset;
     uint8_t svc_sample_bank;
     uint8_t svc_master_vol;
+    // Guest-visible STATUS latch, read-to-clear through $10. Accumulates the
+    // whole status word the core hands over, not just the bits this wrapper
+    // understands today, and is the core's width rather than the register's so
+    // a future flag above bit 7 cannot be dropped on the way in.
+    uint32_t svc_status;
+    // Monotonic count of clip events, for the debug UI. Never cleared by a
+    // register read, so the UI and guest software cannot starve each other of
+    // clip events. A host-side diagnostic like frame_counter: it survives a
+    // chip reset and is zeroed only by sgu1_init.
+    uint32_t clip_count;
     int tick_period;
     int tick_counter;
     // sample generation state
@@ -147,6 +201,12 @@ uint64_t sgu1_tick(sgu1_t* sgu, uint64_t pins);
 // emit the register dump for the frame just ended (no-op unless dump file is
 // open and a register was written this frame); advances the frame counter
 void sgu1_dump_frame(sgu1_t* sgu);
+
+// Read a service-bank register for inspection: no auto-increment on the sample
+// data port, no read-to-clear on STATUS, no change to the channel select. Use
+// this from the debug UI -- sgu1_reg_read would move the sample pointer every
+// frame and eat the guest's status latch just by having a window open.
+uint8_t sgu1_svc_peek(const sgu1_t* sgu, uint8_t reg);
 
 // for use by debugger
 uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg);
