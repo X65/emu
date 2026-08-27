@@ -11,6 +11,10 @@ extern "C" {
 
 static int32_t next_left;
 static int32_t next_right;
+// Reset domains the wrapper asked the core for, accumulated by the stub below.
+static uint32_t requested_reset_parts;
+// Status word the stubbed core hands back on the next SGU_GetFlags call.
+static uint32_t pending_flags;
 
 extern "C" {
 void SGU_Init(struct SGU* sgu, int8_t* pcm, size_t pcm_size) {
@@ -35,9 +39,21 @@ int32_t SGU_GetSample(struct SGU*, uint8_t) {
 void SGU_Write(struct SGU* sgu, uint16_t reg, uint8_t data) {
     reinterpret_cast<uint8_t*>(sgu->chan)[reg] = data;
 }
+
+void SGU_RequestReset(struct SGU*, uint32_t parts) {
+    requested_reset_parts |= parts;
+}
+
+uint32_t SGU_GetFlags(struct SGU*) {
+    const uint32_t flags = pending_flags;
+    pending_flags = 0;
+    return flags;
+}
 }
 
 static sgu1_t make_sgu() {
+    requested_reset_parts = 0;
+    pending_flags = 0;
     sgu1_t sgu;
     sgu1_desc_t desc = { .tick_hz = SGU_CHIP_CLOCK, .magnitude = 1.0f, .dump_file = nullptr };
     sgu1_init(&sgu, &desc);
@@ -101,8 +117,12 @@ TEST_CASE("service and reserved banks cannot alias channel registers") {
 
     select_bank(sgu, 0xFF);
     sgu1_reg_write(&sgu, 0x20, 0x80);
-    sgu1_reg_write(&sgu, 0x00, 0x11);
-    CHECK(sgu1_reg_read(&sgu, 0x00) == 0);
+    // Sweep the whole service window, identification block and control
+    // registers included, and assert none of it reaches the channel file.
+    for (uint8_t reg = 0x00; reg <= 0x20; reg++) {
+        sgu1_reg_write(&sgu, reg, 0x11);
+    }
+    CHECK(sgu1_reg_read(&sgu, 0x00) == 'S');  // read-only, the write bounced
     CHECK(std::memcmp(before, sgu.sgu.chan, sizeof(before)) == 0);
 
     select_bank(sgu, SGU_CHNS);
@@ -146,5 +166,130 @@ TEST_CASE("master volume linearly scales final stereo output") {
     sgu1_tick(&sgu, 0);
     CHECK(sgu.sample[0] == doctest::Approx(full_left * 128.0f / 255.0f));
     CHECK(sgu.sample[1] == doctest::Approx(full_right * 128.0f / 255.0f));
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("service bank identifies the chip") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    CHECK(sgu1_reg_read(&sgu, 0x00) == 'S');
+    CHECK(sgu1_reg_read(&sgu, 0x01) == 'G');
+    CHECK(sgu1_reg_read(&sgu, 0x02) == 'U');
+    CHECK(sgu1_reg_read(&sgu, 0x03) == '1');
+    CHECK(sgu1_reg_read(&sgu, 0x04) == 0x01);  // version major
+    CHECK(sgu1_reg_read(&sgu, 0x05) == 0x00);  // version minor
+
+    // No board id under emulation, and silicon never reports an all-zero one.
+    for (uint8_t reg = 0x06; reg <= 0x0D; reg++) {
+        CHECK(sgu1_reg_read(&sgu, reg) == 0);
+    }
+
+    CHECK(sgu1_reg_read(&sgu, 0x0E) == SGU1_PCM_BANKS);
+    CHECK(sgu1_reg_read(&sgu, 0x0F) == 0);  // no service banks beyond $FF yet
+
+    // The whole block is read-only.
+    for (uint8_t reg = 0x00; reg <= 0x0F; reg++) {
+        const uint8_t before = sgu1_reg_read(&sgu, reg);
+        sgu1_reg_write(&sgu, reg, 0x5A);
+        CHECK(sgu1_reg_read(&sgu, reg) == before);
+    }
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("STATUS reports the clip latch and clears on read") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+
+    pending_flags = SGU_FLAG_CLIP;
+    CHECK((sgu1_reg_read(&sgu, 0x10) & SGU_FLAG_CLIP) != 0);
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);  // read-to-clear
+
+    // Writes never set status bits.
+    pending_flags = 0;
+    sgu1_reg_write(&sgu, 0x10, 0xFF);
+    CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("CHIP_RESET requires the magic nybble and selects reset domains") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    // Without the $A high nybble nothing happens, however tempting the low bits.
+    for (const uint8_t data : { 0x00, 0x07, 0x0F, 0x5A, 0xB7, 0xFF }) {
+        requested_reset_parts = 0;
+        sgu1_reg_write(&sgu, 0x18, data);
+        CHECK(requested_reset_parts == 0);
+    }
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA0);  // magic, but no domains
+    CHECK(requested_reset_parts == 0);
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA1);
+    CHECK(requested_reset_parts == SGU_RESET_VOICES);
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA2);
+    CHECK(requested_reset_parts == SGU_RESET_TIMEBASE);
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA4);
+    CHECK(requested_reset_parts == SGU_RESET_MIX);
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA7);  // the whole core, as SGU_Reset() does
+    CHECK(requested_reset_parts == SGU_RESET_ALL);
+
+    CHECK(sgu1_reg_read(&sgu, 0x18) == 0);  // write-only
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("CHIP_RESET SVC bit clears service registers but not the window") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+    set_offset(sgu, 0x1234);
+    sgu1_reg_write(&sgu, 0x1E, 2);
+    sgu1_reg_write(&sgu, 0x20, 0x40);
+
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xA8);  // SVC only
+
+    CHECK(requested_reset_parts == 0);  // the core is left alone
+    CHECK(sgu.svc_sample_offset == 0);
+    CHECK(sgu.svc_sample_bank == 0);
+    CHECK(sgu.svc_master_vol == 0);  // muted, as at power-on
+    // The select is the register window, not service state - it must survive,
+    // or the very sequence issuing the reset loses its bank.
+    CHECK(sgu.selected_channel == 0xFF);
+    CHECK(sgu1_reg_read(&sgu, 0x3F) == 0xFF);
+
+    // $AF is the full chip reset: every core domain plus the service registers.
+    sgu1_reg_write(&sgu, 0x20, 0x40);
+    requested_reset_parts = 0;
+    sgu1_reg_write(&sgu, 0x18, 0xAF);
+    CHECK(requested_reset_parts == SGU_RESET_ALL);
+    CHECK(sgu.svc_master_vol == 0);
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("reserved service offsets read zero and ignore writes") {
+    auto sgu = make_sgu();
+    select_bank(sgu, 0xFF);
+
+    for (uint8_t reg = 0x11; reg <= 0x3E; reg++) {
+        if (reg >= 0x1C && reg <= 0x20) {
+            continue;  // sample window and master volume
+        }
+        if (reg == 0x18) {
+            continue;  // CHIP_RESET, tested above
+        }
+        sgu1_reg_write(&sgu, reg, 0x5A);
+        CHECK(sgu1_reg_read(&sgu, reg) == 0);
+    }
     sgu1_discard(&sgu);
 }

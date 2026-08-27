@@ -11,6 +11,11 @@ add_executable(sgu1test sgu1test.cpp ${CMAKE_SOURCE_DIR}/src/chips/sgu1.c)
 target_link_libraries(sgu1test PRIVATE speex-resampler)
 add_test(NAME SGU1Test COMMAND sgu1test)
 
+# sgu1test stubs the core to test the register wrapper; this one links the real
+# ext/sgu-1 core to cover the deferred reset and the read-to-clear status word.
+add_executable(sgucoretest sgucoretest.cpp ${CMAKE_SOURCE_DIR}/ext/sgu-1/sgu.c)
+add_test(NAME SGUCoreTest COMMAND sgucoretest)
+
 add_executable(sst65816 sst65816.cpp)
 
 # The SingleStepTests/65816 data set is ~3 GB of JSON and is not vendored;
