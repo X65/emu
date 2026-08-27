@@ -165,19 +165,20 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
             // only mean what they say once the bank is known to be zero.
             mem_access = true;
         }
-        else if (sys->ria.reg[RIA816_EXT_IO] && ((addr & 0xFF00) == X65_EXT_BASE)) {
-            const uint8_t slot = (addr & 0xFF) >> 5;
-            if ((sys->ria.reg[RIA816_EXT_IO] & (1U << slot))) switch (slot) {
-                    case 0x00: {
-                        // OPL-3 (FC00..FC1F)
-                        // opl3_pins |= YMF262_CS;
-                    } break;
-                    default:
-                        if (pins & W65816_RW) {
-                            // memory read nothin'
-                            W65816_SET_DATA(pins, 0xFF);
-                        }
-                }
+        else if ((addr & ~(X65_EXT_LEN - 1)) == X65_EXT_BASE) {
+            // Expansion window: 4 cards x 128 bytes. EXTIOCTL is a bitmap of
+            // eight 64-byte chunks, two per card. The window belongs to the
+            // expansion bus out of reset (EXTIOCTL == 0); setting a bit hands
+            // that chunk back to the program as RAM.
+            const uint8_t chunk = (addr - X65_EXT_BASE) / X65_EXT_CHUNK_LEN;
+            if (sys->ria.reg[RIA816_EXT_IO] & (1U << chunk)) {
+                mem_access = true;
+            }
+            else if (pins & W65816_RW) {
+                // Chunk is routed to the bus but no expansion card is
+                // emulated, so the read floats high.
+                W65816_SET_DATA(pins, 0xFF);
+            }
         }
         else if ((addr & X65_IO_BASE) == X65_IO_BASE) {
             if (addr >= X65_IO_RIA_BASE) {

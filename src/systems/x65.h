@@ -97,12 +97,18 @@ typedef enum {
 #define X65_KEY_F7       (0xF7)  // F7
 #define X65_KEY_F8       (0xF8)  // F8
 
-// Extension bus devices
-// split in 8 slots of 64 bytes
-#define X65_EXT_BASE     (0xFC00)
-#define X65_EXT_LEN      (0x200)
-#define X65_EXT_SLOTS    (8)
-#define X65_EXT_SLOT_LEN (X65_EXT_LEN / X65_EXT_SLOTS)
+// Extension bus devices: a 512-byte window at $FC00..$FDFF, one 128-byte slot
+// per expansion card (IO0_EN..IO3_EN on the connector). Few cards need all 128
+// registers, so RIA subdivides the window a second time: RIA816_EXT_IO is a
+// bitmap of 8 chunks of 64 bytes, two per slot. The window belongs to the
+// expansion bus out of reset (EXT_IO == 0); setting a bit maps that chunk back
+// to RAM. Keep in step with the decode in x65_tick().
+#define X65_EXT_BASE      (0xFC00)
+#define X65_EXT_LEN       (0x200)
+#define X65_EXT_SLOTS     (4)
+#define X65_EXT_SLOT_LEN  (X65_EXT_LEN / X65_EXT_SLOTS)  // 128 bytes per card
+#define X65_EXT_CHUNKS    (8)
+#define X65_EXT_CHUNK_LEN (X65_EXT_LEN / X65_EXT_CHUNKS) // 64 bytes per EXT_IO bit
 // reserved for future use (MMU)
 // default state is visible RAM
 #define X65_EXT_MEM (0xF800)
