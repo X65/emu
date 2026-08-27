@@ -15,9 +15,13 @@ Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu
    - `$1C` / `$1D` — sample offset low / high byte (read/write, plain readback).
    - `$1E` — sample bank number (read/write; only bank 0 is backed today — the PCM RAM is 64 KiB; store the byte, address PCM as `offset` within bank 0, ignore non-zero banks for now).
    - `$1F` — sample data port: **write** stores to the chip PCM RAM at the current offset, **read** returns the byte at the current offset; **both auto-increment `$1C/$1D`** (16-bit wrap `$FFFF → $0000`; the bank byte is NOT auto-bumped — confirm with firmware).
-   - `$20` — **master volume**, applied by the post-mixing DSP to the final stereo output (composes with the existing `magnitude` scale, sgu1.h:106). Reset = full volume. **Mirror the exact volume law from the firmware DSP source** (the SGU-1 is firmware on a microcontroller — locate the mixer master-volume application there); if genuinely undocumented, implement provisional linear `value/255` unity-at-`$FF` and mark it in a comment.
+   - `$20` — **master volume**, applied by the post-mixing DSP to the final stereo output (composes with the existing `magnitude` scale, sgu1.h:106). **Reset = 0, i.e. muted** — see the note below. **Mirror the exact volume law from the firmware DSP source** (the SGU-1 is firmware on a microcontroller — locate the mixer master-volume application there); if genuinely undocumented, implement provisional linear `value/255` unity-at-`$FF` and mark it in a comment.
    - All other service offsets: reserved — writes ignored, reads `$00` — until the firmware documents them (chip service data / DSP params live here; do not invent).
-4. **Reset (`sgu1_reset`):** select 0, sample offset 0, sample bank 0, master volume full.
+4. **Reset (`sgu1_reset`):** select 0, sample offset 0, sample bank 0, **master volume 0 (muted)**.
+   The chip comes up silent by design: master volume gates the entire mix, and audio hardware must not blast
+   the user with whatever the channel register file happens to power up holding. Unmuting is the operating
+   system's job, once it has put the channels into a known state. Do **not** "fix" this to full volume —
+   a bare-metal program that wants sound has to raise `$20` itself, exactly as it would on hardware.
 5. **Register dump compatibility:** `sgu1_dump_frame` output (the golden regdump format) must remain channel-registers-only — service state stays out of the dump so existing A/B comparisons are unaffected.
 
 **Acceptance tests** (unit-level against `sgu1_reg_read/write`, no UI needed):

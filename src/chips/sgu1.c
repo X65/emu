@@ -64,6 +64,9 @@ void sgu1_reset(sgu1_t* sgu) {
     sgu->selected_channel = 0;
     sgu->svc_sample_offset = 0;
     sgu->svc_sample_bank = 0;
+    // Muted out of reset, deliberately: master volume gates the whole mix, and
+    // audio hardware must not blast whatever noise the register file powers up
+    // with. Raising it is the OS's job, once the channels are in a known state.
     sgu->svc_master_vol = 0;
 }
 

@@ -128,7 +128,7 @@ TEST_CASE("channel selection and reset retain wrapper semantics") {
     CHECK(sgu.selected_channel == 0);
     CHECK(sgu.svc_sample_offset == 0);
     CHECK(sgu.svc_sample_bank == 0);
-    CHECK(sgu.svc_master_vol == 0);
+    CHECK(sgu.svc_master_vol == 0);  // muted at reset - the OS unmutes
     sgu1_discard(&sgu);
 }
 

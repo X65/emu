@@ -129,7 +129,7 @@ extern "C" {
 #define RIA816_MATH_OPERB     (0x02)  // Operand B for multiplication and division.
 #define RIA816_MATH_MULAB     (0x04)  // OPERA * OPERB.
 #define RIA816_MATH_DIVAB     (0x08)  // Signed OPERA / unsigned OPERB.
-#define RIA816_TIME_TM        (0x0A)  // Time Of Day (ms) - 48bits (6 bytes)
+#define RIA816_TIME_TM        (0x0A)  // Time Of Day (us) - 48bits (6 bytes)
 #define RIA816_DMA_ADDRSRC    (0x10)  // DMA source address.
 #define RIA816_DMA_STEPSRC    (0x13)  // DMA source step.
 #define RIA816_DMA_ADDRDST    (0x14)  // DMA destination address.
@@ -157,7 +157,7 @@ extern "C" {
 #define RIA816_API_STACK      (0x32)  // 512 bytes for passing call parameters.
 #define RIA816_API_STATUS     (0x33)  // Bit 7 high while operation is running. Bit 0 high when ERRNO.
 #define RIA816_CPU_E_COP      (0x34)  // 65816 vector.
-#define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 32byte chunks for mapping RAM into I/O area.
+#define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 64byte chunks for mapping RAM into I/O area.
 #define RIA816_EXT_MEM        (0x37)  // reserved for future use (MMU)
 #define RIA816_CPU_E_ABORTB   (0x38)  // 65816 vector.
 #define RIA816_CPU_E_NMIB     (0x3A)  // 6502 vector.
