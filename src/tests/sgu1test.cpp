@@ -40,6 +40,12 @@ void SGU_Write(struct SGU* sgu, uint16_t reg, uint8_t data) {
     reinterpret_cast<uint8_t*>(sgu->chan)[reg] = data;
 }
 
+// The stub reads the register file straight back; the DIAG decode is the real
+// core's and is covered by sgucoretest.
+uint8_t SGU_RegRead(const struct SGU* sgu, uint8_t ch, uint8_t reg) {
+    return reinterpret_cast<const uint8_t*>(sgu->chan)[(ch << 6) | (reg & (SGU_REGS_PER_CH - 1))];
+}
+
 void SGU_RequestReset(struct SGU*, uint32_t parts) {
     requested_reset_parts |= parts;
 }

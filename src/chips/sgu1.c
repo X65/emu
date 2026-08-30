@@ -276,7 +276,10 @@ uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
         return sgu->selected_channel;
     }
     if (sgu->selected_channel < SGU_CHNS) {
-        return ((uint8_t*)sgu->sgu.chan)[(sgu->selected_channel << 6) | reg];
+        /* The core's read entry point: with FLAGS1 DIAG set on the channel the
+           designated window offsets read back live envelope / sample state
+           instead of the register file. */
+        return SGU_RegRead(&sgu->sgu, sgu->selected_channel, reg);
     }
     if (sgu->selected_channel == SGU1_SERVICE_BANK) {
         return _sgu1_service_read(sgu, reg);
