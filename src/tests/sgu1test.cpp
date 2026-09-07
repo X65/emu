@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 
 extern "C" {
@@ -57,14 +58,16 @@ uint32_t SGU_GetFlags(struct SGU*) {
 }
 }
 
-static sgu1_t make_sgu() {
+// An sgu1_t points the core at its own PCM array, so an instance cannot be
+// copied or returned by value without the copy's core still reading the
+// original's banks -- that is what sgu1_snapshot_onload exists to fix up. Every
+// case therefore builds its instance in place.
+static void make_sgu(sgu1_t* sgu) {
     requested_reset_parts = 0;
     pending_flags = 0;
-    sgu1_t sgu;
     sgu1_desc_t desc = { .tick_hz = SGU_CHIP_CLOCK, .magnitude = 1.0f, .dump_file = nullptr };
-    sgu1_init(&sgu, &desc);
-    sgu1_reset(&sgu);
-    return sgu;
+    sgu1_init(sgu, &desc);
+    sgu1_reset(sgu);
 }
 
 static void select_bank(sgu1_t& sgu, uint8_t bank) {
@@ -77,7 +80,8 @@ static void set_offset(sgu1_t& sgu, uint16_t offset) {
 }
 
 TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     CHECK(sgu.sgu.pcm_size == SGU1_PCM_BANKS * SGU_PCM_BANK_SIZE);
     std::memset(sgu.sgu.pcm, 0, sgu.sgu.pcm_size);
     select_bank(sgu, 0xFF);
@@ -116,7 +120,8 @@ TEST_CASE("service bank uploads and reads PCM with wrapping auto-increment") {
 }
 
 TEST_CASE("service and reserved banks cannot alias channel registers") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     uint8_t before[sizeof(sgu.sgu.chan)];
     std::memset(sgu.sgu.chan, 0xA5, sizeof(sgu.sgu.chan));
     std::memcpy(before, sgu.sgu.chan, sizeof(before));
@@ -140,7 +145,8 @@ TEST_CASE("service and reserved banks cannot alias channel registers") {
 }
 
 TEST_CASE("channel selection and reset retain wrapper semantics") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 3);
     sgu1_reg_write(&sgu, 7, 0x42);
     CHECK(sgu1_reg_read(&sgu, 7) == 0x42);
@@ -159,7 +165,8 @@ TEST_CASE("channel selection and reset retain wrapper semantics") {
 }
 
 TEST_CASE("master volume linearly scales final stereo output") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     sgu.svc_master_vol = 0xFF;
     next_left = 16384;
     next_right = -8192;
@@ -176,7 +183,8 @@ TEST_CASE("master volume linearly scales final stereo output") {
 }
 
 TEST_CASE("service bank identifies the chip") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     CHECK(sgu1_reg_read(&sgu, 0x00) == 'S');
@@ -215,7 +223,8 @@ static void tick_one_sample(sgu1_t& sgu) {
 }
 
 TEST_CASE("STATUS latches the clip flag and clears on read") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
     CHECK(sgu1_reg_read(&sgu, 0x10) == 0);
 
@@ -235,7 +244,8 @@ TEST_CASE("STATUS latches the clip flag and clears on read") {
 }
 
 TEST_CASE("the guest coalesces clips that the UI counter still counts") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     for (int i = 0; i < 3; i++) {
@@ -250,7 +260,8 @@ TEST_CASE("the guest coalesces clips that the UI counter still counts") {
 }
 
 TEST_CASE("a status flag the wrapper does not know about still reaches the guest") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     // SGU_GetFlags is self-clearing and the wrapper is its only caller, so
@@ -268,7 +279,8 @@ TEST_CASE("a status flag the wrapper does not know about still reaches the guest
 }
 
 TEST_CASE("STATUS clears only the bits the guest actually read") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     // The latch is the core's width because $11..$17 is reserved for further
@@ -283,7 +295,8 @@ TEST_CASE("STATUS clears only the bits the guest actually read") {
 }
 
 TEST_CASE("CHIP_RESET mix domain clears the status latch") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
     pending_flags = SGU_FLAG_CLIP;
     tick_one_sample(sgu);
@@ -296,7 +309,8 @@ TEST_CASE("CHIP_RESET mix domain clears the status latch") {
 }
 
 TEST_CASE("sgu1_svc_peek reports service registers without side effects") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     CHECK(sgu1_svc_peek(&sgu, 0x00) == 'S');
@@ -322,7 +336,8 @@ TEST_CASE("sgu1_svc_peek reports service registers without side effects") {
 }
 
 TEST_CASE("CHIP_RESET requires the magic nybble and selects reset domains") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     // Without the $A high nybble nothing happens, however tempting the low bits.
@@ -357,7 +372,8 @@ TEST_CASE("CHIP_RESET requires the magic nybble and selects reset domains") {
 }
 
 TEST_CASE("CHIP_RESET SVC bit clears service registers but not the window") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
     set_offset(sgu, 0x1234);
     sgu1_reg_write(&sgu, 0x1E, 2);
@@ -385,7 +401,8 @@ TEST_CASE("CHIP_RESET SVC bit clears service registers but not the window") {
 }
 
 TEST_CASE("reserved service offsets read zero and ignore writes") {
-    auto sgu = make_sgu();
+    sgu1_t sgu;
+    make_sgu(&sgu);
     select_bank(sgu, 0xFF);
 
     for (uint8_t reg = 0x11; reg <= 0x3E; reg++) {
@@ -398,5 +415,49 @@ TEST_CASE("reserved service offsets read zero and ignore writes") {
         sgu1_reg_write(&sgu, reg, 0x5A);
         CHECK(sgu1_reg_read(&sgu, reg) == 0);
     }
+    sgu1_discard(&sgu);
+}
+
+TEST_CASE("a snapshot round trip carries the PCM banks and re-points the core") {
+    sgu1_t sgu;
+    make_sgu(&sgu);
+    select_bank(sgu, 0xFF);
+    sgu1_reg_write(&sgu, 0x1E, 2);
+    set_offset(sgu, 0x1234);
+    sgu1_reg_write(&sgu, 0x1F, 0x5A);
+
+    // What x65_save_snapshot does: copy the struct, then blank the pointers
+    // that only mean something to the process that saved it.
+    static sgu1_t snapshot;
+    snapshot = sgu;
+    sgu1_snapshot_onsave(&snapshot);
+    CHECK(snapshot.sgu.pcm == nullptr);
+    CHECK(snapshot.dump_file == nullptr);
+    // the uploaded sample travelled inside the struct rather than behind the
+    // pointer, so it is still there to be restored
+    CHECK(static_cast<uint8_t>(snapshot.pcm[2 * SGU_PCM_BANK_SIZE + 0x1234]) == 0x5A);
+
+    // and what x65_load_snapshot does, into an instance that is not the one
+    // the snapshot came from -- as after a restart.
+    static sgu1_t loaded;
+    make_sgu(&loaded);
+    FILE* dump = std::tmpfile();
+    loaded.dump_file = dump;
+    static sgu1_t im;
+    im = snapshot;
+    sgu1_snapshot_onload(&im, &loaded);
+    loaded = im;
+
+    CHECK(loaded.sgu.pcm == loaded.pcm);
+    CHECK(loaded.sgu.pcm_size == sizeof(loaded.pcm));
+    // the open dump file belongs to the running emulator, not to the snapshot
+    CHECK(loaded.dump_file == dump);
+    // the guest reads the restored sample back through the core's own pointer
+    select_bank(loaded, 0xFF);
+    sgu1_reg_write(&loaded, 0x1E, 2);
+    set_offset(loaded, 0x1234);
+    CHECK(sgu1_reg_read(&loaded, 0x1F) == 0x5A);
+
+    sgu1_discard(&loaded);
     sgu1_discard(&sgu);
 }

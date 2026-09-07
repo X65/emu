@@ -691,6 +691,7 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     chips_audio_callback_snapshot_onsave(&dst->audio.callback);
     w65816_snapshot_onsave(&dst->cpu);
     cgia_snapshot_onsave(&dst->cgia);
+    sgu1_snapshot_onsave(&dst->sgu);
     return X65_SNAPSHOT_VERSION;
 }
 
@@ -705,6 +706,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     chips_audio_callback_snapshot_onload(&im.audio.callback, &sys->audio.callback);
     w65816_snapshot_onload(&im.cpu, &sys->cpu);
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
+    sgu1_snapshot_onload(&im.sgu, &sys->sgu);
     im.hooks = sys->hooks;
     *sys = im;
     return true;

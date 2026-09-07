@@ -1,7 +1,6 @@
 #include "./sgu1.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -36,10 +35,9 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
     sgu->sample_mag = desc->magnitude;
     sgu->tick_period = (desc->tick_hz * SGU1_FIXEDPOINT_SCALE) / SGU_CHIP_CLOCK;
     sgu->tick_counter = sgu->tick_period;
-    size_t pcm_size = SGU1_PCM_BANKS * SGU_PCM_BANK_SIZE;
-    int8_t* pcm = malloc(pcm_size);
-    CHIPS_ASSERT(pcm);
-    SGU_Init(&sgu->sgu, pcm, pcm_size);
+    // The PCM banks are part of the struct, so the memset above cleared them
+    // too and the chip powers up playing silence.
+    SGU_Init(&sgu->sgu, sgu->pcm, sizeof(sgu->pcm));
     if (desc->dump_file) {
         sgu->dump_file = fopen(desc->dump_file, "w");
         if (!sgu->dump_file) {
@@ -50,9 +48,6 @@ void sgu1_init(sgu1_t* sgu, const sgu1_desc_t* desc) {
 
 void sgu1_discard(sgu1_t* sgu) {
     CHIPS_ASSERT(sgu);
-    free(sgu->sgu.pcm);
-    sgu->sgu.pcm = 0;
-    sgu->sgu.pcm_size = 0;
     if (sgu->dump_file) {
         fclose(sgu->dump_file);
         sgu->dump_file = 0;
@@ -361,4 +356,24 @@ uint64_t sgu1_tick(sgu1_t* sgu, uint64_t pins) {
     }
     sgu->pins = pins;
     return pins;
+}
+
+/* Both pointers reachable from sgu1_t are meaningless in a stored snapshot:
+   sgu.pcm aims at the saving instance's own bank array, and dump_file is a
+   host FILE*. A snapshot outlives the process that wrote it, so neither may be
+   restored as-is -- the PCM contents travel in the pcm array instead. */
+void sgu1_snapshot_onsave(sgu1_t* snapshot) {
+    CHIPS_ASSERT(snapshot);
+    snapshot->sgu.pcm = 0;
+    snapshot->sgu.pcm_size = 0;
+    snapshot->dump_file = 0;
+}
+
+void sgu1_snapshot_onload(sgu1_t* snapshot, sgu1_t* sys) {
+    CHIPS_ASSERT(snapshot && sys);
+    /* Point the core at the live instance's banks, which is where the
+       snapshot's PCM contents land once the caller assigns the struct over. */
+    snapshot->sgu.pcm = sys->pcm;
+    snapshot->sgu.pcm_size = sizeof(sys->pcm);
+    snapshot->dump_file = sys->dump_file;
 }

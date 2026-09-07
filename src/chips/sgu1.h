@@ -187,6 +187,13 @@ typedef struct {
     bool dirty;              // a register was written during the current frame
     // debug inspection
     uint64_t pins;
+    // PCM sample memory the core plays from and the service bank uploads to.
+    // It lives in the struct rather than on the heap so that a memcpy of the
+    // instance carries the uploaded samples along with the registers that
+    // reference them. sgu.pcm points into this array, which pins the instance:
+    // a copy has to be handed to sgu1_snapshot_onload to be pointed back at
+    // its own banks.
+    int8_t pcm[SGU1_PCM_BANKS * SGU_PCM_BANK_SIZE];
 } sgu1_t;
 
 // initialize a new sgu1_t instance
@@ -197,6 +204,10 @@ void sgu1_reset(sgu1_t* sgu);
 void sgu1_discard(sgu1_t* sgu);
 // tick a sgu1_t instance
 uint64_t sgu1_tick(sgu1_t* sgu, uint64_t pins);
+// prepare sgu1_t snapshot for saving
+void sgu1_snapshot_onsave(sgu1_t* snapshot);
+// fixup sgu1_t snapshot after loading
+void sgu1_snapshot_onload(sgu1_t* snapshot, sgu1_t* sys);
 
 // emit the register dump for the frame just ended (no-op unless dump file is
 // open and a register was written this frame); advances the frame counter
