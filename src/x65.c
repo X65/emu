@@ -270,7 +270,6 @@ void app_init(void) {
             apply_crt_values_csv(arguments.crt_values);
         }
     }
-    clock_init();
     prof_init();
     fs_init();
     hid_init();
@@ -388,6 +387,27 @@ void app_init(void) {
         }
         else {
             fprintf(stderr, "Bad breakpoint opcode %s\n", arguments.break_opcode);
+        }
+    }
+
+    // Everything below wants app_init() to be over with.
+
+    // The frame clock measures real elapsed time now, so it has to start when
+    // the frame loop does -- started any earlier, the tail of init counts as
+    // frame one and the machine opens by fast-forwarding through it.
+    clock_init();
+
+    // Prime the audio queue with silence. The backend thread pulls a whole
+    // buffer's worth of frames at once and that read is all-or-nothing: come up
+    // one frame short and it emits a full buffer of silence instead. Starting
+    // from empty, the opening second is nothing but those dropouts while the
+    // emulator slowly fills the queue. Two buffers of head start leave the
+    // queue's floor a full buffer above the pull size, which is the margin the
+    // 60Hz producer needs against a consumer draining on its own schedule.
+    {
+        static const float silence[256 * SGU_AUDIO_CHANNELS] = { 0 };
+        for (int left = 2 * saudio_buffer_frames(); left > 0; left -= 256) {
+            saudio_push(silence, left < 256 ? left : 256);
         }
     }
 }
