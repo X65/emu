@@ -55,6 +55,10 @@ add_dependencies(common compile_shaders)
 target_include_directories(common PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_sources(common PRIVATE sokol.c)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # replaces sokol_audio's WebAudio backend, which sokol.c leaves out there
+    target_sources(common PRIVATE sokol_audio_worklet.c)
+endif()
 
 target_compile_options(common BEFORE PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
 

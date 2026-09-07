@@ -57,6 +57,20 @@ Install [Emscripten][3] toolchain. Next, run the following commands:
     emcmake cmake -DCMAKE_BUILD_TYPE=Release ..
     cmake --build .
 
+The web build plays audio through a Wasm AudioWorklet, which runs on the browser's
+real-time audio thread rather than the main one. That takes shared memory, which
+browsers only grant to a cross-origin isolated page, so the server has to send:
+
+    Cross-Origin-Opener-Policy: same-origin
+    Cross-Origin-Embedder-Policy: require-corp
+
+Without those headers the failure is total rather than silent -- creating the shared
+`WebAssembly.Memory` throws and the emulator never starts. `python -m http.server`
+does not send them; for local testing use:
+
+    tools/serve_wasm.py wasm
+    # http://127.0.0.1:6816/emu.html?file=roms/buzzer.xex
+
 [3]: https://emscripten.org/docs/getting_started/downloads.html
 
 ## Testing

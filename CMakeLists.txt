@@ -30,6 +30,23 @@ endif()
 
 find_package(OpenGL REQUIRED)
 
+# Must precede add_subdirectory(): audio runs on a Wasm AudioWorklet
+# (src/common/sokol_audio_worklet.c), and -sAUDIO_WORKLET requires -sWASM_WORKERS,
+# which implies shared memory. Shared memory is a wasm feature flag -- emcc turns it
+# into -matomics -mbulk-memory on every compile, and wasm-ld rejects the link if any
+# input object lacks them. So every target, ext/ libraries included, has to be built
+# with it, which directory-scoped options only reach if they are set this early.
+# -pthread is the flag that carries them: it also selects the "-mt" system libraries,
+# where -sWASM_WORKERS alone would select the wasm-workers libc (libc-ww), which ships
+# no single-threaded pthread stubs -- and libc++ (std::mutex, std::call_once,
+# thread-local destructors) and SDL3's generic thread backend both reference them.
+# Nothing here creates a pthread; -sWASM_WORKERS itself is emu-only and lives with
+# -sAUDIO_WORKLET in the Emscripten block below.
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    add_compile_options(-pthread)
+    add_link_options(-pthread)
+endif()
+
 add_subdirectory(ext)
 include_directories(ext/imgui ext/imgui_toggle)
 include_directories(ext/sokol ext/sokol/util)
@@ -111,8 +128,26 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         "-s ASSERTIONS=0"
         "-s STACK_SIZE=512KB"
         "-s ERROR_ON_UNDEFINED_SYMBOLS=1"
+        # growth with shared memory makes JS-side heap views refresh on every
+        # access; the hot paths (emulation, audio render) are pure Wasm, so accept
+        # that rather than guessing a fixed heap size
+        "-Wno-pthreads-mem-growth"
         "-s ALLOW_MEMORY_GROWTH=1"
+        # -sWASM_WORKERS forces IMPORTED_MEMORY, which rules out INITIAL_HEAP and
+        # falls back to INITIAL_MEMORY -- whose 16MB default is far under the ~279MB
+        # of static state in `state` (8 snapshot slots, each a whole x65_t with its
+        # 16MB ram[]). Without this wasm-ld fails with "initial memory too small".
+        # Grow this if `state` in src/x65.c grows.
+        "-s INITIAL_MEMORY=320MB"
+        # a *growable shared* memory makes engines reserve the declared maximum of
+        # address space up front, and the default maximum is 2GB -- more than a
+        # 32-bit or mobile browser will hand out. 1GB still leaves ~700MB of growth.
+        "-s MAXIMUM_MEMORY=1GB"
         "-s MALLOC='emmalloc'"
+        "-s WASM_WORKERS=1"
+        "-s AUDIO_WORKLET=1"
+        # we synchronise through Wasm memory, so drop the AudioParam marshalling
+        "-s AUDIO_WORKLET_SUPPORT_AUDIO_PARAMS=0"
         "-s NO_FILESYSTEM=1"
         "-s WASM=1"
         -O3
