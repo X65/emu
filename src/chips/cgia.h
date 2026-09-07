@@ -40,7 +40,6 @@
 */
 
 #include "chips/chips_common.h"
-#include "chips/pwm.h"
 
 #include "firmware/src/south/cgia/cgia_palette.h"
 
@@ -63,6 +62,9 @@ extern "C" {
 
     Pin 40 is chip-select.
     R/W is directly connected from M6502_RW.
+
+    CGIA_FRAME is not a hardware pin: it pulses for one tick when the framebuffer
+    holds exactly one complete frame, which is when a host can copy it untorn.
 
     CGIA has its own 2*64kB of fast SRAM memory to generate video from.
     It is used to mirror two banks of CPU RAM (bckgnd_bank and sprite_bank).
@@ -96,10 +98,9 @@ extern "C" {
 #define CGIA_PIN_RW (24) /* same as M6502_RW */
 
 // chip-specific pins
-#define CGIA_PIN_CS   (40) /* chip-select */
-#define CGIA_PIN_INT  (41) /* INTerrupt */
-#define CGIA_PIN_PWM0 (46) /* PWM Output 0 */
-#define CGIA_PIN_PWM1 (47) /* PWM Output 1 */
+#define CGIA_PIN_CS    (40) /* chip-select */
+#define CGIA_PIN_INT   (41) /* INTerrupt */
+#define CGIA_PIN_FRAME (47) /* virtual "frame complete" pin: all of frame N generated, none of N+1 */
 
 // pin bit masks
 #define CGIA_A0      (1ULL << CGIA_PIN_A0)
@@ -121,6 +122,7 @@ extern "C" {
 #define CGIA_RW      (1ULL << CGIA_PIN_RW)
 #define CGIA_CS      (1ULL << CGIA_PIN_CS)
 #define CGIA_INT     (1ULL << CGIA_PIN_INT)
+#define CGIA_FRAME   (1ULL << CGIA_PIN_FRAME)
 
 // helper macros to set and extract address and data to/from pin mask
 

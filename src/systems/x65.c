@@ -42,6 +42,13 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     sys->audio.callback = desc->audio.callback;
     sys->audio.num_samples = _X65_DEFAULT(desc->audio.num_samples, X65_DEFAULT_AUDIO_SAMPLES) * SGU_AUDIO_CHANNELS;
     CHIPS_ASSERT(sys->audio.num_samples <= X65_MAX_AUDIO_SAMPLES);
+    if (desc->display_framebuffer.ptr) {
+        CHIPS_ASSERT(desc->display_framebuffer.size == sizeof(sys->fb));
+        sys->display_fb = desc->display_framebuffer.ptr;
+        // the host keeps this array across a reboot; clear it so no image from
+        // the previous machine survives until the first frame is published
+        memset(sys->display_fb, 0, sizeof(sys->fb));
+    }
 
     // initialize the hardware
     sys->pins = w65816_init(&sys->cpu, &(w65816_desc_t){});
@@ -120,6 +127,15 @@ static void _x65_trace(x65_t* sys, uint32_t addr, uint64_t pins) {
         c->P,
         c->emulation);
     if (0 == --sys->hooks.trace_remaining) fflush(stdout);
+}
+
+// Hand the host the image it should present. Called on the two occasions the
+// framebuffer is worth looking at: a completed frame, and a machine that just
+// stopped mid-frame. No display buffer attached simply means no publication.
+static void _x65_publish_frame(x65_t* sys) {
+    if (sys->display_fb) {
+        memcpy(sys->display_fb, sys->fb, sizeof(sys->fb));
+    }
 }
 
 static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
@@ -269,6 +285,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
      */
     {
         cgia_pins = cgia_tick(&sys->cgia, cgia_pins);
+        if (cgia_pins & CGIA_FRAME) {
+            _x65_publish_frame(sys);
+        }
         if (cgia_pins & CGIA_INT) {
             pins |= W65816_NMI;
         }
@@ -454,6 +473,13 @@ uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
     }
     sys->hooks.tick_count += ticks;
     sys->pins = pins;
+    if (ticks < num_ticks) {
+        // The budget was cut short, and the only things that do that are a
+        // debugger stop, a finished step and a script breakpoint: the machine is
+        // standing still right here, so publish the raster it stopped on instead
+        // of leaving a frame-old image up until a VBLANK that is not coming.
+        _x65_publish_frame(sys);
+    }
     return num_ticks;
 }
 
@@ -669,7 +695,9 @@ chips_display_info_t x65_display_info(x65_t* sys) {
             },
             .bytes_per_pixel = 4,
             .buffer = {
-                .ptr = sys ? sys->fb : 0,
+                // the presentation buffer when the host attached one, because that
+                // is the image to show; fb[] is torn for most of a frame
+                .ptr = sys ? (sys->display_fb ? sys->display_fb : sys->fb) : 0,
                 .size = CGIA_FRAMEBUFFER_SIZE_BYTES,
             }
         },
@@ -692,6 +720,7 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     w65816_snapshot_onsave(&dst->cpu);
     cgia_snapshot_onsave(&dst->cgia);
     sgu1_snapshot_onsave(&dst->sgu);
+    dst->display_fb = 0;
     return X65_SNAPSHOT_VERSION;
 }
 
@@ -708,6 +737,7 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     cgia_snapshot_onload(&im.cgia, &sys->cgia);
     sgu1_snapshot_onload(&im.sgu, &sys->sgu);
     im.hooks = sys->hooks;
+    im.display_fb = sys->display_fb;
     *sys = im;
     return true;
 }

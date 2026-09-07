@@ -16,6 +16,20 @@ add_test(NAME SGU1Test COMMAND sgu1test)
 add_executable(sgucoretest sgucoretest.cpp ${CMAKE_SOURCE_DIR}/ext/sgu-1/sgu.c)
 add_test(NAME SGUCoreTest COMMAND sgucoretest)
 
+# Frame publication (x65_t.display_fb): needs the whole machine, so this links
+# the system and every chip it wires up, with stubs for the host-side globals
+# x65_init() touches (see the top of x65test.cpp).
+add_executable(x65test x65test.cpp x65stubs.c ${X65_CORE_SOURCES})
+# SDL3 comes in through ria816.c's gamepad plumbing; the tests never call it.
+target_link_libraries(x65test PRIVATE speex-resampler SDL3::SDL3)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # Three whole x65_t live here (two machines and a snapshot), ~53MB of static
+    # state, and -sWASM_WORKERS pins us to INITIAL_MEMORY's 16MB default -- see
+    # the same note on the emu target in the root CMakeLists.
+    target_link_options(x65test PRIVATE "-sINITIAL_MEMORY=128MB")
+endif()
+add_test(NAME X65Test COMMAND x65test)
+
 add_executable(sst65816 sst65816.cpp)
 
 # The SingleStepTests/65816 data set is ~3 GB of JSON and is not vendored;

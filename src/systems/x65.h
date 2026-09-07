@@ -45,13 +45,16 @@ extern "C" {
 #endif
 
 // bump snapshot version when x65_t memory layout changes
-#define X65_SNAPSHOT_VERSION (5)
+#define X65_SNAPSHOT_VERSION (6)
 
 #define X65_NO_BREAK_ADDR (0xFFFFFFFFu)  // x65_t.hooks.break_addr value that never matches
 
 #define X65_FREQUENCY             (3140000)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (2048)     // max number of audio samples in internal sample buffer
 #define X65_DEFAULT_AUDIO_SAMPLES (512)      // default number of samples in internal sample buffer
+
+// one CGIA frame in CPU ticks
+#define X65_TICKS_PER_FRAME (X65_FREQUENCY / MODE_V_FREQ_HZ)
 
 // X65 joystick types
 typedef enum {
@@ -141,6 +144,9 @@ typedef struct {
     x65_joystick_type_t joystick_type;  // default is X65_JOYSTICK_NONE
     chips_debug_t debug;                // optional debugging hook
     chips_audio_desc_t audio;           // audio output options
+    // host-owned presentation buffer, sizeof(x65_t.fb) when given, empty to
+    // turn frame publication off entirely (see x65_t.display_fb)
+    chips_range_t display_framebuffer;
 } x65_desc_t;
 
 // X65 emulator state
@@ -172,6 +178,15 @@ typedef struct {
         bool break_hit;
     } hooks;
 
+    // Image to present, published from fb[] on every completed frame and whenever
+    // execution stops mid-frame; fb[] itself is torn for as long as CGIA is
+    // drawing into it. Only the pointer lives here: the storage is the host's,
+    // because an x65_t is memcpy'd into eight snapshot slots and a second
+    // in-struct framebuffer would cost 12.6MB of them. Host-owned like `hooks`,
+    // so it is nulled on snapshot save and carried across a load. Null is fine
+    // and simply turns publication off.
+    uint32_t* display_fb;
+
     bool valid;
     chips_debug_t debug;
 
@@ -194,7 +209,8 @@ void x65_discard(x65_t* sys);
 void x65_reset(x65_t* sys);
 // start/stop X65 CPU
 void x65_set_running(x65_t* sys, bool running);
-// get framebuffer and display attributes
+// get framebuffer and display attributes; the buffer is display_fb when one is
+// attached, and the raw fb[] otherwise
 chips_display_info_t x65_display_info(x65_t* sys);
 // tick X65 instance for a given number of microseconds, return number of ticks executed
 uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds);

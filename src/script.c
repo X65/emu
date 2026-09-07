@@ -173,7 +173,7 @@ static void print_regs(x65_t* sys) {
     printf(
         "     ticks=%llu (frame ticks=%llu)\n",
         (unsigned long long)sys->hooks.tick_count,
-        (unsigned long long)(sys->hooks.tick_count % (X65_FREQUENCY / 60)));
+        (unsigned long long)(sys->hooks.tick_count % X65_TICKS_PER_FRAME));
     fflush(stdout);
 }
 

@@ -62,13 +62,21 @@ include_directories(ext/firmware/src/north)
 include_directories(ext/firmware/src/audio)
 include_directories(ext/firmware/src)
 include_directories(ext/firmware/src/tinyusb/src)
+# The emulated machine itself: the system wiring and every chip it ticks. Shared
+# with the test suites in src/tests, which link the same machine without the host.
+set(X65_CORE_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/chips/pwm.c
+    ${CMAKE_SOURCE_DIR}/src/chips/cgia.c
+    ${CMAKE_SOURCE_DIR}/src/chips/ria816.c
+    ${CMAKE_SOURCE_DIR}/src/chips/sgu1.c
+    ${CMAKE_SOURCE_DIR}/src/chips/tca6416a.c
+    ${CMAKE_SOURCE_DIR}/src/systems/x65.c
+    ${CMAKE_SOURCE_DIR}/src/util/ringbuffer.c
+    ${CMAKE_SOURCE_DIR}/ext/sgu-1/sgu.c
+)
+
 add_executable(emu
-    src/chips/pwm.c
-    src/chips/cgia.c
-    src/chips/ria816.c
-    src/chips/sgu1.c
-    src/chips/tca6416a.c
-    src/systems/x65.c
+    ${X65_CORE_SOURCES}
     src/x65.c
     src/x65-ui-impl.cc
     src/args.c
@@ -82,8 +90,6 @@ add_executable(emu
     src/ui/ui_tca6416a.cc
     src/ui/ui_app_log.cc
     src/ui/ui_x65.cc
-    src/util/ringbuffer.c
-    ext/sgu-1/sgu.c
     ${CMAKE_CURRENT_BINARY_DIR}/version.c
 )
 target_link_libraries(emu

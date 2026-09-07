@@ -72,6 +72,10 @@ static struct {
     x65_snapshot_t snapshots[UI_SNAPSHOT_MAX_SLOTS];
 #endif
     SpeexResamplerState* resampler;
+    // Storage for the image the emulator publishes and gfx_draw() uploads. It
+    // lives here rather than in x65_t because x65_t is snapshotted; the system
+    // only keeps the pointer (see x65_t.display_fb).
+    alignas(64) uint32_t displayed_fb[CGIA_FRAMEBUFFER_SIZE_BYTES / 4];
 } state;
 
 #ifdef CHIPS_USE_UI
@@ -162,6 +166,10 @@ x65_desc_t x65_desc(x65_joystick_type_t joy_type) {
         .audio = {
             .callback = { .func = push_audio },
             .sample_rate = saudio_sample_rate(),
+        },
+        .display_framebuffer = {
+            .ptr = state.displayed_fb,
+            .size = sizeof(state.displayed_fb),
         },
 #if defined(CHIPS_USE_UI)
         .debug = ui_x65_get_debug(&state.ui)

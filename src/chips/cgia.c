@@ -66,6 +66,8 @@ void cgia_reset(cgia_t* vpu) {
 }
 
 static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
+    pins &= ~CGIA_FRAME;
+
     // DVI pixel count
     vpu->h_count += CGIA_FIXEDPOINT_SCALE;
 
@@ -100,6 +102,9 @@ static uint64_t _cgia_tick(cgia_t* vpu, uint64_t pins) {
             vpu->chip[CGIA_REG_RASTER] = 0;
             if (vpu->v_count == 0) {
                 vpu->frame_count++;
+                // every visible line of frame N is in the framebuffer and the
+                // first line of N+1 is still a whole blanking interval away
+                pins |= CGIA_FRAME;
                 cgia_vbi();
             }
         }
