@@ -216,6 +216,11 @@ void ria816_reset(ria816_t* ria816);
 // tick the RIA816
 uint64_t ria816_tick(ria816_t* ria816, uint64_t pins);
 
+// Timer window offsets are the low three address bits. These do not tick.
+// Peek preserves the interrupt latch and pipeline a bus read would acknowledge.
+uint8_t ria816_timers_peek(const ria816_t* ria, uint8_t offset);
+void ria816_timers_write(ria816_t* ria, uint8_t offset, uint8_t data);
+
 uint8_t ria816_uart_status(const ria816_t* c);
 uint8_t ria816_reg_read(ria816_t* c, uint8_t addr);
 void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data);

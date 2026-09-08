@@ -56,6 +56,24 @@ static uint64_t _ria816_tick(ria816_t* c, uint64_t pins) {
     return pins;
 }
 
+// The X65 window exposes only timers and interrupt control, not CIA ports.
+static uint8_t _ria816_timer_register(uint8_t offset) {
+    offset &= RIA816_TIMERS_RS;
+    return offset < 4 ? M6526_REG_TALO + offset : 8 + offset;
+}
+
+static uint8_t _ria816_timers_read(ria816_t* ria, uint8_t offset) {
+    return m6526_read(&ria->cia, _ria816_timer_register(offset));
+}
+
+uint8_t ria816_timers_peek(const ria816_t* ria, uint8_t offset) {
+    return m6526_peek(&ria->cia, _ria816_timer_register(offset));
+}
+
+void ria816_timers_write(ria816_t* ria, uint8_t offset, uint8_t data) {
+    _m6526_write(&ria->cia, _ria816_timer_register(offset), data);
+}
+
 uint8_t ria816_uart_status(const ria816_t* c) {
     uint8_t data = 0;
     if (rb_is_empty(&c->uart_rx))
@@ -395,15 +413,14 @@ uint64_t ria816_tick(ria816_t* c, uint64_t pins) {
     }
     if (pins & RIA816_TIMERS_CS) {
         // CIA timers emulation
-        uint8_t addr = pins & M6526_RS;
-        if (addr < M6526_REG_ICR) addr -= 4;
+        const uint8_t offset = pins & RIA816_TIMERS_RS;
         if (pins & M6526_RW) {
-            uint8_t data = m6526_read(&c->cia, addr);
+            uint8_t data = _ria816_timers_read(c, offset);
             M6526_SET_DATA(pins, data);
         }
         else {
             uint8_t data = M6526_GET_DATA(pins);
-            _m6526_write(&c->cia, addr, data);
+            ria816_timers_write(c, offset, data);
         }
         pins |= RIA816_CS;  // signal data merge to main loop
     }

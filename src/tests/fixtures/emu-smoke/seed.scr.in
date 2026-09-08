@@ -1,0 +1,4 @@
+until 0x2080 2
+peek 0x0300 0xA5
+dump 0x0320 32 "@DUMP_NAME@"
+exit 0

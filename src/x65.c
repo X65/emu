@@ -142,6 +142,7 @@ static void ui_draw_extra(const gfx_draw_info_t* draw_info) {
 void app_set_disable_gui(bool hidden) {
     disable_gui = hidden;
     gfx_set_border(gui_border(hidden));
+    LOG_INFO("Debug UI %s", hidden ? "hidden" : "shown");
 }
 #endif
 

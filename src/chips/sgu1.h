@@ -219,7 +219,9 @@ void sgu1_dump_frame(sgu1_t* sgu);
 // frame and eat the guest's status latch just by having a window open.
 uint8_t sgu1_svc_peek(const sgu1_t* sgu, uint8_t reg);
 
-// for use by debugger
+// Inspect the selected window, including normal-channel diagnostics.
+uint8_t sgu1_reg_peek(const sgu1_t* sgu, uint8_t reg);
+// CPU bus read: service status clears and sample data advances the offset.
 uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg);
 void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data);
 void sgu1_direct_reg_write(sgu1_t* sgu, uint16_t reg, uint8_t data);

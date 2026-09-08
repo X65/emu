@@ -36,6 +36,7 @@ enum {
     KEY_SCRIPT,
     KEY_SCREENSHOT,
     KEY_FRAMES,
+    KEY_SEED,
 };
 
 typedef struct {
@@ -55,6 +56,7 @@ static const option_t options[] = {
     { "joystick",
      'j',                                               "TYPE",
      OPT_ARG_OPTIONAL,                                                            "Enable joystick; TYPE is digital_1 (default), digital_2 or digital_12" },
+    { "seed",                 KEY_SEED,                 "N",           0,         "Seed RAM and hardware RNG (unsigned decimal or 0x hexadecimal)"       },
     { "zero-mem",             'z',                      NULL,          0,         "Fill memory with zeros"                                                },
     { "dap",                  'd',                      NULL,          0,         "Enable Debug Adapter Protocol over stdin/stdout"                       },
     { "dap-port",             'p',                      "PORT",        0,         "Enable Debug Adapter Protocol over TCP port"                           },
@@ -293,6 +295,30 @@ static char** web_build_argv(char* prog) {
 }
 #endif  // __EMSCRIPTEN__
 
+// Deliberately avoid strtoul's signs, whitespace, octal and platform-sized
+// overflow rules: the accepted grammar and range are identical on every host.
+static bool parse_seed(const char* value, uint32_t* seed) {
+    if (!value || !*value) return false;
+    uint32_t base = 10;
+    if (value[0] == '0' && (value[1] == 'x' || value[1] == 'X')) {
+        base = 16;
+        value += 2;
+    }
+    if (!*value) return false;
+    uint32_t result = 0;
+    for (; *value; ++value) {
+        uint32_t digit;
+        if (*value >= '0' && *value <= '9') digit = *value - '0';
+        else if (base == 16 && *value >= 'a' && *value <= 'f') digit = *value - 'a' + 10;
+        else if (base == 16 && *value >= 'A' && *value <= 'F') digit = *value - 'A' + 10;
+        else return false;
+        if (result > (UINT32_MAX - digit) / base) return false;
+        result = result * base + digit;
+    }
+    *seed = result;
+    return true;
+}
+
 args_status_t args_parse_argv(char** argv, struct arguments* out, const char** errmsg) {
     // Build the optparse long-option table from our single source of truth,
     // plus the synthetic --help/--version entries argp-like.
@@ -338,6 +364,13 @@ args_status_t args_parse_argv(char** argv, struct arguments* out, const char** e
             case KEY_SCRIPT: out->script = opt.optarg; break;
             case KEY_SCREENSHOT: out->screenshot = opt.optarg; break;
             case KEY_FRAMES: out->frames = opt.optarg; break;
+            case KEY_SEED:
+                if (!parse_seed(opt.optarg, &out->seed)) {
+                    if (errmsg) *errmsg = "--seed requires an unsigned decimal or 0x hexadecimal value through 4294967295";
+                    return ARGS_ERROR;
+                }
+                out->seed_supplied = true;
+                break;
 
             case 'l': app_load_labels(opt.optarg, false); break;
 

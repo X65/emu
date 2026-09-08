@@ -29,6 +29,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     }
 
     memset(sys, 0, sizeof(x65_t));
+    if (arguments.seed_supplied) srand(arguments.seed);
     if (!arguments.zeromem)
         for (int i = 0; i < X65_RAM_SIZE_BYTES; i++) {
             sys->ram[i] = rand() & 0xFF;  // fill RAM with random data
@@ -59,6 +60,9 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .api_cb = _x65_api_call,
             .user_data = sys,
         });
+    // RIA normally seeds from time. Restart the supplied seed for guest RNG,
+    // independently of whether randomized RAM consumed any values.
+    if (arguments.seed_supplied) srand(arguments.seed);
     tca6416a_init(&sys->gpio, 0xff, 0xff);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
@@ -205,7 +209,7 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
                 // GPIO (FFB0..FFBF)
                 ria_pins |= RIA816_HID_CS;
             }
-            else if (addr >= 0xFFAC) {
+            else if (addr >= X65_IO_UNUSED_BASE) {
                 // NOT_USED (FFAC..FFAF)
             }
             else if (addr >= X65_IO_BUZZER_BASE) {
@@ -369,7 +373,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
         else if (addr >= X65_IO_HID_BASE) {
             return ria816_hid_read(&sys->ria, addr & RIA816_HID_RS);
         }
-        else if (addr >= 0xFFAC) {
+        else if (addr >= X65_IO_UNUSED_BASE) {
             // NOT_USED (FFAC..FFAF)
             return 0xFF;
         }
@@ -380,11 +384,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
             return ria816_rgb_read(&sys->ria, addr & RIA816_HID_RS);
         }
         else if (addr >= X65_IO_TIMERS_BASE) {
-            const uint8_t reg = addr & RIA816_TIMERS_RS;
-            switch (reg) {
-                case M6526_REG_ICR: return sys->ria.cia.intr.icr;
-            }
-            return m6526_read(&sys->ria.cia, reg);
+            return ria816_timers_peek(&sys->ria, addr & RIA816_TIMERS_RS);
         }
         else if (addr >= X65_IO_GPIO_BASE) {
             const uint8_t reg = addr & TCA6416A_RS;
@@ -398,7 +398,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
             return cgia_reg_read((uint8_t)addr);
         }
         else if (addr >= X65_IO_SGU_BASE) {
-            return sgu1_reg_read(&sys->sgu, addr & SGU1_ADDR_MASK);
+            return sgu1_reg_peek(&sys->sgu, addr & SGU1_ADDR_MASK);
         }
     }
     // else
@@ -414,6 +414,10 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
             ria816_hid_write(&sys->ria, addr & RIA816_HID_RS, data);
             return;
         }
+        else if (addr >= X65_IO_UNUSED_BASE) {
+            // Reserved addresses must not alias the buzzer.
+            return;
+        }
         else if (addr >= X65_IO_BUZZER_BASE) {
             const uint8_t reg = addr & RIA816_BUZZER_RS;
             ria816_buzzer_write(&sys->ria, reg, data);
@@ -421,6 +425,10 @@ void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
         }
         else if (addr >= X65_IO_RGB_BASE) {
             ria816_rgb_write(&sys->ria, addr & RIA816_RGB_RS, data);
+            return;
+        }
+        else if (addr >= X65_IO_TIMERS_BASE) {
+            ria816_timers_write(&sys->ria, addr & RIA816_TIMERS_RS, data);
             return;
         }
         else if (addr >= X65_IO_GPIO_BASE) {
@@ -480,7 +488,7 @@ uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
         // of leaving a frame-old image up until a VBLANK that is not coming.
         _x65_publish_frame(sys);
     }
-    return num_ticks;
+    return ticks;
 }
 
 void x65_key_down(x65_t* sys, int key_code) {

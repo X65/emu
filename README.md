@@ -81,6 +81,28 @@ Tests are built as part of the normal CMake build and run with CTest:
     cmake --build build --parallel
     ctest --test-dir build --output-on-failure
 
+`X65Test` covers execution tick accounting and frame publication, CPU/direct
+memory routing, timer IRQ and CGIA VBI NMI delivery, SGU inspection and PCM
+snapshot continuation, and local seeded RAM/RNG repeatability. It uses the same
+machine sources as the application. The existing CPU conformance runners remain
+part of CTest; the optional SingleStepTests corpus is not downloaded by the build.
+
+On Linux, CMake also registers `EmuScriptSmoke`, `EmuScriptSeedRepeatability`, and
+`EmuScriptCheckFailure` when `xvfb-run` is available. Install Xvfb, xauth, and Mesa
+software rendering support before configuring. These tests run the real executable
+with a virtual display and a process-local ALSA null sink. Each invocation has a
+30-second timeout; each CTest test has a 90-second timeout. Windows runs the portable
+native suites. See [fixture regeneration instructions](src/tests/fixtures/emu-smoke/README.md);
+normal builds consume the committed XEX and need no assembler.
+
+When xdotool and Python 3 are also available, CMake registers
+`EmuGuiJoystickInput`. It sends host W/A/Z key events and reads the fixture's
+guest-visible joystick byte through DAP, covering the X11-to-Sokol input path.
+With xprop and Openbox, CMake also registers `EmuGuiWindowLifecycle`, which
+verifies window creation, title and geometry, fullscreen round trips, debug-UI
+hide/show, and a clean Ctrl+Q exit. Openbox supplies the EWMH fullscreen behavior
+that a bare Xvfb server lacks.
+
 Run a single suite with `-R`, e.g. `ctest --test-dir build -R ArgsTest`.
 
 The tests use [doctest][4], so you can also run a suite's binary directly to
@@ -128,7 +150,25 @@ fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
     exit 0
     > xvfb-run -a build/emu --disable-gui --script drive.scr roms/game.xex
 
-The verbs are documented in `src/script.h`.
+The verbs are documented in `src/script.h`. `peek` and `dump` use debugger-style
+inspection: timer interrupt status and SGU service status remain pending, and SGU
+sample-data reads preserve the sample offset. CPU bus reads still acknowledge
+status and advance SGU sample offsets. RIA FIFO/API-stack inspection returns `$FF`.
+Other read effects, including consuming hardware RNG bytes, remain unchanged.
+Direct debugger/loader access also bypasses expansion-window routing.
+
+`--seed N` optionally seeds randomized RAM and the hardware RNG. Values are unsigned
+decimal or `0x`/`0X` hexadecimal through `4294967295`; leading-zero values are decimal,
+and zero is a valid supplied seed. Repeated options use the last valid value.
+Full initialization/reboot restarts the seed; ordinary reset continues the stream.
+`--zero-mem` zeros RAM without changing the seeded guest RNG sequence.
+
+Repeatability requires the same C runtime, initialization options, and inputs:
+C runtimes may produce different `rand()` sequences, and unrelated `rand()` calls
+share the stream. Snapshot restoration does not rewind RNG state. The SGU snapshot
+test covers PCM playback continuation within one executable, not complete machine
+replay or restoration of the host audio resampler. Omitting `--seed` retains the
+existing initialization behavior.
 
 ### Opcode Breakpoints
 

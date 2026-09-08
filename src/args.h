@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 extern const char* app_name;
 extern const char* app_releases_address;
@@ -21,6 +22,8 @@ extern struct arguments {
     const char* script;
     const char* screenshot;
     const char* frames;
+    uint32_t seed;
+    bool seed_supplied;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

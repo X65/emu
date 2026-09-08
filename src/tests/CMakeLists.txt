@@ -16,9 +16,8 @@ add_test(NAME SGU1Test COMMAND sgu1test)
 add_executable(sgucoretest sgucoretest.cpp ${CMAKE_SOURCE_DIR}/ext/sgu-1/sgu.c)
 add_test(NAME SGUCoreTest COMMAND sgucoretest)
 
-# Frame publication (x65_t.display_fb): needs the whole machine, so this links
-# the system and every chip it wires up, with stubs for the host-side globals
-# x65_init() touches (see the top of x65test.cpp).
+# Whole-machine execution, memory, interrupts, audio snapshots, and RNG.
+# Link the same system/chips as the app with host globals in x65stubs.c.
 add_executable(x65test x65test.cpp x65stubs.c ${X65_CORE_SOURCES})
 # SDL3 comes in through ria816.c's gamepad plumbing; the tests never call it.
 target_link_libraries(x65test PRIVATE speex-resampler SDL3::SDL3)
@@ -66,4 +65,61 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         PASS_REGULAR_EXPRESSION "WAI interrupt wake OK"
         FAIL_REGULAR_EXPRESSION "FAIL:"
         TIMEOUT 30)
+
+    # Executable integration needs the Linux display/audio backends. Portable
+    # regressions remain in the native test targets on every platform.
+    set(EMU_FIXTURES "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/emu-smoke")
+    find_program(XVFB_RUN NAMES xvfb-run)
+    if(XVFB_RUN)
+        message(STATUS "Emulator script tests enabled with ${XVFB_RUN}")
+        foreach(kind Smoke SeedRepeatability CheckFailure)
+            add_test(NAME EmuScript${kind}
+                COMMAND "${XVFB_RUN}" -a -w 0 ${CMAKE_COMMAND}
+                    "-DEMU=$<TARGET_FILE:emu>"
+                    "-DFIXTURE_DIR=${EMU_FIXTURES}"
+                    "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/EmuScript${kind}"
+                    "-DTEST_KIND=${kind}"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/emu_script_test.cmake")
+            set_tests_properties(EmuScript${kind} PROPERTIES TIMEOUT 90)
+        endforeach()
+    else()
+        message(STATUS "Emulator script tests disabled: xvfb-run was not found (install Xvfb and xauth)")
+    endif()
+
+    # Both GUI tests are the same invocation; only the kind and the extra tool
+    # paths differ. -w 0 skips xvfb-run's unconditional 3-second startup sleep.
+    function(add_emu_gui_test name kind)
+        add_test(NAME ${name}
+            COMMAND ${CMAKE_COMMAND} -E env
+                "ALSA_CONFIG_PATH=${EMU_FIXTURES}/alsa-null.conf"
+                "LIBGL_ALWAYS_SOFTWARE=1"
+                "XDG_CONFIG_HOME=${CMAKE_CURRENT_BINARY_DIR}/${name}/config"
+                "${XVFB_RUN}" -a -w 0 -s "-screen 0 1280x1024x24"
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/emu_gui_test.py"
+                --kind ${kind}
+                "--emu=$<TARGET_FILE:emu>"
+                "--fixture=${EMU_FIXTURES}/smoke.xex"
+                "--xdotool=${XDOTOOL}"
+                "--test-dir=${CMAKE_CURRENT_BINARY_DIR}/${name}"
+                ${ARGN})
+        set_tests_properties(${name} PROPERTIES TIMEOUT 60)
+    endfunction()
+
+    find_program(XDOTOOL NAMES xdotool)
+    find_program(XPROP NAMES xprop)
+    find_program(OPENBOX NAMES openbox)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(XVFB_RUN AND XDOTOOL AND Python3_Interpreter_FOUND)
+        message(STATUS "Emulator joystick GUI test enabled with xdotool")
+        add_emu_gui_test(EmuGuiJoystickInput joystick)
+    else()
+        message(STATUS "Emulator joystick GUI test disabled: requires xvfb-run, xdotool, and Python 3")
+    endif()
+
+    if(XVFB_RUN AND XDOTOOL AND XPROP AND OPENBOX AND Python3_Interpreter_FOUND)
+        message(STATUS "Emulator window lifecycle test enabled with xdotool and Openbox")
+        add_emu_gui_test(EmuGuiWindowLifecycle window "--xprop=${XPROP}" "--openbox=${OPENBOX}")
+    else()
+        message(STATUS "Emulator window lifecycle test disabled: additionally requires xprop and Openbox")
+    endif()
 endif()

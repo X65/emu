@@ -141,10 +141,7 @@ static uint8_t _sgu1_service_read(sgu1_t* sgu, uint8_t reg) {
         // bits actually handed over: the latch is 32 bits wide because $11..$17
         // is reserved for further status registers, and a flag above bit 7 must
         // survive this read to reach whichever register eventually exposes it.
-        // Note the debugger's mem_rd path lands here too, so parking a memory
-        // editor on this address eats the guest's status bits -- exactly as a
-        // debugger read would on real hardware. The UI's clip indicator runs off
-        // clip_count instead and is unaffected.
+        // Generic debugger/script inspection uses sgu1_reg_peek instead.
         case SGU1_SVC_STATUS: {
             const uint8_t data = (uint8_t)(sgu->svc_status & 0xFFu);
             sgu->svc_status &= ~(uint32_t)data;
@@ -265,7 +262,7 @@ uint8_t sgu1_svc_peek(const sgu1_t* sgu, uint8_t reg) {
     }
 }
 
-uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
+uint8_t sgu1_reg_peek(const sgu1_t* sgu, uint8_t reg) {
     reg &= SGU_REGS_PER_CH - 1;
     if (reg == SGU_REGS_PER_CH - 1) {
         return sgu->selected_channel;
@@ -273,13 +270,22 @@ uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
     if (sgu->selected_channel < SGU_CHNS) {
         /* The core's read entry point: with FLAGS1 DIAG set on the channel the
            designated window offsets read back live envelope / sample state
-           instead of the register file. */
+           instead of the register file. Neither view has a side effect. */
         return SGU_RegRead(&sgu->sgu, sgu->selected_channel, reg);
     }
     if (sgu->selected_channel == SGU1_SERVICE_BANK) {
-        return _sgu1_service_read(sgu, reg);
+        return sgu1_svc_peek(sgu, reg);
     }
     return 0xFF;
+}
+
+uint8_t sgu1_reg_read(sgu1_t* sgu, uint8_t reg) {
+    /* the service bank is the only window whose reads change state */
+    reg &= SGU_REGS_PER_CH - 1;
+    if (reg != SGU_REGS_PER_CH - 1 && sgu->selected_channel == SGU1_SERVICE_BANK) {
+        return _sgu1_service_read(sgu, reg);
+    }
+    return sgu1_reg_peek(sgu, reg);
 }
 
 void sgu1_reg_write(sgu1_t* sgu, uint8_t reg, uint8_t data) {

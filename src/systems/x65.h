@@ -124,6 +124,7 @@ typedef enum {
 #define X65_IO_TIMERS_BASE (0xFF98)
 #define X65_IO_RGB_BASE    (0xFFA0)
 #define X65_IO_BUZZER_BASE (0xFFA8)
+#define X65_IO_UNUSED_BASE (0xFFAC)  // reserved hole, FFAC..FFAF
 #define X65_IO_HID_BASE    (0xFFB0)
 #define X65_IO_RIA_BASE    (0xFFC0)
 
@@ -250,9 +251,12 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src);
 void mem_ram_write(x65_t* sys, uint32_t addr, uint8_t data);
 /* read a byte from (PS)RAM */
 uint8_t mem_ram_read(x65_t* sys, uint32_t addr);
-/* read a byte like a CPU */
+/* Direct debugger/loader access, without ticking. Timer status and SGU service
+   reads are inspection-only; RIA FIFO/API-stack ports return FF. Other reads
+   (including hardware RNG) may have side effects. Expansion routing is bypassed. */
 uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr);
-/* write a byte like a CPU */
+/* Direct debugger/loader write through the implemented device handlers;
+   expansion routing is bypassed. GPIO writes remain unsupported here. */
 void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data);
 /* helper method to write a 16-bit value, does 2 mem_wr() */
 static inline void mem_wr16(x65_t* sys, uint8_t bank, uint16_t addr, uint16_t data) {

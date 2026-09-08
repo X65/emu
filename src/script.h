@@ -29,6 +29,10 @@
       echo "text"               print text
       exit [code]               leave the emulator with an exit code
 
+    peek/dump inspect timer status and SGU service registers without clearing
+    flags or advancing SGU sample offsets. RIA FIFO/API-stack reads return FF.
+    Other reads, including hardware RNG, retain their existing effects.
+
     A failing check prints the script line and exits with code 1.
 */
 

@@ -274,6 +274,8 @@ void m6526_reset(m6526_t* c);
 uint64_t m6526_tick(m6526_t* c, uint64_t pins);
 
 uint8_t m6526_read(m6526_t* c, uint8_t addr);
+// read a register without the side effects a bus read has (ICR is not acknowledged)
+uint8_t m6526_peek(const m6526_t* c, uint8_t addr);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -348,7 +350,7 @@ static inline void _m6526_read_port_pins(m6526_t* c, uint64_t pins) {
     c->pb.inp = M6526_GET_PB(pins);
 }
 
-static inline uint8_t _m6526_merge_pb67(m6526_t* c, uint8_t data) {
+static inline uint8_t _m6526_merge_pb67(const m6526_t* c, uint8_t data) {
     /* merge timer state bits into data byte */
     if (M6526_PBON(c->ta.cr)) {
         data &= ~(1<<6);
@@ -579,8 +581,8 @@ static inline void _m6526_write_cr(m6526_timer_t* t, uint8_t data) {
     t->cr = data;
 }
 
-/* read a register */
-uint8_t m6526_read(m6526_t* c, uint8_t addr) {
+/* read a register without acknowledging anything */
+uint8_t m6526_peek(const m6526_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
     switch (addr) {
         case M6526_REG_PRA:
@@ -608,7 +610,7 @@ uint8_t m6526_read(m6526_t* c, uint8_t addr) {
             data = c->tb.counter >> 8;
             break;
         case M6526_REG_ICR:
-            data = _m6526_read_icr(c);
+            data = c->intr.icr;
             break;
         case M6526_REG_CRA:
             /* force-load bit always returns zero */
@@ -620,6 +622,15 @@ uint8_t m6526_read(m6526_t* c, uint8_t addr) {
             break;
     }
     return data;
+}
+
+/* read a register */
+uint8_t m6526_read(m6526_t* c, uint8_t addr) {
+    /* the only register a bus read changes is ICR, which is read-to-clear */
+    if (addr == M6526_REG_ICR) {
+        return _m6526_read_icr(c);
+    }
+    return m6526_peek(c, addr);
 }
 
 static void _m6526_write(m6526_t* c, uint8_t addr, uint8_t data) {

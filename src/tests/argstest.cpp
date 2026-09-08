@@ -43,6 +43,8 @@ TEST_CASE("defaults with no arguments") {
     struct arguments a;
     CHECK(parse({}, a) == ARGS_OK);
     CHECK(a.rom == nullptr);
+    CHECK_FALSE(a.seed_supplied);
+    CHECK(a.seed == 0);
     CHECK(std::strcmp(a.output_file, "-") == 0);
     CHECK_FALSE(a.silent);
     CHECK_FALSE(a.verbose);
@@ -238,4 +240,49 @@ TEST_CASE("end to end: query -> argv -> parsed arguments") {
     CHECK(a.crt);
     REQUIRE(a.crt_values != nullptr);
     CHECK(std::strcmp(a.crt_values, "1,2") == 0);
+}
+
+TEST_CASE("seed accepts unsigned decimal and hexadecimal, with last option winning") {
+    struct arguments a;
+    struct Valid { const char* text; uint32_t value; };
+    for (const auto& v : {Valid{"0", 0}, Valid{"123", 123}, Valid{"000019", 19},
+                          Valid{"4294967295", UINT32_MAX}, Valid{"0xffffffff", UINT32_MAX},
+                          Valid{"0XAbCd", 0xABCD}, Valid{"0x0", 0}}) {
+        CAPTURE(v.text);
+        CHECK(parse({"--seed", v.text}, a) == ARGS_OK);
+        CHECK(a.seed_supplied);
+        CHECK(a.seed == v.value);
+    }
+    CHECK(parse({"--seed=7", "--seed", "0"}, a) == ARGS_OK);
+    CHECK(a.seed_supplied);
+    CHECK(a.seed == 0);
+}
+
+TEST_CASE("seed rejects missing, malformed and overflowing values") {
+    struct arguments a;
+    const char* error = nullptr;
+    CHECK(parse({"--seed"}, a, &error) == ARGS_ERROR);
+    REQUIRE(error != nullptr);
+    CHECK(std::strlen(error) > 0);
+    for (const char* value : {"", "-1", "+1", " 1", "1 ", "1 2", "1\t2", "\n1", "0x",
+                              "0X", "0xG", "1z", "1.0", "0b10", "4294967296",
+                              "0x100000000", "9999999999999999999999999999999999999"}) {
+        CAPTURE(value);
+        error = nullptr;
+        CHECK(parse({"--seed", value}, a, &error) == ARGS_ERROR);
+        REQUIRE(error != nullptr);
+        CHECK(std::strlen(error) > 0);
+    }
+}
+
+TEST_CASE("URL seed uses the same numeric validation") {
+    struct arguments a = args_defaults();
+    CHECK(args_parse_argv(args_build_argv_from_query("emu", "seed=0XfF&seed=0009"), &a, nullptr) == ARGS_OK);
+    CHECK(a.seed_supplied);
+    CHECK(a.seed == 9);
+    for (const char* query : {"seed", "seed=", "seed=%2B1", "seed=1+2", "seed=4294967296"}) {
+        CAPTURE(query);
+        a = args_defaults();
+        CHECK(args_parse_argv(args_build_argv_from_query("emu", query), &a, nullptr) == ARGS_ERROR);
+    }
 }

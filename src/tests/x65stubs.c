@@ -1,5 +1,5 @@
 // Host-side globals that src/systems/x65.c and the chips it wires up reference
-// but that frame-publication tests have no use for. Kept in a C translation
+// but that whole-machine tests have no use for. Kept in a C translation
 // unit so the declarations they must match can simply be included.
 #include "args.h"
 #include "hid.h"
