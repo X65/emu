@@ -48,6 +48,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
 endif()
 
 add_subdirectory(ext)
+
+# mingw-w64 has no `uint` (a glibc/BSD extension the chip headers share with the
+# Pico firmware), so src/mingw.h supplies it. It has to be force-included into
+# every target built from src/ -- emu and the test suites both compile
+# X65_CORE_SOURCES -- hence a directory-scoped option here rather than a
+# target_compile_options() on emu. Placed after add_subdirectory(ext) so the
+# ext/ libraries, which build fine without it, stay untouched. SHELL: keeps the
+# flag and its argument together -- src/common already force-includes config.h,
+# and CMake would otherwise de-duplicate the second bare `-include` token.
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    add_compile_options("SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/src/mingw.h")
+endif()
+
 include_directories(ext/imgui ext/imgui_toggle)
 include_directories(ext/sokol ext/sokol/util)
 include_directories(ext/doctest/doctest)
@@ -118,10 +131,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(STATUS "Building for Windows (mingw-w64)")
-    target_compile_options(emu BEFORE PRIVATE
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/src/mingw.h
-        -static-libgcc -static-libstdc++
-    )
+    target_compile_options(emu BEFORE PRIVATE -static-libgcc -static-libstdc++)
     target_link_options(emu PRIVATE --static)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
