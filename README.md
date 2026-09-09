@@ -150,16 +150,18 @@ fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
     exit 0
     > xvfb-run -a build/emu --disable-gui --script drive.scr roms/game.xex
 
-`joy` reaches joystick 1 only -- the GPIO expander has two ports, and real
-hardware does not decode them at all. Programs that want more than that read
-the USB HID gamepads, which are normally fed only by real SDL devices, so
+`joy [1|2] ...` drives either DE-9 joystick port; the two are independent and
+hold at the same time. Beyond those two, players come from the USB HID
+gamepads, which are normally fed only by real SDL devices, so
 `pad <1..4> [button ...]` injects a report into one of the four HID slots and
 `pad <n> off` hands the slot back to whatever is plugged in:
 
-    pad 1 up a
-    pad 2 right b
+    joy 1 up
+    joy 2 down b
+    pad 3 right a
     run 120
-    pad 1 off
+    joy 2 none
+    pad 3 off
 
 The verbs are documented in `src/script.h`. `peek` and `dump` use debugger-style
 inspection: timer interrupt status and SGU service status remain pending, and SGU

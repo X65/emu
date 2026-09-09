@@ -24,8 +24,10 @@ rng_loop:
     jmp input_loop
     .res $80 - (* - start), $EA
 input_loop:
-    lda $FF80                   ; GPIO joystick port zero, active low
+    lda $FF80                   ; DE-9 joystick port 1, active low
     sta $0301
+    lda $FF81                   ; DE-9 joystick port 2
+    sta $0306
     ; USB HID gamepads 1 and 2, active high.  The selector is
     ; (index << 4) | device; device $02 is a gamepad.  Bit 7 of the first
     ; report byte says a pad is connected.

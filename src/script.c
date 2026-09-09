@@ -239,10 +239,27 @@ static void hex_dump(x65_t* sys, uint32_t addr, long count, bool raw) {
 // ---------------------------------------------------------------------------
 // commands
 
+// joy [1|2] [up|down|left|right|a|b|c|d|none ...]
+//
+// The two DE-9 ports are independent, so each keeps its own mask and a call
+// naming one port leaves the other alone.  Omitting the port means port 1,
+// which is what every script wrote before ports existed.
+static uint8_t joy_mask[2];
+
 static void cmd_joy(x65_t* sys, char* p) {
+    int port = 0;
     uint8_t mask = 0;
+    bool first = true;
     char* w;
     while ((w = script_word(&p))) {
+        if (first) {
+            first = false;
+            if (!strcmp(w, "1")) continue;
+            if (!strcmp(w, "2")) {
+                port = 1;
+                continue;
+            }
+        }
         if (!strcasecmp(w, "up"))
             mask |= X65_JOYSTICK_UP;
         else if (!strcasecmp(w, "down"))
@@ -264,7 +281,8 @@ static void cmd_joy(x65_t* sys, char* p) {
         else
             script_error("joy: unknown line '%s'", w);
     }
-    x65_joystick(sys, mask, 0);
+    joy_mask[port] = mask;
+    x65_joystick(sys, joy_mask[0], joy_mask[1]);
 }
 
 // pad <1..4> [button ...]  -- inject a USB HID gamepad report

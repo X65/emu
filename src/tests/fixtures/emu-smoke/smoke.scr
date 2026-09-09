@@ -9,6 +9,20 @@ peek 0x0301 0xDA
 joy none
 run 1
 peek 0x0301 0xFF
+# The two DE-9 ports are independent and hold at the same time: port 1 up
+# (~$01), port 2 down plus button B (~$82).
+joy 1 up
+joy 2 down b
+run 1
+peek 0x0301 0xFE
+peek 0x0306 0x7D
+joy 2 none
+run 1
+peek 0x0301 0xFE
+peek 0x0306 0xFF
+joy none
+run 1
+peek 0x0301 0xFF
 # HID gamepads: no device, so the connected flag is clear and nothing is held
 peek 0x0302 0x00 0x00 0x00 0x00
 # `pad` injects a report; bit 7 is the connected flag the driver sets

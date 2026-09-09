@@ -13,7 +13,10 @@
       run [frames]              advance N emulated frames (default 1)
       until <addr> [frames]     run until an opcode is fetched from addr (24-bit),
                                 give up after N frames (default 600)
-      joy [up|down|left|right|a|b|c|d|none ...]   set joystick-1 lines
+      joy [1|2] [up|down|left|right|a|b|c|d|none ...]
+                                set one DE-9 joystick's lines; the port
+                                defaults to 1, and the two ports are
+                                independent
       pad <1..4> [up|down|left|right|a|b|c|x|y|z|l|r|l2|r2|select|start|
                   home|l3|r3|none|off ...]
                                 inject a USB HID gamepad report for that
