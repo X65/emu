@@ -20,6 +20,7 @@
 
 #include "sokol_audio.h"
 
+#include <emscripten/em_asm.h>
 #include <emscripten/html5.h>
 #include <emscripten/webaudio.h>
 
@@ -45,9 +46,13 @@
 typedef struct {
     /* setup_called latches for the lifetime of a failed setup too, so a backend that
        could not finish coming up stays down instead of being retried per frame;
-       valid additionally means the AudioContext exists and so has to be reclaimed. */
+       valid additionally means the AudioContext exists and so has to be reclaimed.
+       failed latches the opposite: the backend will never produce sound, which
+       saudio_suspended() reports so the caller's speaker-off indicator comes up the
+       same way it does for a context the autoplay policy is still holding down. */
     bool setup_called;
     bool valid;
+    bool failed;
     int active;
     int sample_rate;
     int num_channels;
@@ -84,6 +89,15 @@ static void saudio_log(uint32_t level, const char* message) {
             0,
             "sokol_audio_worklet.c",
             s_audio.desc.logger.user_data);
+}
+
+/* Latch a permanent failure: log it, and stop the worklet touching the queue in case
+   one did come up. Everything the backend exposes keeps working -- saudio_push() just
+   fills a queue nobody drains -- but saudio_suspended() now says the sound is off. */
+static void saudio_fail(const char* message) {
+    saudio_log(1, message);
+    __atomic_store_n(&s_audio.active, 0, __ATOMIC_RELEASE);
+    s_audio.failed = true;
 }
 
 // zero every channel of `out` from frame `from` onwards
@@ -164,7 +178,7 @@ static void saudio_processor_created(EMSCRIPTEN_WEBAUDIO_T context, bool success
     (void)user_data;
     if (!s_audio.setup_called) return;  // shutdown raced us
     if (!success) {
-        saudio_log(1, "AudioWorklet processor creation failed");
+        saudio_fail("AudioWorklet processor creation failed");
         return;
     }
 
@@ -180,7 +194,7 @@ static void saudio_processor_created(EMSCRIPTEN_WEBAUDIO_T context, bool success
     s_audio.node =
         emscripten_create_wasm_audio_worklet_node(context, SAUDIO_WORKLET_NAME, &options, saudio_process, NULL);
     if (!s_audio.node) {
-        saudio_log(1, "AudioWorklet node creation failed");
+        saudio_fail("AudioWorklet node creation failed");
         return;
     }
 
@@ -192,7 +206,7 @@ static void saudio_worklet_started(EMSCRIPTEN_WEBAUDIO_T context, bool success, 
     (void)user_data;
     if (!s_audio.setup_called) return;  // shutdown raced us
     if (!success) {
-        saudio_log(1, "AudioWorklet thread initialization failed");
+        saudio_fail("AudioWorklet thread initialization failed");
         return;
     }
 
@@ -225,12 +239,16 @@ void saudio_setup(const saudio_desc* desc) {
 
     memset(&s_audio, 0, sizeof(s_audio));
     s_audio.setup_called = true;
+    /* Latched here rather than after the last check below: everything from this point
+       on either succeeds or calls saudio_fail(), and callers that gate a speaker-off
+       indicator on saudio_isvalid() have to see the failed backend to draw it. */
+    s_audio.valid = true;
     s_audio.desc = *desc;
     s_audio.sample_rate = desc->sample_rate ? desc->sample_rate : 44100;
     s_audio.num_channels = desc->num_channels ? desc->num_channels : 1;
 
     if (s_audio.num_channels > SAUDIO_MAX_CHANNELS) {
-        saudio_log(1, "AudioWorklet backend supports at most 2 channels");
+        saudio_fail("AudioWorklet backend supports at most 2 channels");
         return;
     }
     /* Push mode only -- see the file header. A stream callback would silently never
@@ -246,7 +264,7 @@ void saudio_setup(const saudio_desc* desc) {
     };
     s_audio.context = emscripten_create_audio_context(&attributes);
     if (!s_audio.context) {
-        saudio_log(1, "WebAudio AudioContext creation failed");
+        saudio_fail("WebAudio AudioContext creation failed");
         return;
     }
 
@@ -267,10 +285,20 @@ void saudio_setup(const saudio_desc* desc) {
     s_read_pos = 0;
     s_priming = 1;
 
-    /* Context creation succeeded. Processor/node creation completes asynchronously.
-       Keep valid true even if that later stage reports an error so saudio_shutdown()
-       still owns and reclaims the context. */
-    s_audio.valid = true;
+    /* An AudioWorklet here is a real Wasm thread, so the heap has to be a
+       SharedArrayBuffer -- which a page only gets when it is cross-origin isolated,
+       i.e. its document was served with COOP: same-origin and COEP: require-corp.
+       Without them emscripten_start_wasm_audio_worklet_thread_async() fails several
+       turns later with nothing to say about why, so check up front and name the cause.
+       Note that COOP is ignored outside a secure context, which makes a plain-http
+       page fail this too however the server is configured. */
+    if (!EM_ASM_INT({ return globalThis.crossOriginIsolated ? 1 : 0; })) {
+        saudio_fail(
+            "page is not cross-origin isolated, the audio worklet cannot get shared memory -- "
+            "serve it over https with COOP: same-origin and COEP: require-corp. Sound is off.");
+        return;
+    }
+
     emscripten_start_wasm_audio_worklet_thread_async(
         s_audio.context,
         s_worklet_stack,
@@ -317,6 +345,8 @@ int saudio_channels(void) {
 }
 
 bool saudio_suspended(void) {
+    // a backend that will never play reads as "off", the same as an unresumed context
+    if (s_audio.failed) return true;
     if (!s_audio.context) return false;
     const AUDIO_CONTEXT_STATE state = emscripten_audio_context_state(s_audio.context);
     return state == AUDIO_CONTEXT_STATE_SUSPENDED || state == AUDIO_CONTEXT_STATE_INTERRUPTED;

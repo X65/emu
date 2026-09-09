@@ -6,8 +6,9 @@ The web build drives audio from a Wasm AudioWorklet, which runs on shared memory
 which browsers only hand out to cross-origin isolated pages.  A plain
 `python -m http.server` does not send the headers that takes; this one does.
 
-Without them the failure is total rather than silent: creating the shared
-WebAssembly.Memory throws, so the module never starts and the page stays black.
+Without them the emulator still starts and runs -- only the worklet thread fails to
+come up, so the page is silent and raises the speaker-off icon (see saudio_setup() in
+src/common/sokol_audio_worklet.c, which names the missing isolation in the console).
 The same headers have to come from wherever the build is really hosted -- there is
 no client-side fallback and there cannot be one.
 
