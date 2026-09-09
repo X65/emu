@@ -36,6 +36,7 @@ extern void segfault_handler(int sig);
 #include "icon.c"
 #include "log.h"
 #include "./args.h"
+#include "./cursor.h"
 #include "./dap.h"
 #include "./hid.h"
 #include "./script.h"
@@ -282,6 +283,7 @@ void app_init(void) {
     prof_init();
     fs_init();
     hid_init();
+    cursor_init();
 #ifdef CHIPS_USE_UI
     ui_init(&(ui_desc_t){
         .draw_cb = ui_draw_cb,
@@ -520,6 +522,7 @@ void app_cleanup(void) {
     if (state.resampler) speex_resampler_destroy(state.resampler);
     gfx_shutdown();
     hid_shutdown();
+    cursor_shutdown();
 #ifdef USE_DAP
     dap_shutdown();
 #endif
