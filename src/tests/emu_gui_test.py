@@ -20,6 +20,11 @@ WINDOW_TITLE = "X65 emu"
 JOYSTICK_ADDR = 0x0301
 MARKER_ADDR = 0x0300
 
+# Openbox publishes _NET_SUPPORTING_WM_CHECK before it can manage anything, so
+# a slow start shows up here rather than in _wm_ready: the emulator maps its
+# window, Openbox holds the redirected MapRequest, and nothing is visible yet.
+WINDOW_TIMEOUT = 30.0
+
 
 class TestFailure(RuntimeError):
     pass
@@ -146,6 +151,7 @@ class GuiTest:
                 [self.args.openbox, "--sm-disable"],
                 stdout=self.wm_log,
                 stderr=subprocess.STDOUT,
+                env=self._wm_environment(),
             )
             wait_until("Openbox to publish its supporting-window property", self._wm_ready)
         self.emu = subprocess.Popen(
@@ -160,11 +166,29 @@ class GuiTest:
             stdout=self.emu_log,
             stderr=subprocess.STDOUT,
         )
-        self.window = wait_until("the emulator window", self._find_window)
+        self.window = wait_until("the emulator window", self._find_window, WINDOW_TIMEOUT)
         name = self.xdotool("getwindowname", self.window)
         if name != WINDOW_TITLE:
             raise TestFailure(f"window title is {name!r}, expected {WINDOW_TITLE!r}")
         self.focus()
+
+    def _wm_environment(self) -> dict[str, str]:
+        # Openbox loads its theme -- and through it Pango and fontconfig -- only
+        # after it has taken over the screen, so building a cold fontconfig cache
+        # (a fresh runner, or a font package installed by the CI job itself) can
+        # keep it out of its event loop for tens of seconds while the emulator
+        # window waits to be mapped. Nothing here reads a titlebar, so hand it a
+        # font set with no directories in it: nothing to scan, nothing to cache.
+        cache_dir = self.test_dir / "fontconfig"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        config = self.test_dir / "fonts.conf"
+        config.write_text(
+            '<?xml version="1.0"?>\n'
+            '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n'
+            f"<fontconfig><cachedir>{cache_dir}</cachedir></fontconfig>\n",
+            encoding="utf-8",
+        )
+        return dict(os.environ, FONTCONFIG_FILE=str(config))
 
     def _wm_ready(self) -> bool:
         assert self.wm

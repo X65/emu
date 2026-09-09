@@ -102,7 +102,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
                 "--xdotool=${XDOTOOL}"
                 "--test-dir=${CMAKE_CURRENT_BINARY_DIR}/${name}"
                 ${ARGN})
-        set_tests_properties(${name} PROPERTIES TIMEOUT 60)
+        # Generous, because the cap is only reached when a wait inside the
+        # script is already timing out and printing its own diagnostics.
+        set_tests_properties(${name} PROPERTIES TIMEOUT 120)
     endfunction()
 
     find_program(XDOTOOL NAMES xdotool)
