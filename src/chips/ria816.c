@@ -294,6 +294,28 @@ bool ria816_pad_injected(uint8_t pad) {
     return (pad_inject_mask & (1u << (pad - 1))) != 0;
 }
 
+// --- scripted keyboard ---------------------------------------------------
+//
+// The keyboard register file is a 256-bit map of held keys, one bit per USB
+// HID usage id: byte `keycode >> 3`, bit `keycode & 7`.  Injected keys are
+// merged with the real ones rather than shadowing them.
+
+static uint8_t kbd_inject[RIA816_KBD_BYTES];
+
+void ria816_key_set(uint8_t keycode) {
+    kbd_inject[keycode >> 3] |= (uint8_t)(1u << (keycode & 7));
+}
+
+void ria816_keys_clear(void) {
+    memset(kbd_inject, 0, sizeof(kbd_inject));
+}
+
+static uint8_t _ria816_kbd_get_reg(uint8_t idx) {
+    uint8_t data = kbd_get_reg(idx);
+    if (idx < RIA816_KBD_BYTES) data |= kbd_inject[idx];
+    return data;
+}
+
 static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
     if (reg >= RIA816_PAD_REGS) return pad_get_reg(pad, reg);
     if (pad >= 1 && pad <= RIA816_PAD_SLOTS && (pad_inject_mask & (1u << (pad - 1))))
@@ -314,7 +336,7 @@ static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
     uint8_t data = 0xFF;  // invalid
     switch (HID_dev & 0xF) {
-        case RIA_HID_DEV_KEYBOARD: data = kbd_get_reg((HID_dev & 0xF0) | reg); break;
+        case RIA_HID_DEV_KEYBOARD: data = _ria816_kbd_get_reg((HID_dev & 0xF0) | reg); break;
         case RIA_HID_DEV_MOUSE: data = mou_get_reg(reg); break;
         case RIA_HID_DEV_GAMEPAD: data = _ria816_pad_get_reg(HID_dev >> 4, reg); break;
     }

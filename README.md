@@ -159,9 +159,14 @@ gamepads, which are normally fed only by real SDL devices, so
     joy 1 up
     joy 2 down b
     pad 3 right a
+    key w lshift
     run 120
     joy 2 none
     pad 3 off
+    key none
+
+`key` holds a set of keyboard keys, named (`w`, `up`, `lshift`, `kp0`, ...) or
+as raw USB HID usage ids; like `joy`, each call replaces the set.
 
 The verbs are documented in `src/script.h`. `peek` and `dump` use debugger-style
 inspection: timer interrupt status and SGU service status remain pending, and SGU

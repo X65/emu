@@ -4,7 +4,8 @@
 The 65816 guest starts in emulation mode at `$2000`, records 32 hardware RNG
 bytes at `$0320`, writes `$A5` at `$0300`, then loops at `$2080` copying GPIO
 DE-9 joystick port 1 to `$0301`, the dpad and button0 bytes of USB HID
-gamepads 1 and 2 to `$0302`-`$0305`, and DE-9 port 2 to `$0306`.
+gamepads 1 and 2 to `$0302`-`$0305`, DE-9 port 2 to `$0306`, and one keyboard
+byte from each key-map page to `$0307`/`$0308`.
 
 To regenerate from the repository root, using cc65's ca65/ld65 and Python 3:
 
@@ -20,7 +21,8 @@ After an intentional source change, copy the regenerated XEX over the fixture
 and rerun `ctest --test-dir build -R EmuScript --output-on-failure`.
 
 `smoke.scr` checks loading, bounded execution, joystick press/release on both
-DE-9 ports independently, and the `pad` verb: injection into two HID slots, the connected flag, and handing
+DE-9 ports independently, the `key` verb across both key-map pages, and the
+`pad` verb: injection into two HID slots, the connected flag, and handing
 a slot back with `pad <n> off`.
 `seed.scr.in` is instantiated twice with separate binary dump paths.
 `failure.scr` intentionally fails; the CMake driver checks both exit code 1

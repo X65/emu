@@ -334,6 +334,73 @@ static void cmd_pad(char* p) {
     ria816_pad_inject((uint8_t)index, report);
 }
 
+// key [name|<code> ...]  -- hold this set of keys, USB HID usage ids
+//
+// Real key state only ever arrives from the host window, so a headless script
+// cannot otherwise press a key.  Like `joy`, each call replaces the held set;
+// `key` or `key none` releases everything.  Letters and digits map
+// arithmetically, so only the awkward ones need naming.
+static const struct {
+    const char* name;
+    uint8_t code;
+} key_names[] = {
+    { "up", 0x52 },      { "down", 0x51 },     { "left", 0x50 },   { "right", 0x4F },
+    { "space", 0x2C },   { "enter", 0x28 },    { "escape", 0x29 }, { "tab", 0x2B },
+    { "backspace", 0x2A }, { "minus", 0x2D },  { "equal", 0x2E },
+    { "lctrl", 0xE0 },   { "lshift", 0xE1 },   { "lalt", 0xE2 },
+    { "rctrl", 0xE4 },   { "rshift", 0xE5 },   { "ralt", 0xE6 },
+    { "kp0", 0x62 },     { "kp1", 0x59 },      { "kp2", 0x5A },    { "kp3", 0x5B },
+    { "kp4", 0x5C },     { "kp5", 0x5D },      { "kp6", 0x5E },    { "kp7", 0x5F },
+    { "kp8", 0x60 },     { "kp9", 0x61 },      { "kpenter", 0x58 },
+};
+
+static bool script_key_code(const char* w, uint8_t* out) {
+    if (w[0] && !w[1]) {
+        const char c = (char)tolower((unsigned char)w[0]);
+        if (c >= 'a' && c <= 'z') {
+            *out = (uint8_t)(0x04 + (c - 'a'));  // HID_KEY_A
+            return true;
+        }
+        if (c >= '1' && c <= '9') {
+            *out = (uint8_t)(0x1E + (c - '1'));  // HID_KEY_1
+            return true;
+        }
+        if (c == '0') {
+            *out = 0x27;  // HID_KEY_0
+            return true;
+        }
+    }
+    for (size_t i = 0; i < sizeof key_names / sizeof key_names[0]; ++i) {
+        if (!strcasecmp(w, key_names[i].name)) {
+            *out = key_names[i].code;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void cmd_key(char* p) {
+    ria816_keys_clear();
+    char* w;
+    while ((w = script_word(&p))) {
+        if (!strcasecmp(w, "none")) {
+            ria816_keys_clear();
+            continue;
+        }
+        uint8_t code;
+        if (script_key_code(w, &code)) {
+            ria816_key_set(code);
+            continue;
+        }
+        // Anything else has to be a numeric usage id.
+        char* q = w;
+        long value;
+        if (!script_number(&q, &value) || value < 0 || value > 255)
+            script_error("key: unknown key '%s'", w);
+        ria816_key_set((uint8_t)value);
+    }
+}
+
 static void script_command(x65_t* sys, const char* line) {
     char buf[SCRIPT_LINE_MAX];
     snprintf(buf, sizeof buf, "%s", line);
@@ -369,6 +436,10 @@ static void script_command(x65_t* sys, const char* line) {
     }
     if (!strcasecmp(cmd, "pad")) {
         cmd_pad(p);
+        return;
+    }
+    if (!strcasecmp(cmd, "key")) {
+        cmd_key(p);
         return;
     }
     if (!strcasecmp(cmd, "shot")) {

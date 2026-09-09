@@ -43,5 +43,15 @@ input_loop:
     sta $0304
     lda $FFB2                   ; pad 2 button0
     sta $0305
+    ; Keyboard: a 256-bit map of held keys, sixteen bytes to a page.  Byte 3
+    ; of page 0 carries W ($1A), byte 12 of page 1 carries left shift ($E1).
+    lda #$00
+    sta $FFB0
+    lda $FFB3
+    sta $0307
+    lda #$10
+    sta $FFB0
+    lda $FFBC
+    sta $0308
     jmp input_loop
 .assert input_loop - start = $80, error, "input loop must be at $2080"
