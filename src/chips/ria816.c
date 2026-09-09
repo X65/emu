@@ -265,12 +265,58 @@ static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_
         report->rt);
 }
 
+// --- scripted gamepads ---------------------------------------------------
+//
+// Reports pushed in by ria816_pad_inject() shadow the corresponding SDL
+// device.  Selector index 0 is the firmware's merged view, so it has to merge
+// the injected pads too, following pad_get_reg()'s rule: only pads whose
+// connected flag is set contribute.
+
+#define PAD_CONNECTED_BIT 0x80
+
+static uint8_t pad_inject_regs[RIA816_PAD_SLOTS][RIA816_PAD_REGS];
+static uint8_t pad_inject_mask;  // bit n set: slot n is scripted
+
+void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]) {
+    if (pad < 1 || pad > RIA816_PAD_SLOTS) return;
+    memcpy(pad_inject_regs[pad - 1], report, RIA816_PAD_REGS);
+    pad_inject_regs[pad - 1][0] |= PAD_CONNECTED_BIT;
+    pad_inject_mask |= 1u << (pad - 1);
+}
+
+void ria816_pad_release(uint8_t pad) {
+    if (pad < 1 || pad > RIA816_PAD_SLOTS) return;
+    pad_inject_mask &= ~(1u << (pad - 1));
+}
+
+bool ria816_pad_injected(uint8_t pad) {
+    if (pad < 1 || pad > RIA816_PAD_SLOTS) return false;
+    return (pad_inject_mask & (1u << (pad - 1))) != 0;
+}
+
+static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
+    if (reg >= RIA816_PAD_REGS) return pad_get_reg(pad, reg);
+    if (pad >= 1 && pad <= RIA816_PAD_SLOTS && (pad_inject_mask & (1u << (pad - 1))))
+        return pad_inject_regs[pad - 1][reg];
+    if (pad != 0 || !pad_inject_mask) return pad_get_reg(pad, reg);
+
+    // Merged view with at least one scripted pad in the mix.
+    uint8_t merged = 0;
+    for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
+        uint8_t connected = (pad_inject_mask & (1u << (slot - 1)))
+                                ? pad_inject_regs[slot - 1][0]
+                                : pad_get_reg(slot, 0);
+        if (connected & PAD_CONNECTED_BIT) merged |= _ria816_pad_get_reg(slot, reg);
+    }
+    return merged;
+}
+
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
     uint8_t data = 0xFF;  // invalid
     switch (HID_dev & 0xF) {
         case RIA_HID_DEV_KEYBOARD: data = kbd_get_reg((HID_dev & 0xF0) | reg); break;
         case RIA_HID_DEV_MOUSE: data = mou_get_reg(reg); break;
-        case RIA_HID_DEV_GAMEPAD: data = pad_get_reg(HID_dev >> 4, reg); break;
+        case RIA_HID_DEV_GAMEPAD: data = _ria816_pad_get_reg(HID_dev >> 4, reg); break;
     }
     return data;
 }

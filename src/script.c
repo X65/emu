@@ -1,6 +1,7 @@
 #include "./script.h"
 #include "./log.h"
 #include "systems/x65.h"
+#include "chips/ria816.h"
 
 #include <SDL3/SDL_surface.h>
 #include <ctype.h>
@@ -266,6 +267,55 @@ static void cmd_joy(x65_t* sys, char* p) {
     x65_joystick(sys, mask, 0);
 }
 
+// pad <1..4> [button ...]  -- inject a USB HID gamepad report
+//
+// `joy` can only reach joystick 1, because the GPIO expander has two ports
+// and cmd_joy fills one of them.  Everything with more than two players lives
+// on the HID gamepads instead, which are normally fed only by real SDL
+// devices, so this verb builds a report and pushes it in.
+static const struct {
+    const char* name;
+    uint8_t reg;  // index into the ten-byte report
+    uint8_t bit;
+} pad_bits[] = {
+    // dpad and feature byte
+    { "up", 0, 0x01 },     { "down", 0, 0x02 },   { "left", 0, 0x04 },  { "right", 0, 0x08 },
+    // button0: A B C X Y Z L R
+    { "a", 2, 0x01 },      { "b", 2, 0x02 },      { "c", 2, 0x04 },     { "x", 2, 0x08 },
+    { "y", 2, 0x10 },      { "z", 2, 0x20 },      { "l", 2, 0x40 },     { "r", 2, 0x80 },
+    // button1: L2 R2 SELECT START HOME L3 R3
+    { "l2", 3, 0x01 },     { "r2", 3, 0x02 },     { "select", 3, 0x04 },
+    { "start", 3, 0x08 },  { "home", 3, 0x10 },   { "l3", 3, 0x20 },    { "r3", 3, 0x40 },
+};
+
+static void cmd_pad(char* p) {
+    long index;
+    if (!script_number(&p, &index) || index < 1 || index > RIA816_PAD_SLOTS)
+        script_error("pad wants a controller index 1..%d", RIA816_PAD_SLOTS);
+
+    uint8_t report[RIA816_PAD_REGS] = { 0 };
+    char* w;
+    while ((w = script_word(&p))) {
+        if (!strcasecmp(w, "off")) {
+            // Hand the slot back to whatever real device is plugged in.
+            ria816_pad_release((uint8_t)index);
+            return;
+        }
+        if (!strcasecmp(w, "none")) {
+            memset(report, 0, sizeof report);
+            continue;
+        }
+        size_t i = 0;
+        for (; i < sizeof pad_bits / sizeof pad_bits[0]; ++i) {
+            if (strcasecmp(w, pad_bits[i].name)) continue;
+            report[pad_bits[i].reg] |= pad_bits[i].bit;
+            break;
+        }
+        if (i == sizeof pad_bits / sizeof pad_bits[0]) script_error("pad: unknown button '%s'", w);
+    }
+    ria816_pad_inject((uint8_t)index, report);
+}
+
 static void script_command(x65_t* sys, const char* line) {
     char buf[SCRIPT_LINE_MAX];
     snprintf(buf, sizeof buf, "%s", line);
@@ -297,6 +347,10 @@ static void script_command(x65_t* sys, const char* line) {
     }
     if (!strcasecmp(cmd, "joy")) {
         cmd_joy(sys, p);
+        return;
+    }
+    if (!strcasecmp(cmd, "pad")) {
+        cmd_pad(p);
         return;
     }
     if (!strcasecmp(cmd, "shot")) {

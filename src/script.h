@@ -14,6 +14,14 @@
       until <addr> [frames]     run until an opcode is fetched from addr (24-bit),
                                 give up after N frames (default 600)
       joy [up|down|left|right|a|b|c|d|none ...]   set joystick-1 lines
+      pad <1..4> [up|down|left|right|a|b|c|x|y|z|l|r|l2|r2|select|start|
+                  home|l3|r3|none|off ...]
+                                inject a USB HID gamepad report for that
+                                controller; `off` hands the slot back to a
+                                real device.  `joy` only reaches joystick 1
+                                (the GPIO expander has two ports); the four
+                                HID gamepads are how more than two players
+                                are driven.
       shot "file.png" [full]    write the display; half-res (384x240) unless "full"
       crc                       print CRC-32 of the display
       expect-crc <hex>          fail unless the display CRC matches

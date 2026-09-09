@@ -227,6 +227,21 @@ void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data);
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg);
 void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data);
 uint8_t ria816_hid_dev(const ria816_t* c);
+
+// Gamepad injection, for headless scripting and tests.  A real gamepad report
+// only ever arrives from an SDL device, so without this a script can drive
+// joystick 1 through the GPIO expander and nothing else -- the four-player
+// HID path is unreachable, and the HID registers are not CPU-writable either.
+//
+// `pad` is 1..4, matching the HID selector's index nibble; `report` is the
+// ten-byte pad_xram_t the firmware exposes at $FFB0 (dpad+flags, sticks,
+// button0, button1, lx, ly, rx, ry, lt, rt).  The connected flag is set for
+// you.  An injected pad hides the real device in that slot until released.
+#define RIA816_PAD_SLOTS  4
+#define RIA816_PAD_REGS  10
+void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]);
+void ria816_pad_release(uint8_t pad);
+bool ria816_pad_injected(uint8_t pad);
 uint8_t ria816_rgb_read(ria816_t* c, uint8_t reg);
 void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data);
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no);

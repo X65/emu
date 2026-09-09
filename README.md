@@ -132,9 +132,9 @@ Options use the GNU `--option` style; run `emu --help` for the full list.
 ### Headless scripting
 
 `--script FILE` drives the machine from a small line-oriented script instead
-of the keyboard: advance frames, feed joystick lines, take PNG screenshots,
-dump or check memory, print CPU/CGIA state, trace instructions, stop at an
-address. Emulation runs at a deterministic 60 Hz (several frames per host
+of the keyboard: advance frames, feed joystick lines and gamepad reports, take
+PNG screenshots, dump or check memory, print CPU/CGIA state, trace
+instructions, stop at an address. Emulation runs at a deterministic 60 Hz (several frames per host
 frame), a failed check exits with code 1, and `exit` ends the run, so scripts
 double as CI smoke tests. Combine with `--disable-gui` and `xvfb-run` for a
 fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
@@ -149,6 +149,17 @@ fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
     dump 0xD000 32
     exit 0
     > xvfb-run -a build/emu --disable-gui --script drive.scr roms/game.xex
+
+`joy` reaches joystick 1 only -- the GPIO expander has two ports, and real
+hardware does not decode them at all. Programs that want more than that read
+the USB HID gamepads, which are normally fed only by real SDL devices, so
+`pad <1..4> [button ...]` injects a report into one of the four HID slots and
+`pad <n> off` hands the slot back to whatever is plugged in:
+
+    pad 1 up a
+    pad 2 right b
+    run 120
+    pad 1 off
 
 The verbs are documented in `src/script.h`. `peek` and `dump` use debugger-style
 inspection: timer interrupt status and SGU service status remain pending, and SGU

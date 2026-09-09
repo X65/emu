@@ -26,5 +26,20 @@ rng_loop:
 input_loop:
     lda $FF80                   ; GPIO joystick port zero, active low
     sta $0301
+    ; USB HID gamepads 1 and 2, active high.  The selector is
+    ; (index << 4) | device; device $02 is a gamepad.  Bit 7 of the first
+    ; report byte says a pad is connected.
+    lda #$12
+    sta $FFB0
+    lda $FFB0                   ; pad 1 dpad + flags
+    sta $0302
+    lda $FFB2                   ; pad 1 button0
+    sta $0303
+    lda #$22
+    sta $FFB0
+    lda $FFB0                   ; pad 2 dpad + flags
+    sta $0304
+    lda $FFB2                   ; pad 2 button0
+    sta $0305
     jmp input_loop
 .assert input_loop - start = $80, error, "input loop must be at $2080"
