@@ -39,9 +39,15 @@ pad 2 right b
 run 1
 peek 0x0302 0x81 0x01 0x88 0x02
 # releasing one slot hands it back to whatever real device is plugged in
+# The analog sticks are a separate byte: left stick in the low nibble, right
+# in the high, both in dpad bit order.
+pad 1 lup rright
+run 1
+peek 0x0309 0x81
 pad 1 off
 run 1
 peek 0x0302 0x00 0x00 0x88 0x02
+peek 0x0309 0x00
 pad 2 off
 run 1
 peek 0x0302 0x00 0x00 0x00 0x00

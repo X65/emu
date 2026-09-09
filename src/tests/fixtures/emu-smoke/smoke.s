@@ -37,6 +37,8 @@ input_loop:
     sta $0302
     lda $FFB2                   ; pad 1 button0
     sta $0303
+    lda $FFB1                   ; pad 1 sticks, digitised
+    sta $0309
     lda #$22
     sta $FFB0
     lda $FFB0                   ; pad 2 dpad + flags

@@ -157,11 +157,14 @@ name the other two after the gamepad, as the platform's controller example
 does, and `c`/`d` are accepted as aliases. Beyond those two, players come from the USB HID
 gamepads, which are normally fed only by real SDL devices, so
 `pad <1..4> [button ...]` injects a report into one of the four HID slots and
-`pad <n> off` hands the slot back to whatever is plugged in:
+`pad <n> off` hands the slot back to whatever is plugged in. Its `lup`/`rup`
+style directions drive the analog sticks' digital encoding, the byte programs
+usually merge with the dpad so either input works:
 
     joy 1 up
     joy 2 down b
     pad 3 right a
+    pad 4 lup b
     key w lshift
     run 120
     joy 2 none

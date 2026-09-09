@@ -303,6 +303,15 @@ static const struct {
 } pad_bits[] = {
     // dpad and feature byte
     { "up", 0, 0x01 },     { "down", 0, 0x02 },   { "left", 0, 0x04 },  { "right", 0, 0x08 },
+    // The analog sticks, as the firmware's own digital encoding of them:
+    // left stick in the low nibble, right stick in the high one, each in the
+    // same up/down/left/right bit order as the dpad (pad_encode_stick).
+    // Programs commonly merge this byte with the dpad so either works --
+    // examples/src/io/controller.asm does exactly that -- so a script has to
+    // be able to drive it.  The raw signed axes at $FFB4-$FFB7 are a separate
+    // thing and are not injectable; nothing in the reference reads them.
+    { "lup", 1, 0x01 },    { "ldown", 1, 0x02 },  { "lleft", 1, 0x04 }, { "lright", 1, 0x08 },
+    { "rup", 1, 0x10 },    { "rdown", 1, 0x20 },  { "rleft", 1, 0x40 }, { "rright", 1, 0x80 },
     // button0: A B C X Y Z L R
     { "a", 2, 0x01 },      { "b", 2, 0x02 },      { "c", 2, 0x04 },     { "x", 2, 0x08 },
     { "y", 2, 0x10 },      { "z", 2, 0x20 },      { "l", 2, 0x40 },     { "r", 2, 0x80 },

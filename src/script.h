@@ -23,14 +23,17 @@
            rctrl|kp0..kp9|<usage id>|none ...]
                                 hold this set of keyboard keys; like `joy`,
                                 each call replaces the set
-      pad <1..4> [up|down|left|right|a|b|c|x|y|z|l|r|l2|r2|select|start|
-                  home|l3|r3|none|off ...]
+      pad <1..4> [up|down|left|right|lup|ldown|lleft|lright|rup|rdown|
+                  rleft|rright|a|b|c|x|y|z|l|r|l2|r2|select|start|home|
+                  l3|r3|none|off ...]
                                 inject a USB HID gamepad report for that
-                                controller; `off` hands the slot back to a
-                                real device.  `joy` only reaches joystick 1
-                                (the GPIO expander has two ports); the four
-                                HID gamepads are how more than two players
-                                are driven.
+                                controller.  The lup.. and rup.. directions
+                                are the analog sticks' digital encoding,
+                                which programs usually merge with the dpad;
+                                the raw signed axes are not injectable.
+                                `off` hands the slot back to a real device.
+                                Beyond the two DE-9 ports that `joy` drives,
+                                these gamepads are how further players are driven.
       shot "file.png" [full]    write the display; half-res (384x240) unless "full"
       crc                       print CRC-32 of the display
       expect-crc <hex>          fail unless the display CRC matches
