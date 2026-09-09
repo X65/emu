@@ -1,5 +1,12 @@
 # Appendix A — SGU-1 service bank ($FF): emulator implementation requirements
 
+> **Status: implemented.** This is the work order the implementation was built
+> from, kept for the rationale behind each register. `src/chips/sgu1.c` carries
+> the service bank in full — magic, version, unique id, PCM/service bank
+> counts, status, chip reset, the sample window and master volume. The present
+> tense below describes the emulator *before* that work; it is not a
+> description of the emulator today.
+
 Self-contained work order for the **emu repo** (`/home/smoku/devel/X65/devel/emu`, a separate repo — nothing in sgu-tracker changes). The emu fully implements the SGU-1 core and channels but not the hardware's service bank; the SGM plan's device-stage verification (S6/S7) depends on it. Files: `src/chips/sgu1.h` / `src/chips/sgu1.c` (the `x65.c` address decode already routes the whole `$FEC0..$FEFF` window to `sgu1_reg_read/write` with `reg = addr & SGU1_ADDR_MASK` — no system-level change needed).
 
 **Current behavior (and the bug to avoid):** `sgu1_reg_write` treats reg `$3F` as the channel select and otherwise writes `(selected_channel % SGU_CHNS) << 6 | reg` into the channel register file (sgu1.c:87-97; read mirror at :76-84). The modulo means select = `$FF` today **aliases to channel 3** (255 mod 9) — service-bank traffic would silently corrupt a live channel. Any implementation must first remove that aliasing for out-of-range selects.
