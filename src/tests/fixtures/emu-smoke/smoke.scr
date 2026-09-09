@@ -6,6 +6,14 @@ peek 0x0301 0xFF
 joy up left a
 run 1
 peek 0x0301 0xDA
+# All four DE-9 buttons by their platform names: A bit 5, B bit 7, X bit 4,
+# Y bit 6 -- not in bit order.
+joy a b x y
+run 1
+peek 0x0301 0x0F
+joy c d
+run 1
+peek 0x0301 0xAF
 joy none
 run 1
 peek 0x0301 0xFF

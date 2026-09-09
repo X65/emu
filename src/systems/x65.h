@@ -64,15 +64,18 @@ typedef enum {
     X65_JOYSTICKTYPE_DIGITAL_12,  // input routed to both joysticks
 } x65_joystick_type_t;
 
-// joystick mask bits
+// DE-9 joystick mask bits.  A stick conventionally has one or two buttons, so
+// only A and B are standard; the other two are named X and Y here to mirror
+// the HID gamepad, following JOY0_BUTTON_* in the platform's controller
+// example.  Note they are not in bit order: A and B straddle X and Y.
 #define X65_JOYSTICK_UP    (1 << 0)
 #define X65_JOYSTICK_DOWN  (1 << 1)
 #define X65_JOYSTICK_LEFT  (1 << 2)
 #define X65_JOYSTICK_RIGHT (1 << 3)
-#define X65_JOYSTICK_BTN   (1 << 5)
-#define X65_JOYSTICK_BTN2  (1 << 7)
-#define X65_JOYSTICK_BTN3  (1 << 4)
-#define X65_JOYSTICK_BTN4  (1 << 6)
+#define X65_JOYSTICK_BTN   (1 << 5)  // button A
+#define X65_JOYSTICK_BTN2  (1 << 7)  // button B
+#define X65_JOYSTICK_BTN3  (1 << 4)  // button X
+#define X65_JOYSTICK_BTN4  (1 << 6)  // button Y
 
 // special keyboard keys
 #define X65_KEY_SPACE    (0x20)  // space

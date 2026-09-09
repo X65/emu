@@ -272,9 +272,14 @@ static void cmd_joy(x65_t* sys, char* p) {
             mask |= X65_JOYSTICK_BTN;
         else if (!strcasecmp(w, "b"))
             mask |= X65_JOYSTICK_BTN2;
-        else if (!strcasecmp(w, "c"))
+        // A DE-9 stick conventionally has one or two buttons, so there is no
+        // standard name for the third and fourth.  X and Y mirror the HID
+        // gamepad's naming and match the platform's controller example
+        // (examples/src/io/controller.asm, JOY0_BUTTON_*); C and D are just
+        // as defensible and stay accepted as aliases.
+        else if (!strcasecmp(w, "x") || !strcasecmp(w, "c"))
             mask |= X65_JOYSTICK_BTN3;
-        else if (!strcasecmp(w, "d"))
+        else if (!strcasecmp(w, "y") || !strcasecmp(w, "d"))
             mask |= X65_JOYSTICK_BTN4;
         else if (!strcasecmp(w, "none"))
             mask = 0;

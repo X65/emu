@@ -151,7 +151,10 @@ fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
     > xvfb-run -a build/emu --disable-gui --script drive.scr roms/game.xex
 
 `joy [1|2] ...` drives either DE-9 joystick port; the two are independent and
-hold at the same time. Beyond those two, players come from the USB HID
+hold at the same time. Its buttons are `a`, `b`, `x` and `y`. A DE-9 stick
+conventionally has one or two buttons, so only A and B are standard; X and Y
+name the other two after the gamepad, as the platform's controller example
+does, and `c`/`d` are accepted as aliases. Beyond those two, players come from the USB HID
 gamepads, which are normally fed only by real SDL devices, so
 `pad <1..4> [button ...]` injects a report into one of the four HID slots and
 `pad <n> off` hands the slot back to whatever is plugged in:

@@ -13,10 +13,12 @@
       run [frames]              advance N emulated frames (default 1)
       until <addr> [frames]     run until an opcode is fetched from addr (24-bit),
                                 give up after N frames (default 600)
-      joy [1|2] [up|down|left|right|a|b|c|d|none ...]
+      joy [1|2] [up|down|left|right|a|b|x|y|none ...]
                                 set one DE-9 joystick's lines; the port
                                 defaults to 1, and the two ports are
-                                independent
+                                independent.  Only A and B are standard on a
+                                DE-9 stick; X and Y name the other two after
+                                the gamepad, and `c`/`d` are aliases for them
       key [a-z|0-9|up|down|left|right|space|enter|lshift|rshift|lctrl|
            rctrl|kp0..kp9|<usage id>|none ...]
                                 hold this set of keyboard keys; like `joy`,

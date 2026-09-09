@@ -21,7 +21,8 @@ After an intentional source change, copy the regenerated XEX over the fixture
 and rerun `ctest --test-dir build -R EmuScript --output-on-failure`.
 
 `smoke.scr` checks loading, bounded execution, joystick press/release on both
-DE-9 ports independently, the `key` verb across both key-map pages, and the
+DE-9 ports independently including all four buttons and their legacy `c`/`d`
+aliases, the `key` verb across both key-map pages, and the
 `pad` verb: injection into two HID slots, the connected flag, and handing
 a slot back with `pad <n> off`.
 `seed.scr.in` is instantiated twice with separate binary dump paths.
