@@ -553,14 +553,36 @@ static void handle_file_loading(void) {
     }
 }
 
+static const uint32_t joy_active = 0xFFFFEE00;
+static const uint32_t joy_inactive = 0xFF886600;
+
+// Direction arrows, in font 1's glyphs.  Takes the X65_JOYSTICK_* direction
+// bits, which the HID pad's dpad nibble happens to share.
+static void draw_input_dirs(uint8_t dirs) {
+    sdtx_color1i((dirs & X65_JOYSTICK_LEFT) ? joy_active : joy_inactive);
+    sdtx_putc(0x88);  // arrow left
+    sdtx_color1i((dirs & X65_JOYSTICK_RIGHT) ? joy_active : joy_inactive);
+    sdtx_putc(0x89);  // arrow right
+    sdtx_color1i((dirs & X65_JOYSTICK_UP) ? joy_active : joy_inactive);
+    sdtx_putc(0x8B);  // arrow up
+    sdtx_color1i((dirs & X65_JOYSTICK_DOWN) ? joy_active : joy_inactive);
+    sdtx_putc(0x8A);  // arrow down
+}
+
+// One circle per button, lowest bit first.
+static void draw_input_buttons(uint32_t buttons, uint8_t count) {
+    for (uint8_t i = 0; i < count; i++) {
+        sdtx_color1i((buttons & (1u << i)) ? joy_active : joy_inactive);
+        sdtx_putc(0x87);  // btn
+    }
+}
+
 static void draw_status_bar(void) {
     prof_push(PROF_EMU, (float)state.emu_time_ms);
     prof_stats_t emu_stats = prof_stats(PROF_EMU);
     const float frame_time = (float)state.frame_time_us * 0.001f;
 
     const uint32_t text_color = 0xFFFFFFFF;
-    const uint32_t joy_active = 0xFFFFEE00;
-    const uint32_t joy_inactive = 0xFF886600;
 
     const float w = sapp_widthf();
     const float h = sapp_heightf();
@@ -579,23 +601,38 @@ static void draw_status_bar(void) {
         case X65_JOYSTICKTYPE_DIGITAL_12: sdtx_puts("12 "); break;
         case X65_JOYSTICKTYPE_NONE: break;
     }
-    sdtx_color1i((joymask & X65_JOYSTICK_LEFT) ? joy_active : joy_inactive);
-    sdtx_putc(0x88);  // arrow left
-    sdtx_color1i((joymask & X65_JOYSTICK_RIGHT) ? joy_active : joy_inactive);
-    sdtx_putc(0x89);  // arrow right
-    sdtx_color1i((joymask & X65_JOYSTICK_UP) ? joy_active : joy_inactive);
-    sdtx_putc(0x8B);  // arrow up
-    sdtx_color1i((joymask & X65_JOYSTICK_DOWN) ? joy_active : joy_inactive);
-    sdtx_putc(0x8A);  // arrow down
-    sdtx_color1i((joymask & X65_JOYSTICK_BTN) ? joy_active : joy_inactive);
-    sdtx_putc(0x87);  // btn
-    sdtx_color1i((joymask & X65_JOYSTICK_BTN2) ? joy_active : joy_inactive);
-    sdtx_putc(0x87);  // btn
-    sdtx_color1i((joymask & X65_JOYSTICK_BTN3) ? joy_active : joy_inactive);
-    sdtx_putc(0x87);  // btn
-    sdtx_color1i((joymask & X65_JOYSTICK_BTN4) ? joy_active : joy_inactive);
-    sdtx_putc(0x87);  // btn
+    draw_input_dirs(joymask);
+    // A, B, X, Y -- the mask keeps them in DE-9 pin order, not label order
+    draw_input_buttons(
+        ((joymask & X65_JOYSTICK_BTN) ? 1u : 0u) | ((joymask & X65_JOYSTICK_BTN2) ? 2u : 0u)
+            | ((joymask & X65_JOYSTICK_BTN3) ? 4u : 0u) | ((joymask & X65_JOYSTICK_BTN4) ? 8u : 0u),
+        4);
     sdtx_font(0);
+
+    // HID gamepads, all of them merged into one display the way the firmware's
+    // pad 0 selector merges them into one register file
+    const uint8_t pads = ria816_pad_count();
+    if (pads > 0) {
+        sdtx_color1i(text_color);
+        if (pads > 1) {
+            sdtx_printf("  %d PADS: ", pads);
+        }
+        else {
+            sdtx_puts("  PAD: ");
+        }
+        // A pad without a hat -- most DE-9-style USB pads -- reports its
+        // directions as axes, which the firmware digitizes into the sticks
+        // byte and never into the dpad nibble.  Merge the three the way
+        // programs do, examples/src/io/controller.asm among them, so the
+        // arrows follow the stick on a pad that has no dpad to speak of.
+        const uint8_t dpad = ria816_pad_read(0, 0);
+        const uint8_t sticks = ria816_pad_read(0, 1);
+        const uint32_t buttons = (uint32_t)ria816_pad_read(0, 2) | ((uint32_t)ria816_pad_read(0, 3) << 8);
+        sdtx_font(1);
+        draw_input_dirs((dpad & 0x0F) | (sticks & 0x0F) | (sticks >> 4));
+        draw_input_buttons(buttons, RIA816_PAD_BUTTONS);
+        sdtx_font(0);
+    }
 
     // RGB LEDs
     uint32_t* leds;

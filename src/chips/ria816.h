@@ -243,6 +243,16 @@ void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]);
 void ria816_pad_release(uint8_t pad);
 bool ria816_pad_injected(uint8_t pad);
 
+// Pad state for the status display, read without touching the HID selector the
+// guest owns.  `pad` 0 is the firmware's merged view of every connected pad,
+// 1..4 a single slot; `reg` indexes pad_xram_t as above.  RIA816_PAD_BUTTONS
+// is the width of button0+button1: the report's bit positions are labels
+// (A B C X Y Z L1 R1 | L2 R2 Select Start Home L3 R3), not the device's own
+// button numbering, so there is no shorter honest width for a given pad.
+#define RIA816_PAD_BUTTONS 16
+uint8_t ria816_pad_count(void);
+uint8_t ria816_pad_read(uint8_t pad, uint8_t reg);
+
 // Keyboard injection, for headless scripting and tests.  Real key state only
 // ever arrives from the host window, so without this a script cannot press a
 // key.  The injected keys are OR-ed into whatever a real keyboard reports, as

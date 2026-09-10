@@ -333,6 +333,23 @@ static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
     return merged;
 }
 
+// --- pad state, for the status display -----------------------------------
+//
+// The HID registers are selector-driven, so reading them the CPU's way would
+// disturb the guest's selection.  These go straight at the merged state.
+
+uint8_t ria816_pad_count(void) {
+    uint8_t count = 0;
+    for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
+        if (_ria816_pad_get_reg(slot, 0) & PAD_CONNECTED_BIT) count++;
+    }
+    return count;
+}
+
+uint8_t ria816_pad_read(uint8_t pad, uint8_t reg) {
+    return _ria816_pad_get_reg(pad, reg);
+}
+
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
     uint8_t data = 0xFF;  // invalid
     switch (HID_dev & 0xF) {
