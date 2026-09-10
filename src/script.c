@@ -290,7 +290,7 @@ static void cmd_joy(x65_t* sys, char* p) {
     x65_joystick(sys, joy_mask[0], joy_mask[1]);
 }
 
-// pad <1..4> [button ...]  -- inject a USB HID gamepad report
+// pad <1..15> [button ...]  -- inject a USB HID gamepad report
 //
 // `joy` can only reach joystick 1, because the GPIO expander has two ports
 // and cmd_joy fills one of them.  Everything with more than two players lives

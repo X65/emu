@@ -275,7 +275,7 @@ static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_
 #define PAD_CONNECTED_BIT 0x80
 
 static uint8_t pad_inject_regs[RIA816_PAD_SLOTS][RIA816_PAD_REGS];
-static uint8_t pad_inject_mask;  // bit n set: slot n is scripted
+static uint16_t pad_inject_mask; // bit n set: slot n is scripted
 
 void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]) {
     if (pad < 1 || pad > RIA816_PAD_SLOTS) return;

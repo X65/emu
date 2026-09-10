@@ -23,7 +23,7 @@
            rctrl|kp0..kp9|<usage id>|none ...]
                                 hold this set of keyboard keys; like `joy`,
                                 each call replaces the set
-      pad <1..4> [up|down|left|right|lup|ldown|lleft|lright|rup|rdown|
+      pad <1..15> [up|down|left|right|lup|ldown|lleft|lright|rup|rdown|
                   rleft|rright|a|b|c|x|y|z|l|r|l2|r2|select|start|home|
                   l3|r3|none|off ...]
                                 inject a USB HID gamepad report for that

@@ -233,11 +233,11 @@ uint8_t ria816_hid_dev(const ria816_t* c);
 // joystick 1 through the GPIO expander and nothing else -- the four-player
 // HID path is unreachable, and the HID registers are not CPU-writable either.
 //
-// `pad` is 1..4, matching the HID selector's index nibble; `report` is the
+// `pad` is 1..15, matching the HID selector's index nibble; `report` is the
 // ten-byte pad_xram_t the firmware exposes at $FFB0 (dpad+flags, sticks,
 // button0, button1, lx, ly, rx, ry, lt, rt).  The connected flag is set for
 // you.  An injected pad hides the real device in that slot until released.
-#define RIA816_PAD_SLOTS  4
+#define RIA816_PAD_SLOTS  15
 #define RIA816_PAD_REGS  10
 void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]);
 void ria816_pad_release(uint8_t pad);
