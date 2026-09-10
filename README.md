@@ -134,8 +134,9 @@ Options use the GNU `--option` style; run `emu --help` for the full list.
 `--script FILE` drives the machine from a small line-oriented script instead
 of the keyboard: advance frames, feed joystick lines and gamepad reports, take
 PNG screenshots, dump or check memory, print CPU/CGIA state, trace
-instructions, stop at an address. Emulation runs at a deterministic 60 Hz (several frames per host
-frame), a failed check exits with code 1, and `exit` ends the run, so scripts
+instructions, stop at an address. Emulation runs at a deterministic 60 Hz
+(several frames per host frame), a failed check exits with code 1, and `exit`
+ends the run, so scripts
 double as CI smoke tests. Combine with `--disable-gui` and `xvfb-run` for a
 fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
 `run N` / `shot FILE` / `exit`.
@@ -154,8 +155,8 @@ fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
 hold at the same time. Its buttons are `a`, `b`, `x` and `y`. A DE-9 stick
 conventionally has one or two buttons, so only A and B are standard; X and Y
 name the other two after the gamepad, as the platform's controller example
-does, and `c`/`d` are accepted as aliases. Beyond those two, players come from the USB HID
-gamepads, which are normally fed only by real SDL devices, so
+does, and `c`/`d` are accepted as aliases. Beyond those two, players come from
+the USB HID gamepads, which are normally fed only by real SDL devices, so
 `pad <1..4> [button ...]` injects a report into one of the four HID slots and
 `pad <n> off` hands the slot back to whatever is plugged in. Its `lup`/`rup`
 style directions drive the analog sticks' digital encoding, the byte programs

@@ -268,19 +268,30 @@ static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_
 // --- scripted gamepads ---------------------------------------------------
 //
 // Reports pushed in by ria816_pad_inject() shadow the corresponding SDL
-// device.  Selector index 0 is the firmware's merged view, so it has to merge
-// the injected pads too, following pad_get_reg()'s rule: only pads whose
-// connected flag is set contribute.
+// device.  Shadowing rather than writing pad_state[] directly is deliberate:
+// pad_report() rewrites that slot on every SDL event, so a real pad sitting
+// on the same slot -- analog drift alone is enough -- would overwrite a
+// scripted report between frames.  Selector index 0 is the firmware's merged
+// view, so it has to merge the injected pads too, following pad_get_reg()'s
+// rule: only pads whose connected flag is set contribute.
 
 #define PAD_CONNECTED_BIT 0x80
 
-static uint8_t pad_inject_regs[RIA816_PAD_SLOTS][RIA816_PAD_REGS];
+// The report layout and slot count are the firmware's, not ours.  The slot
+// bound has to stay within PAD_MAX_PLAYERS: pad_get_reg() answers 0xFF for a
+// slot the firmware does not back, and 0xFF has the connected bit set, so a
+// slot past the end would read as permanently connected and OR 0xFF into the
+// merged view.
+static_assert(RIA816_PAD_SLOTS <= PAD_MAX_PLAYERS, "pad slots outside the firmware's range read as connected");
+static_assert(RIA816_PAD_REGS == sizeof(pad_xram_t), "pad report layout drifted from the firmware");
+
+static pad_xram_t pad_inject_regs[RIA816_PAD_SLOTS];
 static uint16_t pad_inject_mask; // bit n set: slot n is scripted
 
 void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]) {
     if (pad < 1 || pad > RIA816_PAD_SLOTS) return;
-    memcpy(pad_inject_regs[pad - 1], report, RIA816_PAD_REGS);
-    pad_inject_regs[pad - 1][0] |= PAD_CONNECTED_BIT;
+    memcpy(&pad_inject_regs[pad - 1], report, sizeof(pad_xram_t));
+    pad_inject_regs[pad - 1].dpad |= PAD_CONNECTED_BIT;
     pad_inject_mask |= 1u << (pad - 1);
 }
 
@@ -289,21 +300,19 @@ void ria816_pad_release(uint8_t pad) {
     pad_inject_mask &= ~(1u << (pad - 1));
 }
 
-bool ria816_pad_injected(uint8_t pad) {
-    if (pad < 1 || pad > RIA816_PAD_SLOTS) return false;
-    return (pad_inject_mask & (1u << (pad - 1))) != 0;
-}
-
 // --- scripted keyboard ---------------------------------------------------
 //
-// The keyboard register file is a 256-bit map of held keys, one bit per USB
-// HID usage id: byte `keycode >> 3`, bit `keycode & 7`.  Injected keys are
-// merged with the real ones rather than shadowing them.
+// The keyboard register file is the firmware's 256-bit map of held keys, one
+// bit per USB HID usage id.  Share its word layout and its bit-set macro, so
+// the two halves _ria816_kbd_get_reg() ORs together agree on any host.
+// Injected keys are merged with the real ones rather than shadowing them.
 
-static uint8_t kbd_inject[RIA816_KBD_BYTES];
+static uint32_t kbd_inject[8];
+
+static_assert(sizeof(kbd_inject) == sizeof(kbd_keys), "key map size drifted from the firmware");
 
 void ria816_key_set(uint8_t keycode) {
-    kbd_inject[keycode >> 3] |= (uint8_t)(1u << (keycode & 7));
+    KBD_KEY_BIT_SET(kbd_inject, keycode);
 }
 
 void ria816_keys_clear(void) {
@@ -312,23 +321,26 @@ void ria816_keys_clear(void) {
 
 static uint8_t _ria816_kbd_get_reg(uint8_t idx) {
     uint8_t data = kbd_get_reg(idx);
-    if (idx < RIA816_KBD_BYTES) data |= kbd_inject[idx];
+    if (idx < sizeof(kbd_inject)) data |= ((const uint8_t*)kbd_inject)[idx];
     return data;
 }
 
-static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
-    if (reg >= RIA816_PAD_REGS) return pad_get_reg(pad, reg);
-    if (pad >= 1 && pad <= RIA816_PAD_SLOTS && (pad_inject_mask & (1u << (pad - 1))))
-        return pad_inject_regs[pad - 1][reg];
-    if (pad != 0 || !pad_inject_mask) return pad_get_reg(pad, reg);
+// One slot's register, 1..RIA816_PAD_SLOTS: an injected report shadows the
+// real device in that slot.
+static uint8_t pad_slot_reg(uint8_t slot, uint8_t reg) {
+    if (pad_inject_mask & (1u << (slot - 1))) return ((const uint8_t*)&pad_inject_regs[slot - 1])[reg];
+    return pad_get_reg(slot, reg);
+}
 
-    // Merged view with at least one scripted pad in the mix.
+static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
+    // Nothing scripted: the whole feature is out of the guest's way.
+    if (!pad_inject_mask) return pad_get_reg(pad, reg);
+    if (reg >= RIA816_PAD_REGS || pad > RIA816_PAD_SLOTS) return pad_get_reg(pad, reg);
+    if (pad != 0) return pad_slot_reg(pad, reg);
+
     uint8_t merged = 0;
     for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
-        uint8_t connected = (pad_inject_mask & (1u << (slot - 1)))
-                                ? pad_inject_regs[slot - 1][0]
-                                : pad_get_reg(slot, 0);
-        if (connected & PAD_CONNECTED_BIT) merged |= _ria816_pad_get_reg(slot, reg);
+        if (pad_slot_reg(slot, 0) & PAD_CONNECTED_BIT) merged |= pad_slot_reg(slot, reg);
     }
     return merged;
 }
@@ -336,18 +348,19 @@ static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
 // --- pad state, for the status display -----------------------------------
 //
 // The HID registers are selector-driven, so reading them the CPU's way would
-// disturb the guest's selection.  These go straight at the merged state.
+// disturb the guest's selection.  This goes straight at the merged state, in
+// one pass over the slots rather than one per register.
 
-uint8_t ria816_pad_count(void) {
+uint8_t ria816_pad_peek(uint8_t regs[RIA816_PAD_PEEK_REGS]) {
     uint8_t count = 0;
+    memset(regs, 0, RIA816_PAD_PEEK_REGS);
     for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
-        if (_ria816_pad_get_reg(slot, 0) & PAD_CONNECTED_BIT) count++;
+        if (!(pad_slot_reg(slot, 0) & PAD_CONNECTED_BIT)) continue;
+        count++;
+        for (uint8_t reg = 0; reg < RIA816_PAD_PEEK_REGS; ++reg)
+            regs[reg] |= pad_slot_reg(slot, reg);
     }
     return count;
-}
-
-uint8_t ria816_pad_read(uint8_t pad, uint8_t reg) {
-    return _ria816_pad_get_reg(pad, reg);
 }
 
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {

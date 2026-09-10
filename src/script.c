@@ -3,6 +3,8 @@
 #include "systems/x65.h"
 #include "chips/ria816.h"
 
+#include <class/hid/hid.h>
+
 #include <SDL3/SDL_surface.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -241,25 +243,20 @@ static void hex_dump(x65_t* sys, uint32_t addr, long count, bool raw) {
 
 // joy [1|2] [up|down|left|right|a|b|c|d|none ...]
 //
-// The two DE-9 ports are independent, so each keeps its own mask and a call
-// naming one port leaves the other alone.  Omitting the port means port 1,
-// which is what every script wrote before ports existed.
-static uint8_t joy_mask[2];
-
+// The two DE-9 ports are independent, so a call naming one port leaves the
+// other alone -- the machine already holds both masks, so read the untouched
+// one back rather than keeping a copy here that host input could desync.
+// Omitting the port means port 1, which is what every script wrote before
+// ports existed.
 static void cmd_joy(x65_t* sys, char* p) {
     int port = 0;
     uint8_t mask = 0;
-    bool first = true;
-    char* w;
-    while ((w = script_word(&p))) {
-        if (first) {
-            first = false;
-            if (!strcmp(w, "1")) continue;
-            if (!strcmp(w, "2")) {
-                port = 1;
-                continue;
-            }
-        }
+    char* w = script_word(&p);
+    if (w && (!strcmp(w, "1") || !strcmp(w, "2"))) {
+        port = w[0] - '1';
+        w = script_word(&p);
+    }
+    for (; w; w = script_word(&p)) {
         if (!strcasecmp(w, "up"))
             mask |= X65_JOYSTICK_UP;
         else if (!strcasecmp(w, "down"))
@@ -286,8 +283,9 @@ static void cmd_joy(x65_t* sys, char* p) {
         else
             script_error("joy: unknown line '%s'", w);
     }
-    joy_mask[port] = mask;
-    x65_joystick(sys, joy_mask[0], joy_mask[1]);
+    uint8_t masks[2] = { sys->joy_joy1_mask, sys->joy_joy2_mask };
+    masks[port] = mask;
+    x65_joystick(sys, masks[0], masks[1]);
 }
 
 // pad <1..15> [button ...]  -- inject a USB HID gamepad report
@@ -296,7 +294,7 @@ static void cmd_joy(x65_t* sys, char* p) {
 // and cmd_joy fills one of them.  Everything with more than two players lives
 // on the HID gamepads instead, which are normally fed only by real SDL
 // devices, so this verb builds a report and pushes it in.
-static const struct {
+static const struct pad_bit {
     const char* name;
     uint8_t reg;  // index into the ten-byte report
     uint8_t bit;
@@ -320,6 +318,13 @@ static const struct {
     { "start", 3, 0x08 },  { "home", 3, 0x10 },   { "l3", 3, 0x20 },    { "r3", 3, 0x40 },
 };
 
+static const struct pad_bit* pad_bit_find(const char* w) {
+    for (size_t i = 0; i < sizeof pad_bits / sizeof pad_bits[0]; ++i) {
+        if (!strcasecmp(w, pad_bits[i].name)) return &pad_bits[i];
+    }
+    return NULL;
+}
+
 static void cmd_pad(char* p) {
     long index;
     if (!script_number(&p, &index) || index < 1 || index > RIA816_PAD_SLOTS)
@@ -337,13 +342,9 @@ static void cmd_pad(char* p) {
             memset(report, 0, sizeof report);
             continue;
         }
-        size_t i = 0;
-        for (; i < sizeof pad_bits / sizeof pad_bits[0]; ++i) {
-            if (strcasecmp(w, pad_bits[i].name)) continue;
-            report[pad_bits[i].reg] |= pad_bits[i].bit;
-            break;
-        }
-        if (i == sizeof pad_bits / sizeof pad_bits[0]) script_error("pad: unknown button '%s'", w);
+        const struct pad_bit* bit = pad_bit_find(w);
+        if (!bit) script_error("pad: unknown button '%s'", w);
+        report[bit->reg] |= bit->bit;
     }
     ria816_pad_inject((uint8_t)index, report);
 }
@@ -358,29 +359,49 @@ static const struct {
     const char* name;
     uint8_t code;
 } key_names[] = {
-    { "up", 0x52 },      { "down", 0x51 },     { "left", 0x50 },   { "right", 0x4F },
-    { "space", 0x2C },   { "enter", 0x28 },    { "escape", 0x29 }, { "tab", 0x2B },
-    { "backspace", 0x2A }, { "minus", 0x2D },  { "equal", 0x2E },
-    { "lctrl", 0xE0 },   { "lshift", 0xE1 },   { "lalt", 0xE2 },
-    { "rctrl", 0xE4 },   { "rshift", 0xE5 },   { "ralt", 0xE6 },
-    { "kp0", 0x62 },     { "kp1", 0x59 },      { "kp2", 0x5A },    { "kp3", 0x5B },
-    { "kp4", 0x5C },     { "kp5", 0x5D },      { "kp6", 0x5E },    { "kp7", 0x5F },
-    { "kp8", 0x60 },     { "kp9", 0x61 },      { "kpenter", 0x58 },
+    { "up",        HID_KEY_ARROW_UP      },
+    { "down",      HID_KEY_ARROW_DOWN    },
+    { "left",      HID_KEY_ARROW_LEFT    },
+    { "right",     HID_KEY_ARROW_RIGHT   },
+    { "space",     HID_KEY_SPACE         },
+    { "enter",     HID_KEY_ENTER         },
+    { "escape",    HID_KEY_ESCAPE        },
+    { "tab",       HID_KEY_TAB           },
+    { "backspace", HID_KEY_BACKSPACE     },
+    { "minus",     HID_KEY_MINUS         },
+    { "equal",     HID_KEY_EQUAL         },
+    { "lctrl",     HID_KEY_CONTROL_LEFT  },
+    { "lshift",    HID_KEY_SHIFT_LEFT    },
+    { "lalt",      HID_KEY_ALT_LEFT      },
+    { "rctrl",     HID_KEY_CONTROL_RIGHT },
+    { "rshift",    HID_KEY_SHIFT_RIGHT   },
+    { "ralt",      HID_KEY_ALT_RIGHT     },
+    { "kp0",       HID_KEY_KEYPAD_0      },
+    { "kp1",       HID_KEY_KEYPAD_1      },
+    { "kp2",       HID_KEY_KEYPAD_2      },
+    { "kp3",       HID_KEY_KEYPAD_3      },
+    { "kp4",       HID_KEY_KEYPAD_4      },
+    { "kp5",       HID_KEY_KEYPAD_5      },
+    { "kp6",       HID_KEY_KEYPAD_6      },
+    { "kp7",       HID_KEY_KEYPAD_7      },
+    { "kp8",       HID_KEY_KEYPAD_8      },
+    { "kp9",       HID_KEY_KEYPAD_9      },
+    { "kpenter",   HID_KEY_KEYPAD_ENTER  },
 };
 
 static bool script_key_code(const char* w, uint8_t* out) {
     if (w[0] && !w[1]) {
         const char c = (char)tolower((unsigned char)w[0]);
         if (c >= 'a' && c <= 'z') {
-            *out = (uint8_t)(0x04 + (c - 'a'));  // HID_KEY_A
+            *out = (uint8_t)(HID_KEY_A + (c - 'a'));
             return true;
         }
         if (c >= '1' && c <= '9') {
-            *out = (uint8_t)(0x1E + (c - '1'));  // HID_KEY_1
+            *out = (uint8_t)(HID_KEY_1 + (c - '1'));
             return true;
         }
         if (c == '0') {
-            *out = 0x27;  // HID_KEY_0
+            *out = HID_KEY_0;
             return true;
         }
     }

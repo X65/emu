@@ -569,6 +569,9 @@ static void draw_input_dirs(uint8_t dirs) {
     sdtx_putc(0x8A);  // arrow down
 }
 
+// The DE-9 mask keeps the buttons in pin order; the display wants A B X Y.
+static const uint8_t joy_btn_order[] = { X65_JOYSTICK_BTN, X65_JOYSTICK_BTN2, X65_JOYSTICK_BTN3, X65_JOYSTICK_BTN4 };
+
 // One circle per button, lowest bit first.
 static void draw_input_buttons(uint32_t buttons, uint8_t count) {
     for (uint8_t i = 0; i < count; i++) {
@@ -602,16 +605,17 @@ static void draw_status_bar(void) {
         case X65_JOYSTICKTYPE_NONE: break;
     }
     draw_input_dirs(joymask);
-    // A, B, X, Y -- the mask keeps them in DE-9 pin order, not label order
-    draw_input_buttons(
-        ((joymask & X65_JOYSTICK_BTN) ? 1u : 0u) | ((joymask & X65_JOYSTICK_BTN2) ? 2u : 0u)
-            | ((joymask & X65_JOYSTICK_BTN3) ? 4u : 0u) | ((joymask & X65_JOYSTICK_BTN4) ? 8u : 0u),
-        4);
+    uint32_t joy_btns = 0;
+    for (uint32_t i = 0; i < sizeof joy_btn_order; i++) {
+        if (joymask & joy_btn_order[i]) joy_btns |= 1u << i;
+    }
+    draw_input_buttons(joy_btns, sizeof joy_btn_order);
     sdtx_font(0);
 
     // HID gamepads, all of them merged into one display the way the firmware's
     // pad 0 selector merges them into one register file
-    const uint8_t pads = ria816_pad_count();
+    uint8_t pad_regs[RIA816_PAD_PEEK_REGS];
+    const uint8_t pads = ria816_pad_peek(pad_regs);
     if (pads > 0) {
         sdtx_color1i(text_color);
         if (pads > 1) {
@@ -625,9 +629,9 @@ static void draw_status_bar(void) {
         // byte and never into the dpad nibble.  Merge the three the way
         // programs do, examples/src/io/controller.asm among them, so the
         // arrows follow the stick on a pad that has no dpad to speak of.
-        const uint8_t dpad = ria816_pad_read(0, 0);
-        const uint8_t sticks = ria816_pad_read(0, 1);
-        const uint32_t buttons = (uint32_t)ria816_pad_read(0, 2) | ((uint32_t)ria816_pad_read(0, 3) << 8);
+        const uint8_t dpad = pad_regs[0];
+        const uint8_t sticks = pad_regs[1];
+        const uint32_t buttons = (uint32_t)pad_regs[2] | ((uint32_t)pad_regs[3] << 8);
         sdtx_font(1);
         draw_input_dirs((dpad & 0x0F) | (sticks & 0x0F) | (sticks >> 4));
         draw_input_buttons(buttons, RIA816_PAD_BUTTONS);
