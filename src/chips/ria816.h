@@ -237,6 +237,10 @@ uint8_t ria816_hid_dev(const ria816_t* c);
 // ten-byte pad_xram_t the firmware exposes at $FFB0 (dpad+flags, sticks,
 // button0, button1, lx, ly, rx, ry, lt, rt).  The connected flag is set for
 // you.  An injected pad hides the real device in that slot until released.
+//
+// All fifteen are scriptable.  Real SDL devices are not: they are mounted by
+// the firmware's own pad.c, which backs PAD_MAX_PLAYERS slots -- see the note
+// on the slot guard in ria816.c.
 #define RIA816_PAD_SLOTS  15
 #define RIA816_PAD_REGS  10
 void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]);

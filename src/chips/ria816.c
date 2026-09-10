@@ -277,12 +277,16 @@ static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_
 
 #define PAD_CONNECTED_BIT 0x80
 
-// The report layout and slot count are the firmware's, not ours.  The slot
-// bound has to stay within PAD_MAX_PLAYERS: pad_get_reg() answers 0xFF for a
-// slot the firmware does not back, and 0xFF has the connected bit set, so a
-// slot past the end would read as permanently connected and OR 0xFF into the
-// merged view.
-static_assert(RIA816_PAD_SLOTS <= PAD_MAX_PLAYERS, "pad slots outside the firmware's range read as connected");
+// The report layout is the firmware's.  The slot count is not: the HID
+// selector's index nibble has room for fifteen and the emulator scripts all
+// fifteen, while the firmware's pad.c still backs PAD_MAX_PLAYERS of them --
+// four -- because that array lives in the RP2040's RAM and growing it is the
+// firmware's call to make, not ours.  So a slot above PAD_MAX_PLAYERS exists
+// here for injection only, and pad_slot_reg() must not ask the firmware about
+// one: pad_get_reg() answers 0xFF for a slot it does not back, 0xFF has the
+// connected bit set, and the slot would read as permanently connected and OR
+// 0xFF into the merged view.  Raise PAD_MAX_PLAYERS in the firmware and the
+// real-device path follows on its own; nothing here has to change.
 static_assert(RIA816_PAD_REGS == sizeof(pad_xram_t), "pad report layout drifted from the firmware");
 
 static pad_xram_t pad_inject_regs[RIA816_PAD_SLOTS];
@@ -329,12 +333,13 @@ static uint8_t _ria816_kbd_get_reg(uint8_t idx) {
 // real device in that slot.
 static uint8_t pad_slot_reg(uint8_t slot, uint8_t reg) {
     if (pad_inject_mask & (1u << (slot - 1))) return ((const uint8_t*)&pad_inject_regs[slot - 1])[reg];
+    if (slot > PAD_MAX_PLAYERS) return 0;  // no firmware state behind it: an empty slot, not 0xFF
     return pad_get_reg(slot, reg);
 }
 
 static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
-    // Nothing scripted: the whole feature is out of the guest's way.
-    if (!pad_inject_mask) return pad_get_reg(pad, reg);
+    // Nothing scripted, and a slot the firmware backs: out of the guest's way.
+    if (!pad_inject_mask && pad <= PAD_MAX_PLAYERS) return pad_get_reg(pad, reg);
     if (reg >= RIA816_PAD_REGS || pad > RIA816_PAD_SLOTS) return pad_get_reg(pad, reg);
     if (pad != 0) return pad_slot_reg(pad, reg);
 
