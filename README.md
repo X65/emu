@@ -157,7 +157,7 @@ conventionally has one or two buttons, so only A and B are standard; X and Y
 name the other two after the gamepad, as the platform's controller example
 does, and `c`/`d` are accepted as aliases. Beyond those two, players come from
 the USB HID gamepads, which are normally fed only by real SDL devices, so
-`pad <1..4> [button ...]` injects a report into one of the four HID slots and
+`pad <1..15> [button ...]` injects a report into one of the fifteen HID slots and
 `pad <n> off` hands the slot back to whatever is plugged in. Its `lup`/`rup`
 style directions drive the analog sticks' digital encoding, the byte programs
 usually merge with the dpad so either input works:

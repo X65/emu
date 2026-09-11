@@ -229,9 +229,9 @@ void ria816_hid_write(ria816_t* c, uint8_t reg, uint8_t data);
 uint8_t ria816_hid_dev(const ria816_t* c);
 
 // Gamepad injection, for headless scripting and tests.  A real gamepad report
-// only ever arrives from an SDL device, so without this a script can drive
-// joystick 1 through the GPIO expander and nothing else -- the four-player
-// HID path is unreachable, and the HID registers are not CPU-writable either.
+// only ever arrives from an SDL device, so without this a script can drive the
+// two DE-9 ports through the GPIO expander and nothing else -- the HID gamepad
+// path is unreachable, and the HID registers are not CPU-writable either.
 //
 // `pad` is 1..15, matching the HID selector's index nibble; `report` is the
 // ten-byte pad_xram_t the firmware exposes at $FFB0 (dpad+flags, sticks,
@@ -257,12 +257,6 @@ void ria816_pad_release(uint8_t pad);
 #define RIA816_PAD_PEEK_REGS 4
 uint8_t ria816_pad_peek(uint8_t regs[RIA816_PAD_PEEK_REGS]);
 
-// Keyboard injection, for headless scripting and tests.  Real key state only
-// ever arrives from the host window, so without this a script cannot press a
-// key.  The injected keys are OR-ed into whatever a real keyboard reports, as
-// a second keyboard would be.  `keycode` is a USB HID usage id.
-void ria816_key_set(uint8_t keycode);
-void ria816_keys_clear(void);
 uint8_t ria816_rgb_read(ria816_t* c, uint8_t reg);
 void ria816_rgb_write(ria816_t* c, uint8_t reg, uint8_t data);
 void ria816_rgb_get_leds(uint32_t** leds, size_t* leds_no);

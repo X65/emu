@@ -7,6 +7,16 @@
 #include <SDL3/SDL.h>
 
 static uint32_t kbd_keys[8] = { 0 };
+static uint32_t kbd_inject[8] = { 0 };
+
+// Hand the firmware both key maps as one, the way it merges its USB keyboards,
+// so the flags it derives -- "no key held" among them -- cover injected keys.
+static void kbd_sync(void) {
+    uint32_t keys[8];
+    for (int k = 0; k < 8; k++)
+        keys[k] = kbd_keys[k] | kbd_inject[k];
+    kbd_report(1, (void*)keys, 0);
+}
 
 void hid_reset(void) {
     memset(kbd_keys, 0, sizeof(kbd_keys));
@@ -244,7 +254,7 @@ void hid_key_down(sapp_keycode key_code) {
             KBD_KEY_BIT_SET(kbd_keys, usb_keycode);
         }
     }
-    kbd_report(1, (void*)kbd_keys, 0);
+    kbd_sync();
 }
 
 void hid_key_up(sapp_keycode key_code) {
@@ -254,5 +264,15 @@ void hid_key_up(sapp_keycode key_code) {
             KBD_KEY_BIT_RES(kbd_keys, usb_keycode);
         }
     }
-    kbd_report(1, (void*)kbd_keys, 0);
+    kbd_sync();
+}
+
+void hid_key_inject(uint8_t usage) {
+    KBD_KEY_BIT_SET(kbd_inject, usage);
+    kbd_sync();
+}
+
+void hid_keys_release(void) {
+    memset(kbd_inject, 0, sizeof(kbd_inject));
+    kbd_sync();
 }

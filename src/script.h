@@ -19,8 +19,9 @@
                                 independent.  Only A and B are standard on a
                                 DE-9 stick; X and Y name the other two after
                                 the gamepad, and `c`/`d` are aliases for them
-      key [a-z|0-9|up|down|left|right|space|enter|lshift|rshift|lctrl|
-           rctrl|kp0..kp9|<usage id>|none ...]
+      key [a-z|0-9|up|down|left|right|space|enter|escape|tab|backspace|
+           minus|equal|lshift|rshift|lctrl|rctrl|lalt|ralt|kp0..kp9|
+           kpenter|<usage id>|none ...]
                                 hold this set of keyboard keys; like `joy`,
                                 each call replaces the set
       pad <1..15> [up|down|left|right|lup|ldown|lleft|lright|rup|rdown|

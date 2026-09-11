@@ -282,71 +282,57 @@ static void pad_synth_report(pad_connection_t* conn, void* data, uint16_t event_
 // fifteen, while the firmware's pad.c still backs PAD_MAX_PLAYERS of them --
 // four -- because that array lives in the RP2040's RAM and growing it is the
 // firmware's call to make, not ours.  So a slot above PAD_MAX_PLAYERS exists
-// here for injection only, and pad_slot_reg() must not ask the firmware about
-// one: pad_get_reg() answers 0xFF for a slot it does not back, 0xFF has the
-// connected bit set, and the slot would read as permanently connected and OR
-// 0xFF into the merged view.  Raise PAD_MAX_PLAYERS in the firmware and the
-// real-device path follows on its own; nothing here has to change.
+// here for injection only, and otherwise reads as an empty slot.  The firmware
+// would answer 0xFF for it instead, and 0xFF has the connected bit set: the
+// slot would read as permanently connected and OR 0xFF into the merged view.
+// Raise PAD_MAX_PLAYERS in the firmware and the real-device path follows on
+// its own; nothing here has to change.
 static_assert(RIA816_PAD_REGS == sizeof(pad_xram_t), "pad report layout drifted from the firmware");
 
+// A slot is scripted while its connected bit is set: inject sets it, release
+// clears it.
 static pad_xram_t pad_inject_regs[RIA816_PAD_SLOTS];
-static uint16_t pad_inject_mask; // bit n set: slot n is scripted
+static const pad_xram_t pad_empty;
 
 void ria816_pad_inject(uint8_t pad, const uint8_t report[RIA816_PAD_REGS]) {
     if (pad < 1 || pad > RIA816_PAD_SLOTS) return;
     memcpy(&pad_inject_regs[pad - 1], report, sizeof(pad_xram_t));
     pad_inject_regs[pad - 1].dpad |= PAD_CONNECTED_BIT;
-    pad_inject_mask |= 1u << (pad - 1);
 }
 
 void ria816_pad_release(uint8_t pad) {
     if (pad < 1 || pad > RIA816_PAD_SLOTS) return;
-    pad_inject_mask &= ~(1u << (pad - 1));
+    pad_inject_regs[pad - 1].dpad = 0;
 }
 
-// --- scripted keyboard ---------------------------------------------------
-//
-// The keyboard register file is the firmware's 256-bit map of held keys, one
-// bit per USB HID usage id.  Share its word layout and its bit-set macro, so
-// the two halves _ria816_kbd_get_reg() ORs together agree on any host.
-// Injected keys are merged with the real ones rather than shadowing them.
-
-static uint32_t kbd_inject[8];
-
-static_assert(sizeof(kbd_inject) == sizeof(kbd_keys), "key map size drifted from the firmware");
-
-void ria816_key_set(uint8_t keycode) {
-    KBD_KEY_BIT_SET(kbd_inject, keycode);
+// One slot's report, 1..RIA816_PAD_SLOTS: an injected report shadows the real
+// device in that slot.
+static const uint8_t* pad_slot(uint8_t slot) {
+    const pad_xram_t* inject = &pad_inject_regs[slot - 1];
+    if (inject->dpad & PAD_CONNECTED_BIT) return (const uint8_t*)inject;
+    return (const uint8_t*)(slot <= PAD_MAX_PLAYERS ? &pad_state[slot - 1] : &pad_empty);
 }
 
-void ria816_keys_clear(void) {
-    memset(kbd_inject, 0, sizeof(kbd_inject));
-}
-
-static uint8_t _ria816_kbd_get_reg(uint8_t idx) {
-    uint8_t data = kbd_get_reg(idx);
-    if (idx < sizeof(kbd_inject)) data |= ((const uint8_t*)kbd_inject)[idx];
-    return data;
-}
-
-// One slot's register, 1..RIA816_PAD_SLOTS: an injected report shadows the
-// real device in that slot.
-static uint8_t pad_slot_reg(uint8_t slot, uint8_t reg) {
-    if (pad_inject_mask & (1u << (slot - 1))) return ((const uint8_t*)&pad_inject_regs[slot - 1])[reg];
-    if (slot > PAD_MAX_PLAYERS) return 0;  // no firmware state behind it: an empty slot, not 0xFF
-    return pad_get_reg(slot, reg);
+// OR `n` registers from `first` across every connected slot, following
+// pad_get_reg()'s selector-0 rule, and return how many slots are connected.
+static uint8_t pad_merge(uint8_t* regs, uint8_t first, uint8_t n) {
+    uint8_t count = 0;
+    memset(regs, 0, n);
+    for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
+        const uint8_t* report = pad_slot(slot);
+        if (!(report[0] & PAD_CONNECTED_BIT)) continue;
+        count++;
+        for (uint8_t i = 0; i < n; ++i)
+            regs[i] |= report[first + i];
+    }
+    return count;
 }
 
 static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
-    // Nothing scripted, and a slot the firmware backs: out of the guest's way.
-    if (!pad_inject_mask && pad <= PAD_MAX_PLAYERS) return pad_get_reg(pad, reg);
-    if (reg >= RIA816_PAD_REGS || pad > RIA816_PAD_SLOTS) return pad_get_reg(pad, reg);
-    if (pad != 0) return pad_slot_reg(pad, reg);
-
-    uint8_t merged = 0;
-    for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
-        if (pad_slot_reg(slot, 0) & PAD_CONNECTED_BIT) merged |= pad_slot_reg(slot, reg);
-    }
+    if (reg >= RIA816_PAD_REGS) return pad_get_reg(pad, reg);  // past the report: the firmware's answer
+    if (pad != 0) return pad_slot(pad)[reg];
+    uint8_t merged;
+    pad_merge(&merged, reg, 1);
     return merged;
 }
 
@@ -357,21 +343,13 @@ static uint8_t _ria816_pad_get_reg(uint8_t pad, uint8_t reg) {
 // one pass over the slots rather than one per register.
 
 uint8_t ria816_pad_peek(uint8_t regs[RIA816_PAD_PEEK_REGS]) {
-    uint8_t count = 0;
-    memset(regs, 0, RIA816_PAD_PEEK_REGS);
-    for (uint8_t slot = 1; slot <= RIA816_PAD_SLOTS; ++slot) {
-        if (!(pad_slot_reg(slot, 0) & PAD_CONNECTED_BIT)) continue;
-        count++;
-        for (uint8_t reg = 0; reg < RIA816_PAD_PEEK_REGS; ++reg)
-            regs[reg] |= pad_slot_reg(slot, reg);
-    }
-    return count;
+    return pad_merge(regs, 0, RIA816_PAD_PEEK_REGS);
 }
 
 uint8_t ria816_hid_read(ria816_t* c, uint8_t reg) {
     uint8_t data = 0xFF;  // invalid
     switch (HID_dev & 0xF) {
-        case RIA_HID_DEV_KEYBOARD: data = _ria816_kbd_get_reg((HID_dev & 0xF0) | reg); break;
+        case RIA_HID_DEV_KEYBOARD: data = kbd_get_reg((HID_dev & 0xF0) | reg); break;
         case RIA_HID_DEV_MOUSE: data = mou_get_reg(reg); break;
         case RIA_HID_DEV_GAMEPAD: data = _ria816_pad_get_reg(HID_dev >> 4, reg); break;
     }

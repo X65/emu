@@ -1,4 +1,5 @@
 #include "./script.h"
+#include "./hid.h"
 #include "./log.h"
 #include "systems/x65.h"
 #include "chips/ria816.h"
@@ -241,7 +242,7 @@ static void hex_dump(x65_t* sys, uint32_t addr, long count, bool raw) {
 // ---------------------------------------------------------------------------
 // commands
 
-// joy [1|2] [up|down|left|right|a|b|c|d|none ...]
+// joy [1|2] [up|down|left|right|a|b|x|y|none ...]
 //
 // The two DE-9 ports are independent, so a call naming one port leaves the
 // other alone -- the machine already holds both masks, so read the untouched
@@ -290,10 +291,9 @@ static void cmd_joy(x65_t* sys, char* p) {
 
 // pad <1..15> [button ...]  -- inject a USB HID gamepad report
 //
-// `joy` can only reach joystick 1, because the GPIO expander has two ports
-// and cmd_joy fills one of them.  Everything with more than two players lives
-// on the HID gamepads instead, which are normally fed only by real SDL
-// devices, so this verb builds a report and pushes it in.
+// `joy` reaches the GPIO expander's two DE-9 ports.  Everything with more than
+// two players lives on the HID gamepads instead, which are normally fed only
+// by real SDL devices, so this verb builds a report and pushes it in.
 static const struct pad_bit {
     const char* name;
     uint8_t reg;  // index into the ten-byte report
@@ -415,16 +415,16 @@ static bool script_key_code(const char* w, uint8_t* out) {
 }
 
 static void cmd_key(char* p) {
-    ria816_keys_clear();
+    hid_keys_release();
     char* w;
     while ((w = script_word(&p))) {
         if (!strcasecmp(w, "none")) {
-            ria816_keys_clear();
+            hid_keys_release();
             continue;
         }
         uint8_t code;
         if (script_key_code(w, &code)) {
-            ria816_key_set(code);
+            hid_key_inject(code);
             continue;
         }
         // Anything else has to be a numeric usage id.
@@ -432,7 +432,7 @@ static void cmd_key(char* p) {
         long value;
         if (!script_number(&q, &value) || value < 0 || value > 255)
             script_error("key: unknown key '%s'", w);
-        ria816_key_set((uint8_t)value);
+        hid_key_inject((uint8_t)value);
     }
 }
 
