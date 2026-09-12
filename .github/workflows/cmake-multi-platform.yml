@@ -66,7 +66,7 @@ jobs:
       - name: Install dependencies
         uses: ConorMacBride/install-package@v1
         with:
-          apt: libx11-dev libxcursor-dev libxi-dev libasound2-dev libegl1-mesa-dev libgl1-mesa-dri xvfb xauth xdotool x11-utils openbox ninja-build clang
+          apt: libx11-dev libxcursor-dev libxi-dev libasound2-dev libdbus-1-dev libegl1-mesa-dev libgl1-mesa-dri pkg-config xvfb xauth xdotool x11-utils openbox ninja-build clang
           choco: mingw ninja
 
       - name: Configure CMake
@@ -77,6 +77,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DREQUIRE_SCREENSAVER_INHIBIT=ON
           -S ${{ github.workspace }}
 
       - name: Build

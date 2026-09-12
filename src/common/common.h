@@ -9,5 +9,6 @@
 #include "prof.h"
 #include "fs.h"
 #include "gfx.h"
+#include "screensaver.h"
 #include "webapi.h"
 #include <ctype.h>  // isupper, islower, toupper, tolower

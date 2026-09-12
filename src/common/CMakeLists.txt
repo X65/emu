@@ -29,6 +29,9 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
+option(REQUIRE_SCREENSAVER_INHIBIT
+       "Fail configure if fullscreen screensaver inhibition cannot be built" OFF)
+
 # a lib of common code shared between all emulators
 add_library(common STATIC
         common.h
@@ -36,6 +39,7 @@ add_library(common STATIC
         fs.c fs.h
         gfx.c gfx.h
         prof.c prof.h
+        screensaver.c screensaver.h
         webapi.c webapi.h)
 
 set(SHADER_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/shaders.glsl)
@@ -64,6 +68,25 @@ target_compile_options(common BEFORE PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(common PRIVATE X11 Xcursor Xi EGL GL m dl asound)
+
+    # Fullscreen screensaver inhibition talks to org.freedesktop.ScreenSaver. We
+    # only need dbus-1's headers: the symbols are dlopen'd at runtime (see
+    # screensaver.c), so a machine without libdbus still runs, just without the
+    # feature. Deliberately not linking ${DBUS_LIBRARIES}.
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(DBUS QUIET dbus-1)
+    endif()
+    if(DBUS_FOUND)
+        target_include_directories(common PRIVATE ${DBUS_INCLUDE_DIRS})
+        target_compile_definitions(common PRIVATE USE_DBUS_SCREENSAVER)
+    elseif(REQUIRE_SCREENSAVER_INHIBIT)
+        message(FATAL_ERROR "dbus-1 development headers not found and "
+                            "REQUIRE_SCREENSAVER_INHIBIT is ON (install libdbus-1-dev / dbus-devel)")
+    else()
+        message(WARNING "dbus-1 development headers not found -- "
+                        "fullscreen screensaver inhibition disabled")
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")

@@ -447,6 +447,9 @@ void app_frame(void) {
     gfx_draw(x65_display_info(&state.x65));
     handle_file_loading();
     sdl_poll_events();
+    // covers every route into fullscreen -- the CLI flag, the hotkey, the View
+    // menu, and the browser leaving fullscreen on its own
+    screensaver_inhibit(sapp_is_fullscreen());
 #ifdef USE_DAP
     dap_process();
 #endif
@@ -523,6 +526,7 @@ void app_cleanup(void) {
     gfx_shutdown();
     hid_shutdown();
     cursor_shutdown();
+    screensaver_shutdown();
 #ifdef USE_DAP
     dap_shutdown();
 #endif
