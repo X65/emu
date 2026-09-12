@@ -39,9 +39,16 @@ static inline uint32_t _ui_vram_dbg_color(const ui_vram_debugger_t* w, uint8_t i
 }
 
 static inline void _ui_vram_dbg_reset_colors(ui_vram_debugger_t* w) {
-    for (int i = 0; i < 8; i++) {
-        /* a useful default ramp from the palette: spread across the 32 unique colors */
-        w->colors[i] = (uint8_t)(i + i * 32 * 3);
+    /* a palette index is hue * 8 + level: black, then eleven hues spread over
+       the 31 chromatic rows at one level, so every slot reads as its own color */
+    w->colors[0] = 0;
+    for (int i = 1; i < 12; i++) {
+        const int hue = 1 + ((i - 1) * 30) / 10;
+        w->colors[i] = (uint8_t)(hue * 8 + 5);
+    }
+    /* sprite slots 12..15 are the half-bright siblings of 0..3 */
+    for (int i = 0; i < 4; i++) {
+        w->colors[12 + i] = w->colors[i] ^ CGIA_COLOR_HALF_BRIGHT;
     }
 }
 
@@ -240,10 +247,11 @@ static void _ui_vram_dbg_source_tooltip(const ui_vram_debugger_t* w, int x, int 
             break;
         }
         case UI_VRAM_DBG_SPRITE: {
-            const int cell_w = w->multicolor ? 4 : 8;
-            const int col = logical_x / cell_w;
+            /* a column of 8 pixels is bpp bytes wide */
+            const int col = logical_x / 8;
             if (col >= 0 && col < w->width) {
-                uint32_t addr = w->addr + (uint32_t)y * (uint32_t)w->width + (uint32_t)col;
+                const int bytes_per_row = w->width * w->bpp;
+                uint32_t addr = w->addr + (uint32_t)y * (uint32_t)bytes_per_row + (uint32_t)(col * w->bpp);
                 uint8_t byte = _ui_vram_dbg_read(w, w->bank, addr);
                 ImGui::Text("%02X:%04X = %02X", w->bank, (uint16_t)addr, byte);
             }
@@ -486,43 +494,34 @@ static void _decode_mode7(ui_vram_debugger_t* w) {
     }
 }
 
-/* Sprite mode — flat byte stream rendered with sprite-style palette
-   (color 0 transparent always; multicolor uses 4-color, single uses 2-color). */
+/* Sprite mode — flat byte stream in the sprite packing: 8-pixel columns of
+   bpp bytes each, MSB pixel first. colors[] is the sprite's 16 entry palette;
+   entry 0 is transparent. */
 static void _decode_sprite(ui_vram_debugger_t* w) {
     const int cols = w->width;
-    const bool multi = w->multicolor;
+    const int bpp = w->bpp;
     const bool dbl = w->doubled;
+    const uint8_t mask = (uint8_t)((1u << bpp) - 1u);
 
     uint32_t off = w->addr;
     for (int y = 0; y < w->tex_h; ++y) {
         int x = 0;
         for (int c = 0; c < cols && x < w->tex_w; ++c) {
-            uint8_t bits = _ui_vram_dbg_read(w, w->bank, off + (uint32_t)c);
-            if (multi) {
-                for (int sh = 6; sh >= 0 && x < w->tex_w; sh -= 2) {
-                    uint8_t code = (uint8_t)((bits >> sh) & 0x3);
-                    if (code == 0) {
-                        x += dbl ? 2 : 1;
-                    }
-                    else {
-                        uint8_t color = w->colors[code - 1]; /* colors[0..2] */
-                        x = _emit_px(w, x, y, _ui_vram_dbg_color(w, color), dbl);
-                    }
-                }
+            uint32_t chunk = 0;
+            for (int b = 0; b < bpp; ++b) {
+                chunk = (chunk << 8) | _ui_vram_dbg_read(w, w->bank, off + (uint32_t)(c * bpp + b));
             }
-            else {
-                for (int sh = 7; sh >= 0 && x < w->tex_w; --sh) {
-                    uint8_t bit_set = (uint8_t)((bits >> sh) & 0x1);
-                    if (bit_set) {
-                        x = _emit_px(w, x, y, _ui_vram_dbg_color(w, w->colors[0]), dbl);
-                    }
-                    else {
-                        x += dbl ? 2 : 1;
-                    }
+            for (int sh = 7 * bpp; sh >= 0 && x < w->tex_w; sh -= bpp) {
+                uint8_t idx = (uint8_t)((chunk >> sh) & mask);
+                if (idx == 0) {
+                    x += dbl ? 2 : 1;
+                }
+                else {
+                    x = _emit_px(w, x, y, _ui_vram_dbg_color(w, w->colors[idx]), dbl);
                 }
             }
         }
-        off += (uint32_t)cols;
+        off += (uint32_t)(cols * bpp);
     }
 }
 
@@ -625,7 +624,7 @@ static bool _is_mode_chargen(int mode) {
 }
 
 static bool _is_mode_palette_bpp(int mode) {
-    return mode == UI_VRAM_DBG_MODE0 || mode == UI_VRAM_DBG_MODE1;
+    return mode == UI_VRAM_DBG_MODE0 || mode == UI_VRAM_DBG_MODE1 || mode == UI_VRAM_DBG_SPRITE;
 }
 
 static bool _is_mode_with_doubled(int mode) {
@@ -633,14 +632,40 @@ static bool _is_mode_with_doubled(int mode) {
         || mode == UI_VRAM_DBG_MODE3;
 }
 
+/* sprites express multicolor as 2 bpp, so the checkbox has no meaning there */
 static bool _is_mode_with_multicolor(int mode) {
     return mode == UI_VRAM_DBG_MODE0 || mode == UI_VRAM_DBG_MODE1 || mode == UI_VRAM_DBG_MODE2
-        || mode == UI_VRAM_DBG_MODE3 || mode == UI_VRAM_DBG_SPRITE;
+        || mode == UI_VRAM_DBG_MODE3;
 }
 
 static bool _is_mode_with_row_h(int mode) {
     return mode == UI_VRAM_DBG_MODE0 || mode == UI_VRAM_DBG_MODE1 || mode == UI_VRAM_DBG_MODE2
         || mode == UI_VRAM_DBG_MODE3;
+}
+
+/* sprites carry a 16 entry palette, every other mode 8 shared colors */
+static int _mode_color_slots(int mode) {
+    return mode == UI_VRAM_DBG_SPRITE ? 16 : 8;
+}
+
+/* sprite entry 0 is transparent and a sprite reaches entries 1..(2^bpp - 1) */
+static bool _color_slot_enabled(const ui_vram_debugger_t* w, int slot) {
+    if (w->mode != UI_VRAM_DBG_SPRITE) return true;
+    return slot >= 1 && slot < (1 << w->bpp);
+}
+
+/* load the colors a plane's registers contribute to this mode's palette */
+static void _copy_plane_palette(ui_vram_debugger_t* w, const fwcgia_t* chip, int p) {
+    if (w->mode == UI_VRAM_DBG_SPRITE) {
+        /* slots 0..3 stand in for a descriptor's colors */
+        uint8_t dsc[4];
+        memcpy(dsc, w->colors, sizeof(dsc));
+        sprite_palette_plane(chip->plane[p].sprite.color, w->colors);
+        sprite_palette_descriptor(dsc, w->colors);
+    }
+    else {
+        memcpy(w->colors, chip->plane[p].bckgnd.color, 8);
+    }
 }
 
 /* 256-color palette popup: 16x16 grid, click sets *idx. */
@@ -727,7 +752,7 @@ void ui_vram_debugger_draw(ui_vram_debugger_t* win) {
         bytes_per_row = _ui_vram_dbg_mode7_width_px(win);
     }
     else if (win->mode == UI_VRAM_DBG_SPRITE) {
-        bytes_per_row = win->width;
+        bytes_per_row = win->width * win->bpp;
     }
     if (bytes_per_row < 1) bytes_per_row = 1;
 
@@ -942,11 +967,10 @@ void ui_vram_debugger_draw(ui_vram_debugger_t* win) {
 
     /* Colors */
     ImGui::SeparatorText("Colors");
-    for (int i = 0; i < 8; i++) {
-        bool en = true;
-        if (win->mode == UI_VRAM_DBG_SPRITE) en = (i < 3);
-        _draw_color_slot(win, i, &win->colors[i], en);
-        if (i != 7) ImGui::SameLine();
+    const int slots = _mode_color_slots(win->mode);
+    for (int i = 0; i < slots; i++) {
+        _draw_color_slot(win, i, &win->colors[i], _color_slot_enabled(win, i));
+        if (i % 8 != 7) ImGui::SameLine();
     }
     {
         ImGui::SetNextItemWidth(120);
@@ -958,9 +982,7 @@ void ui_vram_debugger_draw(ui_vram_debugger_t* win) {
                 int p = win->copy_from_plane;
                 if (p < 0) p = 0;
                 if (p >= CGIA_PLANES) p = CGIA_PLANES - 1;
-                for (int i = 0; i < 8; i++) {
-                    win->colors[i] = chip->plane[p].bckgnd.color[i];
-                }
+                _copy_plane_palette(win, chip, p);
             }
         }
         ImGui::SameLine();

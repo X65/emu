@@ -267,20 +267,30 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
     ImGui::Text("start_y: %03d", chip->plane[p].sprite.start_y);
     ImGui::SameLine();
     ImGui::Text("stop_y : %03d", chip->plane[p].sprite.stop_y);
+    // palette entries 4..11 of every sprite on this plane
+    ImGui::Text("colors:");
+    for (int c = 0; c < 8; ++c) {
+        ImGui::SameLine();
+        ImGui::PushID(c);
+        _ui_cgia_draw_color(win, "", chip->plane[p].sprite.color[c]);
+        ImGui::PopID();
+    }
     ImGui::Separator();
     const float cw0 = 10.0f;
     const float cw = 46.0f;
     uint8_t* vram = win->cgia->vram[win->cgia->vram_cache[1].cache_ptr_idx];
-    if (ImGui::BeginTable("##sprite_descriptors", 11)) {
+    if (ImGui::BeginTable("##sprite_descriptors", 13)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
         ImGui::TableSetupColumn("Offs", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("H", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+        ImGui::TableSetupColumn("Fmt", ImGuiTableColumnFlags_WidthFixed, 62.0f);
         ImGui::TableSetupColumn("Cl0", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl1", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Cl2", ImGuiTableColumnFlags_WidthFixed, cw);
+        ImGui::TableSetupColumn("Cl3", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableSetupColumn("Next", ImGuiTableColumnFlags_WidthFixed, cw);
         ImGui::TableHeadersRow();
@@ -299,7 +309,19 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
             ImGui::Text("%6d", sprite->lines_y);
             ImGui::TableNextColumn();  // Fl
             ui_util_b8("", sprite->flags);
-            for (int c = 0; c < 3; c++) {
+            ImGui::TableNextColumn();  // Fmt: width in px, depth, double/mirror
+            {
+                const int bpp = (int)sprite_bpp(sprite->flags);
+                int width_px = 8 * ((sprite->flags & SPRITE_MASK_WIDTH) + 1);
+                if (sprite->flags & SPRITE_MASK_DOUBLE_WIDTH) width_px *= 2;
+                ImGui::Text(
+                    "%3d %dbpp%s%s",
+                    width_px,
+                    bpp,
+                    (sprite->flags & SPRITE_MASK_MIRROR_X) ? " X" : "",
+                    (sprite->flags & SPRITE_MASK_MIRROR_Y) ? " Y" : "");
+            }
+            for (int c = 0; c < 4; c++) {
                 ImGui::TableNextColumn();  // Cl
                 ImGui::PushID(i * 10 + c);
                 _ui_cgia_draw_color(win, "", sprite->color[c]);

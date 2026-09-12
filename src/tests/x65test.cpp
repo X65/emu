@@ -774,3 +774,117 @@ TEST_CASE("full initialization restarts the seed while ordinary reset continues 
     x65_reset(&machine);
     CHECK(guest_rng_sequence() == second);
 }
+
+// Sprite pixel formats and the per-sprite 16-entry palette: entries 0..3 come
+// from the descriptor, 4..11 from the sprite plane's color registers, 12..15
+// are the descriptor colors half-bright. Register offsets follow the firmware's
+// struct cgia_t; every byte the CGIA reads goes through mem_wr so the VRAM
+// cache mirrors it (install_guest writes the RAM array directly and would not).
+TEST_CASE("sprites of every depth resolve through the combined palette") {
+    RestoreArguments restore;
+    arguments.zeromem = true;
+    boot_quiet(&machine, display_fb);
+
+    // park the CPU on STP so nothing scribbles over the sprite data
+    const w65816_desc_t desc = {};
+    machine.pins = w65816_init(&machine.cpu, &desc);
+    mem_wr16(&machine, 0, 0xFFFC, 0x2000);
+    mem_wr(&machine, 0, 0x2000, 0xDB);
+
+    // descriptor colors: level bit 2 clear, so the half-bright copies differ
+    const uint8_t dsc_colors[4] = { 0x21, 0x32, 0x43, 0x51 };
+    const uint8_t plane_colors[8] = { 0x61, 0x62, 0x63, 0x68, 0x71, 0x72, 0x73, 0x78 };
+    const uint8_t back = 0x07;
+    uint8_t palette[16];
+    for (int i = 0; i < 4; ++i) {
+        palette[i] = dsc_colors[i];
+        palette[12 + i] = dsc_colors[i] ^ 0b100;
+    }
+    for (int i = 0; i < 8; ++i)
+        palette[4 + i] = plane_colors[i];
+
+    constexpr uint16_t DSC = 0x4000;   // descriptor table, 16 bytes per sprite
+    constexpr uint16_t DATA = 0x5000;  // 64 bytes of pixel data per sprite
+    constexpr int16_t X = 16;
+
+    // flags: bits 0-2 columns-1, bit 3 double width, bits 4-5 depth, bit 6 mirror X
+    struct Sprite {
+        uint8_t flags;
+        uint16_t lines;
+        std::vector<uint8_t> data;
+    };
+    const std::vector<uint8_t> ramp3 = { 0x29, 0xCB, 0xB8 };                                // 3bpp: 1..7 0
+    const std::vector<uint8_t> ramp3_down = { 0xFA, 0xC6, 0x88 };                           // 3bpp: 7..1 0
+    const std::vector<uint8_t> ramp4 = { 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0 };  // 4bpp: 1..15 0
+    auto lines = [](std::vector<uint8_t> a, const std::vector<uint8_t>& b) {
+        a.insert(a.end(), b.begin(), b.end());
+        return a;
+    };
+    const std::vector<Sprite> sprites = {
+        { 0b00000000, 1, { 0b10100000 } }, // 1bpp
+        { 0b00010000, 1, { 0x6C, 0x6C } }, // 2bpp: 1 2 3 0 1 2 3 0
+        { 0b00100000, 2, lines(ramp3, ramp3_down) }, // 3bpp, two lines
+        { 0b00110001, 1, ramp4 }, // 4bpp, 2 columns
+        { 0b01110001, 1, ramp4 }, // 4bpp mirrored
+        { 0b00101000, 1, ramp3 }, // 3bpp doubled
+    };
+    for (size_t i = 0; i < sprites.size(); ++i) {
+        const uint16_t dsc = DSC + (uint16_t)(16 * i);
+        const uint16_t data = DATA + (uint16_t)(64 * i);
+        const int16_t y = (int16_t)(10 + 10 * i);
+        mem_wr16(&machine, 0, dsc + 0, (uint16_t)X);
+        mem_wr16(&machine, 0, dsc + 2, (uint16_t)y);
+        mem_wr16(&machine, 0, dsc + 4, sprites[i].lines);
+        mem_wr(&machine, 0, dsc + 6, sprites[i].flags);
+        mem_wr(&machine, 0, dsc + 7, 0);
+        for (int c = 0; c < 4; ++c)
+            mem_wr(&machine, 0, dsc + 8 + (uint16_t)c, dsc_colors[c]);
+        mem_wr16(&machine, 0, dsc + 12, data);
+        mem_wr16(&machine, 0, dsc + 14, dsc);
+        for (size_t b = 0; b < sprites[i].data.size(); ++b) {
+            mem_wr(&machine, 0, data + (uint16_t)b, sprites[i].data[b]);
+        }
+    }
+
+    mem_wr(&machine, 0, 0xFF01, 0);      // bckgnd_bank
+    mem_wr(&machine, 0, 0xFF02, 0);      // sprite_bank
+    mem_wr(&machine, 0, 0xFF34, back);   // back_color
+    mem_wr16(&machine, 0, 0xFF38, DSC);  // offset[0]
+    mem_wr(&machine, 0, 0xFF41, 0);      // plane 0 border_columns
+    mem_wr(&machine, 0, 0xFF42, 0);      // plane 0 start_y
+    mem_wr(&machine, 0, 0xFF43, 0);      // plane 0 stop_y
+    for (int i = 0; i < 8; ++i)
+        mem_wr(&machine, 0, 0xFF48 + i, plane_colors[i]);
+    mem_wr(&machine, 0, 0xFF40, (uint8_t)((1u << sprites.size()) - 1));  // plane 0 active sprites
+    mem_wr(&machine, 0, 0xFF30, 0x11);                                   // plane 0: sprite type, enabled
+
+    run_to_boundary(&machine);
+    run_to_boundary(&machine);
+
+    auto rgb = [](uint8_t color) { return machine.cgia.hwcolors[color] | 0xFF000000u; };
+    auto px = [](int x, int y) { return display_fb[(2 * y) * CGIA_FRAMEBUFFER_WIDTH + 2 * x]; };
+    // the line of sprite i, as palette entries, transparent shown as back_color
+    auto expect_line = [&](size_t i, int line, const std::vector<uint8_t>& entries) {
+        const int y = 10 + 10 * (int)i + line;
+        CAPTURE(i);
+        CAPTURE(line);
+        for (size_t x = 0; x < entries.size(); ++x) {
+            CAPTURE(x);
+            const uint8_t color = entries[x] ? palette[entries[x]] : back;
+            CHECK(px(X + (int)x, y) == rgb(color));
+        }
+        CHECK(px(X - 1, y) == rgb(back));
+    };
+
+    expect_line(0, 0, { 1, 0, 1, 0, 0, 0, 0, 0 });
+    expect_line(1, 0, { 1, 2, 3, 0, 1, 2, 3, 0 });
+    expect_line(2, 0, { 1, 2, 3, 4, 5, 6, 7, 0 });
+    expect_line(2, 1, { 7, 6, 5, 4, 3, 2, 1, 0 });
+    expect_line(3, 0, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0 });
+    expect_line(4, 0, { 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 });
+    expect_line(5, 0, { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 0, 0 });
+    // a one-line sprite draws nothing on the next line
+    CHECK(px(X, 11) == rgb(back));
+
+    mem_wr(&machine, 0, 0xFF30, 0);  // the register file outlives this case
+}
