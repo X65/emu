@@ -31,6 +31,33 @@ void hid_shutdown(void) {
     SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
 }
 
+// Should this device go through SDL's gamepad layer, or be taken raw?
+//
+// The firmware reads a pad's own USB HID report and fixes the button order up
+// per vendor -- pad_remap_manta_gamepad() is the one that puts the 081F pads in
+// A B C X Y Z order -- so the raw joystick path, where button i is report
+// button i, is the one that reproduces it. The gamepad path is for the devices
+// SDL really does know, whose labels beat a report order nobody has remapped.
+//
+// In the browser there is no such device. SDL's mapping database carries a
+// catch-all `default` entry for the Emscripten backend (SDL_gamepad_db.h, under
+// SDL_JOYSTICK_EMSCRIPTEN), so *every* browser pad answers SDL_IsGamepad().
+// Taking that at face value skips the firmware's remap and relabels half the
+// buttons -- b2 arrives as X rather than C, b5 as R1 rather than Z -- and the
+// entry names axes 4 and 5 as the analog triggers, which a browser pad does not
+// have: SDL answers with the mapped centre of a missing axis, and the firmware
+// reads L2 and R2 as held down forever. None of that describes the device, so
+// the gamepad layer is ignored there.
+#ifdef __EMSCRIPTEN__
+static const bool hid_gamepad_api = false;
+#else
+static const bool hid_gamepad_api = true;
+#endif
+
+static bool hid_use_gamepad_api(SDL_JoystickID id) {
+    return hid_gamepad_api && SDL_IsGamepad(id);
+}
+
 // SDL3 event handling
 void sdl_poll_events(void) {
     SDL_Event event;
@@ -41,7 +68,7 @@ void sdl_poll_events(void) {
             } break;
 
             case SDL_EVENT_JOYSTICK_ADDED: {
-                if (SDL_IsGamepad(event.jdevice.which)) {
+                if (hid_use_gamepad_api(event.jdevice.which)) {
                     // Let's wait for the gamepad added event
                     continue;
                 }
@@ -64,12 +91,13 @@ void sdl_poll_events(void) {
                 }
             } break;
             case SDL_EVENT_JOYSTICK_REMOVED: {
-                if (SDL_IsGamepad(event.jdevice.which)) continue;
+                if (hid_use_gamepad_api(event.jdevice.which)) continue;
                 LOG_INFO("SDL Joystick %d removed", event.jdevice.which);
                 SDL_CloseJoystick(SDL_GetJoystickFromID(event.jdevice.which));
                 pad_umount(event.jdevice.which);
             } break;
             case SDL_EVENT_GAMEPAD_ADDED: {
+                if (!hid_gamepad_api) continue;
                 LOG_INFO("SDL Gamepad %d added", event.gdevice.which);
                 SDL_Gamepad* gamepad = SDL_OpenGamepad(event.gdevice.which);
                 if (!gamepad) {
@@ -88,6 +116,9 @@ void sdl_poll_events(void) {
                 }
             } break;
             case SDL_EVENT_GAMEPAD_REMOVED: {
+                // not hid_use_gamepad_api(): by now SDL has dropped the device,
+                // so asking it whether that was a gamepad is too late
+                if (!hid_gamepad_api) continue;
                 LOG_INFO("SDL Gamepad %d removed", event.gdevice.which);
                 SDL_CloseGamepad(SDL_GetGamepadFromID(event.gdevice.which));
                 pad_umount(event.gdevice.which);
@@ -101,7 +132,7 @@ void sdl_poll_events(void) {
             default: {
                 if (event.type >= SDL_EVENT_JOYSTICK_AXIS_MOTION && event.type < SDL_EVENT_JOYSTICK_UPDATE_COMPLETE) {
                     // Joystick event
-                    if (SDL_IsGamepad(event.jdevice.which)) continue;
+                    if (hid_use_gamepad_api(event.jdevice.which)) continue;
                     pad_report(
                         event.jdevice.which,
                         (const void*)SDL_GetJoystickFromID(event.jdevice.which),
