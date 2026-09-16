@@ -71,6 +71,11 @@ does not send them; for local testing use:
     tools/serve_wasm.py wasm
     # http://127.0.0.1:6816/emu.html?file=roms/buzzer.xex
 
+Gamepads stay invisible to a web page until someone presses a button on one --
+the Gamepad API hides them from a page that has not been played with, so a pad
+plugged in before the page loaded shows up on the status line only after its
+first button press, and the browser then reveals every pad at once.
+
 [3]: https://emscripten.org/docs/getting_started/downloads.html
 
 ## Testing
