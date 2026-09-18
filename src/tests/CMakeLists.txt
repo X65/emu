@@ -72,7 +72,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_program(XVFB_RUN NAMES xvfb-run)
     if(XVFB_RUN)
         message(STATUS "Emulator script tests enabled with ${XVFB_RUN}")
-        foreach(kind Smoke SeedRepeatability CheckFailure)
+        foreach(kind Smoke SeedRepeatability WholeFrame CheckFailure)
             add_test(NAME EmuScript${kind}
                 COMMAND "${XVFB_RUN}" -a -w 0 ${CMAKE_COMMAND}
                     "-DEMU=$<TARGET_FILE:emu>"

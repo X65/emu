@@ -38,6 +38,11 @@
       shot "file.png" [full]    write the display; half-res (384x240) unless "full"
       crc                       print CRC-32 of the display
       expect-crc <hex>          fail unless the display CRC matches
+                                "The display" is what the host is shown: after
+                                `run`, the last frame CGIA finished -- never the
+                                next one's top drawn over it -- and after
+                                `until`, the raster exactly as the breakpoint
+                                left it, beam position and all
       dump <addr> [count] ["file"]   hex-dump memory (or write it raw to file)
       peek <addr> <byte>...     fail unless memory matches
       poke <addr> <byte>...     write memory

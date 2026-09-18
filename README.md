@@ -146,6 +146,13 @@ double as CI smoke tests. Combine with `--disable-gui` and `xvfb-run` for a
 fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
 `run N` / `shot FILE` / `exit`.
 
+`shot` and `crc` capture what the host is shown, not the raster being drawn.
+A script regains control only between fixed slices of emulated time, so a
+`run` ends partway into the next frame; the capture is the frame CGIA last
+finished, not that frame's top drawn over the next. After an `until` the
+machine is stopped where the breakpoint caught it, and the capture is the
+raster exactly as it stands there.
+
     > cat drive.scr
     run 60
     joy up left

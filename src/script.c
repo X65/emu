@@ -126,7 +126,19 @@ static bool script_number_opt(char** p, long* out, long def) {
 // ---------------------------------------------------------------------------
 // display capture (SDL does the PNG encoding and the checksum)
 
-// Wrap the CGIA framebuffer in a surface; `full` keeps the 2x DVI pixel repeat,
+// What a capture sees is what the machine offers the host to present, not fb[]
+// itself. fb[] is the raster as it is being drawn, and a script only regains
+// control between fixed slices of time, so after a `run` the beam is already
+// partway into the next frame: fb[] would be that frame's top over the last
+// one's bottom, split wherever the slice happened to end. The presented buffer
+// holds the frame completed at the last boundary instead. After an `until` it
+// is fb[] exactly, because a breakpoint that cuts a slice short publishes the
+// raster it stopped on -- so a capture there still sees the beam's position.
+static const uint32_t* displayed(x65_t* sys) {
+    return x65_display_info(sys).frame.buffer.ptr;
+}
+
+// Wrap the displayed frame in a surface; `full` keeps the 2x DVI pixel repeat,
 // otherwise it is scaled back down to the rasterized 384x240. The pixels are
 // borrowed from the machine, so destroy the surface before the next frame.
 static SDL_Surface* grab_display(x65_t* sys, bool full) {
@@ -134,7 +146,7 @@ static SDL_Surface* grab_display(x65_t* sys, bool full) {
         CGIA_FRAMEBUFFER_WIDTH,
         CGIA_FRAMEBUFFER_HEIGHT,
         SDL_PIXELFORMAT_ABGR8888,
-        sys->fb,
+        (void*)displayed(sys),
         CGIA_FRAMEBUFFER_WIDTH * 4);
     if (!fb || full) return fb;
     SDL_Surface* half =
@@ -144,7 +156,7 @@ static SDL_Surface* grab_display(x65_t* sys, bool full) {
 }
 
 static uint32_t display_crc(x65_t* sys) {
-    return SDL_crc32(0, sys->fb, sizeof sys->fb);
+    return SDL_crc32(0, displayed(sys), sizeof sys->fb);
 }
 
 // ---------------------------------------------------------------------------

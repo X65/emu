@@ -27,6 +27,13 @@ aliases, the `key` verb across both key-map pages, and the
 `pad` verb: injection into two HID slots, the connected flag, and handing
 a slot back with `pad <n> off`.
 `seed.scr.in` is instantiated twice with separate binary dump paths.
+`frame-run.scr` and `frame-edge.scr` are the WholeFrame case: both poke a
+raster wait into RAM at `$2200` and point the loop at `$2080` at it, change
+the backdrop (`$FF34`) at line 120, and capture that split frame -- one with
+`run 1`, which ends partway into the next frame, the other by stopping in the
+vertical blank that follows it (a second wait at `$2210`). The driver checks
+the two CRCs match, that the reference really is split, and that both end on
+the same whole frame.
 `failure.scr` intentionally fails; the CMake driver checks both exit code 1
 and the specific memory assertion diagnostic. Each test uses its own build
 subdirectory, a virtual display, software GL and `alsa-null.conf` as its

@@ -1,0 +1,20 @@
+# A capture after `run` is the frame the chip last finished, not the raster
+# the next one has started drawing over it.  emu_script_test.cmake runs this
+# and frame-edge.scr and compares their CRCs.
+#
+# Stop mid-frame: $2200 waits for raster line 120 and parks at $2207, and the
+# fixture's loop at $2080 is pointed at it.  Change the backdrop there, so the
+# frame in progress is the old colour above line 120 and the new one below.
+until 0x2080 2
+poke 0xFF34 0x10
+poke 0x2200 0xAD 0x10 0xFF 0xC9 0x78 0xD0 0xF9 0x4C 0x07 0x22
+poke 0x2080 0x4C 0x00 0x22
+until 0x2207 3
+poke 0xFF34 0x20
+# The split frame, finished by a `run` that ends partway into the next one.
+run 1
+crc
+# And a whole frame of the new colour.
+run 1
+crc
+exit 0
