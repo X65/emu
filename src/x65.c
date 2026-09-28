@@ -147,9 +147,67 @@ void app_set_disable_gui(bool hidden) {
 }
 #endif
 
+// --wav: the SGU-1's output exactly as the chip produced it, before the host
+// resampler and whatever the audio device does to it -- the clean reference a
+// recording of real hardware is held against.  32-bit float, the chip's rate
+// and channels.  The header is rewritten after every block, so the file is
+// whole however the emulator stops: a script's `exit` leaves through exit()
+// and never reaches app_cleanup.
+static FILE* wav_file;
+static uint32_t wav_frames;
+
+static void wav_put32(uint8_t* p, uint32_t v) {
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static void wav_header(void) {
+    // RIFF, an 18-byte fmt chunk (WAVE_FORMAT_IEEE_FLOAT, cbSize 0), the fact
+    // chunk non-PCM formats carry, then the data chunk's header: 58 bytes.
+    const uint32_t block = SGU_AUDIO_CHANNELS * sizeof(float);
+    const uint32_t data = wav_frames * block;
+    uint8_t h[58] = { 'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ', 18, 0, 0, 0 };
+    wav_put32(h + 4, 50 + data);
+    h[20] = 3;  // WAVE_FORMAT_IEEE_FLOAT
+    h[22] = SGU_AUDIO_CHANNELS;
+    wav_put32(h + 24, SGU_CHIP_CLOCK);
+    wav_put32(h + 28, SGU_CHIP_CLOCK * block);
+    h[32] = (uint8_t)block;
+    h[34] = 32;  // bits per sample; h[36..37] cbSize = 0
+    memcpy(h + 38, "fact", 4);
+    h[42] = 4;
+    wav_put32(h + 46, wav_frames);
+    memcpy(h + 50, "data", 4);
+    wav_put32(h + 54, data);
+    fseek(wav_file, 0, SEEK_SET);
+    fwrite(h, 1, sizeof h, wav_file);
+    fseek(wav_file, 0, SEEK_END);
+}
+
+static void wav_open(const char* path) {
+    wav_file = fopen(path, "wb");
+    if (!wav_file) {
+        LOG_ERROR("--wav: cannot open %s", path);
+        exit(EXIT_FAILURE);
+    }
+    wav_frames = 0;
+    wav_header();
+}
+
+static void wav_write(const float* samples, int num_samples) {
+    const int frames = num_samples / SGU_AUDIO_CHANNELS;
+    fwrite(samples, sizeof(float), (size_t)frames * SGU_AUDIO_CHANNELS, wav_file);
+    wav_frames += (uint32_t)frames;
+    wav_header();
+    fflush(wav_file);
+}
+
 // audio-streaming callback
 static void push_audio(const float* samples, int num_samples, void* user_data) {
     (void)user_data;
+    if (wav_file) wav_write(samples, num_samples);
     spx_uint32_t in_frames = num_samples / SGU_AUDIO_CHANNELS;
     if (!state.resampler) {
         saudio_push(samples, in_frames);
@@ -379,6 +437,9 @@ void app_init(void) {
         LOG_INFO("Loading ROM: %s", arguments.rom);
         fs_load_file_async(FS_CHANNEL_IMAGES, arguments.rom);
         app_load_rom_labels(arguments.rom);
+    }
+    if (arguments.wav) {
+        wav_open(arguments.wav);
     }
     if (arguments.script) {
         if (!script_load(arguments.script)) {

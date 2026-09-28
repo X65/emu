@@ -19,6 +19,7 @@ extern struct arguments {
     const char* break_opcode;
     const char* joystick;
     const char* sgu_dump;
+    const char* wav;
     const char* script;
     const char* screenshot;
     const char* frames;
