@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  // memcpy, memset
+#include <time.h>
 
 #ifndef CHIPS_ASSERT
     #include <assert.h>
@@ -29,7 +30,22 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
     }
 
     memset(sys, 0, sizeof(x65_t));
-    if (arguments.seed_supplied) srand(arguments.seed);
+    // A reset keeps the seed the first boot chose, so the one printed repeats the whole session.
+    static uint32_t random_seed;
+    static bool random_seeded;
+    uint32_t seed = arguments.seed;
+    if (!arguments.seed_supplied) {
+        if (!random_seeded) {
+            struct timespec ts;
+            timespec_get(&ts, TIME_UTC);
+            random_seed = (uint32_t)ts.tv_sec ^ ((uint32_t)ts.tv_nsec * 2654435761u);
+            random_seeded = true;
+            // Say which seed an unseeded run used, or a run that turns something up cannot be repeated.
+            LOG_INFO("RAM and RNG seeded at random; --seed=%u repeats it", random_seed);
+        }
+        seed = random_seed;
+    }
+    srand(seed);
     if (!arguments.zeromem)
         for (int i = 0; i < X65_RAM_SIZE_BYTES; i++) {
             sys->ram[i] = rand() & 0xFF;  // fill RAM with random data
@@ -60,9 +76,9 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .api_cb = _x65_api_call,
             .user_data = sys,
         });
-    // RIA normally seeds from time. Restart the supplied seed for guest RNG,
+    // RIA normally seeds from time. Restart the seed for guest RNG,
     // independently of whether randomized RAM consumed any values.
-    if (arguments.seed_supplied) srand(arguments.seed);
+    srand(seed);
     tca6416a_init(&sys->gpio, 0xff, 0xff);
     cgia_init(&sys->cgia, &(cgia_desc_t){
         .tick_hz = X65_FREQUENCY,
