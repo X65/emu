@@ -156,6 +156,10 @@ extern "C" {
 #define RIA816_API_RET_HI     (0x31)  // High byte of 16 bit return value. Otherwise `0`.
 #define RIA816_API_STACK      (0x32)  // 512 bytes for passing call parameters.
 #define RIA816_API_STATUS     (0x33)  // Bit 7 high while operation is running. Bit 0 high when ERRNO.
+                                      // Bit 6 high when an op written while another was running got
+                                      // refused (EBUSY); the running op is unaffected. Cleared by the
+                                      // next accepted op. Never set here: the emulator runs ops inside
+                                      // the write.
 #define RIA816_CPU_E_COP      (0x34)  // 65816 vector.
 #define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 64byte chunks for mapping RAM into I/O area.
 #define RIA816_EXT_MEM        (0x37)  // reserved for future use (MMU)
