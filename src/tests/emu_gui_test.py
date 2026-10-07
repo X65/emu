@@ -157,7 +157,7 @@ class GuiTest:
         self.emu = subprocess.Popen(
             [
                 self.args.emu,
-                "--zero-mem",
+                "--fill-mem=0",
                 "--seed",
                 "1",
                 *extra_arguments,

@@ -46,10 +46,14 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         seed = random_seed;
     }
     srand(seed);
-    if (!arguments.zeromem)
+    if (arguments.fill_mem_supplied) {
+        memset(sys->ram, arguments.fill_mem, sizeof(sys->ram));
+    }
+    else {
         for (int i = 0; i < X65_RAM_SIZE_BYTES; i++) {
             sys->ram[i] = rand() & 0xFF;  // fill RAM with random data
         }
+    }
 
     sys->valid = true;
     sys->running = false;

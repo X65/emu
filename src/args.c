@@ -38,6 +38,7 @@ enum {
     KEY_SCREENSHOT,
     KEY_FRAMES,
     KEY_SEED,
+    KEY_FILL_MEM,
 };
 
 typedef struct {
@@ -58,7 +59,7 @@ static const option_t options[] = {
      'j',                                               "TYPE",
      OPT_ARG_OPTIONAL,                                                            "Enable joystick; TYPE is digital_1 (default), digital_2 or digital_12" },
     { "seed",                 KEY_SEED,                 "N",           0,         "Seed RAM and hardware RNG (unsigned decimal or 0x hexadecimal)"       },
-    { "zero-mem",             'z',                      NULL,          0,         "Fill memory with zeros"                                                },
+    { "fill-mem",             KEY_FILL_MEM,             "N",           0,         "Fill RAM with byte N (decimal or 0x hexadecimal, 0-255)"               },
     { "dap",                  'd',                      NULL,          0,         "Enable Debug Adapter Protocol over stdin/stdout"                       },
     { "dap-port",             'p',                      "PORT",        0,         "Enable Debug Adapter Protocol over TCP port"                           },
     { "crt",
@@ -299,7 +300,7 @@ static char** web_build_argv(char* prog) {
 
 // Deliberately avoid strtoul's signs, whitespace, octal and platform-sized
 // overflow rules: the accepted grammar and range are identical on every host.
-static bool parse_seed(const char* value, uint32_t* seed) {
+static bool parse_uint32(const char* value, uint32_t* number) {
     if (!value || !*value) return false;
     uint32_t base = 10;
     if (value[0] == '0' && (value[1] == 'x' || value[1] == 'X')) {
@@ -317,7 +318,7 @@ static bool parse_seed(const char* value, uint32_t* seed) {
         if (result > (UINT32_MAX - digit) / base) return false;
         result = result * base + digit;
     }
-    *seed = result;
+    *number = result;
     return true;
 }
 
@@ -347,7 +348,6 @@ args_status_t args_parse_argv(char** argv, struct arguments* out, const char** e
             case 's': out->silent = true; break;
             case 'v': out->verbose = true; break;
             case 'j': out->joystick = opt.optarg ? opt.optarg : "digital_1"; break;
-            case 'z': out->zeromem = true; break;
             case 'o': out->output_file = opt.optarg; break;
             case 'd': out->dap = true; break;
             case 'p': out->dap_port = opt.optarg; break;
@@ -368,12 +368,22 @@ args_status_t args_parse_argv(char** argv, struct arguments* out, const char** e
             case KEY_SCREENSHOT: out->screenshot = opt.optarg; break;
             case KEY_FRAMES: out->frames = opt.optarg; break;
             case KEY_SEED:
-                if (!parse_seed(opt.optarg, &out->seed)) {
+                if (!parse_uint32(opt.optarg, &out->seed)) {
                     if (errmsg) *errmsg = "--seed requires an unsigned decimal or 0x hexadecimal value through 4294967295";
                     return ARGS_ERROR;
                 }
                 out->seed_supplied = true;
                 break;
+            case KEY_FILL_MEM: {
+                uint32_t value;
+                if (!parse_uint32(opt.optarg, &value) || value > UINT8_MAX) {
+                    if (errmsg) *errmsg = "--fill-mem requires a decimal or 0x hexadecimal byte value from 0 to 255";
+                    return ARGS_ERROR;
+                }
+                out->fill_mem = (uint8_t)value;
+                out->fill_mem_supplied = true;
+                break;
+            }
 
             case 'l': app_load_labels(opt.optarg, false); break;
 

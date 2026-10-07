@@ -37,7 +37,8 @@ the same whole frame.
 `failure.scr` intentionally fails; the CMake driver checks both exit code 1
 and the specific memory assertion diagnostic. Each test uses its own build
 subdirectory, a virtual display, software GL and `alsa-null.conf` as its
-process-local ALSA configuration.
+process-local ALSA configuration. Script and GUI invocations use `--fill-mem=0`
+to start with zero-filled RAM and `--seed=1` for repeatable hardware RNG bytes.
 
 The Linux GUI tests reuse this XEX and drive the real window with xdotool. The
 joystick case reads `$0300/$0301` through the emulator's existing DAP TCP service.

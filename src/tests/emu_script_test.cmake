@@ -7,7 +7,7 @@ set(ENV{LIBGL_ALWAYS_SOFTWARE} "1")
 # emulator twice does not pay for a second one.
 function(run_emulator script expected_exit)
     execute_process(
-        COMMAND "${EMU}" --disable-gui --zero-mem --seed 1
+        COMMAND "${EMU}" --disable-gui --fill-mem=0 --seed 1
                 --script "${script}" "${FIXTURE_DIR}/smoke.xex"
         WORKING_DIRECTORY "${TEST_DIR}"
         RESULT_VARIABLE result

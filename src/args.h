@@ -13,7 +13,7 @@ extern char program_version[];
 extern struct arguments {
     const char* rom;
     const char* output_file;
-    bool silent, verbose, zeromem, dap, crt, fullscreen, disable_gui, disable_speaker_icon;
+    bool silent, verbose, dap, crt, fullscreen, disable_gui, disable_speaker_icon;
     const char* dap_port;
     const char* crt_values;
     const char* break_opcode;
@@ -25,6 +25,8 @@ extern struct arguments {
     const char* frames;
     uint32_t seed;
     bool seed_supplied;
+    uint8_t fill_mem;
+    bool fill_mem_supplied;
 } arguments;
 
 void args_parse(int argc, char* argv[]);

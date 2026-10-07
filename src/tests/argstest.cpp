@@ -45,6 +45,8 @@ TEST_CASE("defaults with no arguments") {
     CHECK(a.rom == nullptr);
     CHECK_FALSE(a.seed_supplied);
     CHECK(a.seed == 0);
+    CHECK_FALSE(a.fill_mem_supplied);
+    CHECK(a.fill_mem == 0);
     CHECK(std::strcmp(a.output_file, "-") == 0);
     CHECK_FALSE(a.silent);
     CHECK_FALSE(a.verbose);
@@ -58,13 +60,12 @@ TEST_CASE("defaults with no arguments") {
 
 TEST_CASE("long boolean flags") {
     struct arguments a;
-    CHECK(parse({ "--verbose", "--fullscreen", "--zero-mem", "--disable-gui", "--dap",
+    CHECK(parse({ "--verbose", "--fullscreen", "--disable-gui", "--dap",
                   "--disable-speaker-icon" },
                 a)
           == ARGS_OK);
     CHECK(a.verbose);
     CHECK(a.fullscreen);
-    CHECK(a.zeromem);
     CHECK(a.disable_gui);
     CHECK(a.dap);
     CHECK(a.disable_speaker_icon);
@@ -72,9 +73,8 @@ TEST_CASE("long boolean flags") {
 
 TEST_CASE("short flags, including bundled") {
     struct arguments a;
-    CHECK(parse({ "-vzf" }, a) == ARGS_OK);
+    CHECK(parse({ "-vf" }, a) == ARGS_OK);
     CHECK(a.verbose);
-    CHECK(a.zeromem);
     CHECK(a.fullscreen);
 }
 
@@ -285,4 +285,60 @@ TEST_CASE("URL seed uses the same numeric validation") {
         a = args_defaults();
         CHECK(args_parse_argv(args_build_argv_from_query("emu", query), &a, nullptr) == ARGS_ERROR);
     }
+}
+
+TEST_CASE("fill-mem accepts decimal and hexadecimal bytes, with last option winning") {
+    struct arguments a;
+    struct Valid { const char* text; uint8_t value; };
+    for (const auto& v : {Valid{"0", 0}, Valid{"165", 165}, Valid{"000019", 19},
+                          Valid{"255", 255}, Valid{"0xff", 255},
+                          Valid{"0XA5", 0xA5}, Valid{"0x0", 0}}) {
+        CAPTURE(v.text);
+        REQUIRE(parse({"--fill-mem", v.text}, a) == ARGS_OK);
+        CHECK(a.fill_mem_supplied);
+        CHECK(a.fill_mem == v.value);
+    }
+    CHECK(parse({"--fill-mem=0xA5", "--fill-mem=0"}, a) == ARGS_OK);
+    CHECK(a.fill_mem_supplied);
+    CHECK(a.fill_mem == 0);
+    CHECK(parse({"--fill-mem=255", "--seed=123"}, a) == ARGS_OK);
+    CHECK(a.fill_mem == 255);
+    CHECK(a.seed_supplied);
+    CHECK(a.seed == 123);
+}
+
+TEST_CASE("fill-mem rejects missing, malformed and out-of-range values") {
+    struct arguments a;
+    const char* error = nullptr;
+    CHECK(parse({"--fill-mem"}, a, &error) == ARGS_ERROR);
+    REQUIRE(error != nullptr);
+    CHECK(std::strlen(error) > 0);
+    for (const char* value : {"", "-1", "+1", " 1", "1 ", "1 2", "1\t2", "\n1", "0x",
+                              "0X", "0xG", "1z", "1.0", "0b10", "256", "0x100",
+                              "4294967296", "9999999999999999999999999999999999999"}) {
+        CAPTURE(value);
+        error = nullptr;
+        CHECK(parse({"--fill-mem", value}, a, &error) == ARGS_ERROR);
+        REQUIRE(error != nullptr);
+        CHECK(std::strstr(error, "--fill-mem") != nullptr);
+        CHECK_FALSE(a.fill_mem_supplied);
+    }
+}
+
+TEST_CASE("URL fill-mem uses the same numeric validation") {
+    struct arguments a = args_defaults();
+    CHECK(args_parse_argv(args_build_argv_from_query("emu", "fill-mem=0XfF&fill-mem=0009"), &a, nullptr) == ARGS_OK);
+    CHECK(a.fill_mem_supplied);
+    CHECK(a.fill_mem == 9);
+    for (const char* query : {"fill-mem", "fill-mem=", "fill-mem=%2B1", "fill-mem=1+2", "fill-mem=256"}) {
+        CAPTURE(query);
+        a = args_defaults();
+        CHECK(args_parse_argv(args_build_argv_from_query("emu", query), &a, nullptr) == ARGS_ERROR);
+    }
+}
+
+TEST_CASE("former zero-mem options are rejected") {
+    struct arguments a;
+    CHECK(parse({"--zero-mem"}, a) == ARGS_ERROR);
+    CHECK(parse({"-z"}, a) == ARGS_ERROR);
 }

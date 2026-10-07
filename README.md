@@ -146,6 +146,13 @@ Windows
 
 Options use the GNU `--option` style; run `emu --help` for the full list.
 
+`--fill-mem=N` fills RAM with byte `N` before loading the ROM. Values may be
+decimal (`--fill-mem=165`) or `0x`/`0X` hexadecimal (`--fill-mem=0xA5`), from
+`0` to `255`; leading-zero values are decimal. Repeated options use the last
+valid value. Without this option, RAM is randomized. `--fill-mem=0` replaces
+the former `--zero-mem` / `-z` option and preserves its zero-filled RAM behavior.
+In the web build, use the URL query parameter `fill-mem=N`.
+
 `--fullscreen` starts fullscreen; toggle with Alt+Enter (F11 in the browser).
 Fullscreen inhibits the screensaver where supported. The status line shows
 DE-9 joystick input and merged HID gamepad directions and buttons. The UI uses
@@ -243,7 +250,7 @@ I/O window, where writes go to registers instead of video memory.
 decimal or `0x`/`0X` hexadecimal through `4294967295`; leading-zero values are decimal,
 and zero is a valid supplied seed. Repeated options use the last valid value.
 Full initialization/reboot restarts the seed; ordinary reset continues the stream.
-`--zero-mem` zeros RAM without changing the seeded guest RNG sequence.
+`--fill-mem=N` fills RAM without changing the seeded guest RNG sequence.
 Without `--seed`, the first boot chooses a random seed and logs the `--seed=N`
 needed to repeat it. Reboots reuse that seed.
 

@@ -742,11 +742,11 @@ static std::array<uint8_t, 32> guest_rng_sequence() {
     return bytes;
 }
 
-TEST_CASE("seed reproduces RAM and guest RNG independently of zero-mem") {
+TEST_CASE("seed reproduces RAM and guest RNG independently of fill-mem") {
     RestoreArguments restore;
     arguments.seed_supplied = true;
     arguments.seed = 0; // zero is a supplied seed too
-    arguments.zeromem = false;
+    arguments.fill_mem_supplied = false;
     boot(&machine, nullptr);
     // Retain the complete randomized RAM before guest code changes it.
     std::memcpy(other.ram, machine.ram, sizeof(machine.ram));
@@ -754,17 +754,22 @@ TEST_CASE("seed reproduces RAM and guest RNG independently of zero-mem") {
     boot(&machine, nullptr);
     CHECK(std::memcmp(other.ram, machine.ram, sizeof(machine.ram)) == 0);
     CHECK(guest_rng_sequence() == first);
-    arguments.zeromem = true;
-    boot(&machine, nullptr);
-    CHECK(std::all_of(std::begin(machine.ram), std::end(machine.ram), [](uint8_t b) { return b == 0; }));
-    CHECK(guest_rng_sequence() == first);
+    arguments.fill_mem_supplied = true;
+    for (uint8_t value : {0, 1, 0xA5, 0xFF}) {
+        CAPTURE(value);
+        arguments.fill_mem = value;
+        boot(&machine, nullptr);
+        CHECK(std::all_of(std::begin(machine.ram), std::end(machine.ram), [value](uint8_t b) { return b == value; }));
+        CHECK(guest_rng_sequence() == first);
+    }
 }
 
 TEST_CASE("full initialization restarts the seed while ordinary reset continues it") {
     RestoreArguments restore;
     arguments.seed_supplied = true;
     arguments.seed = 0x12345678;
-    arguments.zeromem = true;
+    arguments.fill_mem_supplied = true;
+    arguments.fill_mem = 0;
     boot(&machine, nullptr);
     const auto first = guest_rng_sequence();
     const auto second = guest_rng_sequence();
@@ -782,7 +787,8 @@ TEST_CASE("full initialization restarts the seed while ordinary reset continues 
 // cache mirrors it (install_guest writes the RAM array directly and would not).
 TEST_CASE("sprites of every depth resolve through the combined palette") {
     RestoreArguments restore;
-    arguments.zeromem = true;
+    arguments.fill_mem_supplied = true;
+    arguments.fill_mem = 0;
     boot_quiet(&machine, display_fb);
 
     // park the CPU on STP so nothing scribbles over the sprite data

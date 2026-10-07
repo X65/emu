@@ -5,10 +5,10 @@
 #include "hid.h"
 #include "firmware/src/south/term/term.h"
 
-// zeromem skips x65_init()'s 16M-iteration rand() fill of RAM, which costs more
+// A zero fill skips x65_init()'s 16M-iteration rand() fill of RAM, which costs more
 // than every case in the suite put together and leaves the machines differing
 // in memory the tests never read.
-struct arguments arguments = { .zeromem = true };
+struct arguments arguments = { .fill_mem = 0, .fill_mem_supplied = true };
 
 void hid_init(void) {}
 void hid_shutdown(void) {}
