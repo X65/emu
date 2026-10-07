@@ -75,6 +75,7 @@ Gamepads stay invisible to a web page until someone presses a button on one --
 the Gamepad API hides them from a page that has not been played with, so a pad
 plugged in before the page loaded shows up on the status line only after its
 first button press, and the browser then reveals every pad at once.
+Browser pads use raw joystick reports, preserving the firmware's button order.
 
 [3]: https://emscripten.org/docs/getting_started/downloads.html
 
@@ -89,12 +90,23 @@ Tests are built as part of the normal CMake build and run with CTest:
 `X65Test` covers execution tick accounting and frame publication, CPU/direct
 memory routing, timer IRQ and CGIA VBI NMI delivery, SGU inspection and PCM
 snapshot continuation, and local seeded RAM/RNG repeatability. It uses the same
-machine sources as the application. The existing CPU conformance runners remain
-part of CTest; the optional SingleStepTests corpus is not downloaded by the build.
+machine sources as the application. On Linux, `CPU816Suite` runs gilyon's 65816
+instruction tests and `WaiInterrupt` checks interrupt wakeup from WAI.
 
-On Linux, CMake also registers `EmuScriptSmoke`, `EmuScriptSeedRepeatability`, and
-`EmuScriptCheckFailure` when `xvfb-run` is available. Install Xvfb, xauth, and Mesa
-software rendering support before configuring. These tests run the real executable
+The optional SingleStepTests/65816 runner checks CPU state and bus cycles.
+Fetch selected opcodes and register the corpus with CTest:
+
+    tools/fetch-sst65816.sh 3d 48 cb
+    cmake -S . -B build -DSST65816_DIR="$PWD/sst65816/v1"
+    cmake --build build --target sst65816
+    ctest --test-dir build -R SST65816 --output-on-failure
+
+Omit the fetch arguments for the full corpus (~3 GB); builds never download it.
+
+On Linux, CMake also registers `EmuScriptSmoke`, `EmuScriptSeedRepeatability`,
+`EmuScriptWholeFrame`, and `EmuScriptCheckFailure` when `xvfb-run` is available.
+Install Xvfb, xauth, and Mesa software rendering support before configuring.
+These tests run the real executable
 with a virtual display and a process-local ALSA null sink. Each invocation has a
 30-second timeout; each CTest test has a 90-second timeout. Windows runs the portable
 native suites. See [fixture regeneration instructions](src/tests/fixtures/emu-smoke/README.md);
@@ -106,7 +118,7 @@ guest-visible joystick byte through DAP, covering the X11-to-Sokol input path.
 With xprop and Openbox, CMake also registers `EmuGuiWindowLifecycle`, which
 verifies window creation, title and geometry, fullscreen round trips, debug-UI
 hide/show, and a clean Ctrl+Q exit. Openbox supplies the EWMH fullscreen behavior
-that a bare Xvfb server lacks.
+that a bare Xvfb server lacks. GUI tests have a 120-second timeout.
 
 Run a single suite with `-R`, e.g. `ctest --test-dir build -R ArgsTest`.
 
@@ -134,6 +146,33 @@ Windows
 
 Options use the GNU `--option` style; run `emu --help` for the full list.
 
+`--fullscreen` starts fullscreen; toggle with Alt+Enter (F11 in the browser).
+Fullscreen inhibits the screensaver where supported. The status line shows
+DE-9 joystick input and merged HID gamepad directions and buttons. The UI uses
+the X65 mouse cursor.
+
+### Audio recording
+
+`--wav FILE` records audio at 48 kHz, stereo, 32-bit float, before host resampling.
+Recording lasts for the run and works with scripts, including scripted exits.
+
+    build/emu --wav music.wav roms/MontyOnTheRun.xex
+
+### Hardware and debugging
+
+- SGU-1's [service bank](doc/sgu-service-bank.md) provides chip identification,
+  four 64 KiB PCM banks, master volume, clip status, and selective resets.
+  Emulator reset mutes the mixer; guest code must set `MASTER_VOL` to enable output.
+  Snapshots include PCM data.
+- Hardware > SGU-1 shows service state, clip events, and reset controls.
+  The mixer slider controls master volume; the speaker icon turns red on clipping.
+- CGIA supports 1–4 bpp sprites, mirroring, and double width. The CGIA debugger
+  decodes sprite formats and colors; the VRAM debugger has a depth selector
+  and a 16-entry sprite palette.
+- RIA `EXT_IO` maps eight 64-byte chunks at `$FC00–$FDFF`: set bits select RAM,
+  clear bits select the expansion bus. No expansion cards are emulated;
+  bus reads return `$FF`. Debugger and loader access bypass this routing.
+
 ### Headless scripting
 
 `--script FILE` drives the machine from a small line-oriented script instead
@@ -143,8 +182,10 @@ instructions, stop at an address. Emulation runs at a deterministic 60 Hz
 (several frames per host frame), a failed check exits with code 1, and `exit`
 ends the run, so scripts
 double as CI smoke tests. Combine with `--disable-gui` and `xvfb-run` for a
-fully headless run. `--screenshot FILE [--frames N]` is a shortcut for
-`run N` / `shot FILE` / `exit`.
+fully headless run. `--script -` reads stdin.
+`--screenshot FILE [--frames N]` is a shortcut for `run N` / `shot FILE` / `exit`
+(default 120 frames). `shot` writes 384×240 PNGs; `shot FILE full` uses full
+resolution.
 
 `shot` and `crc` capture what the host is shown, not the raster being drawn.
 A script regains control only between fixed slices of emulated time, so a
@@ -187,25 +228,30 @@ usually merge with the dpad so either input works:
 `key` holds a set of keyboard keys, named (`w`, `up`, `lshift`, `kp0`, ...) or
 as raw USB HID usage ids; like `joy`, each call replaces the set.
 
-The verbs are documented in `src/script.h`. `peek` and `dump` use debugger-style
-inspection: timer interrupt status and SGU service status remain pending, and SGU
+The verbs are documented in [src/script.h](src/script.h). `peek` and `dump` use
+debugger-style inspection: timer interrupt status and SGU service status remain pending, and SGU
 sample-data reads preserve the sample offset. CPU bus reads still acknowledge
 status and advance SGU sample offsets. RIA FIFO/API-stack inspection returns `$FF`.
 Other read effects, including consuming hardware RNG bytes, remain unchanged.
 Direct debugger/loader access also bypasses expansion-window routing.
+
+`vpeek`, `vpoke`, and `vdump` access raw RAM as CGIA sees it, bypassing MMIO
+at `$FEC0–$FFFF`. The XEX loader warns when a bank-0 block crosses into this
+I/O window, where writes go to registers instead of video memory.
 
 `--seed N` optionally seeds randomized RAM and the hardware RNG. Values are unsigned
 decimal or `0x`/`0X` hexadecimal through `4294967295`; leading-zero values are decimal,
 and zero is a valid supplied seed. Repeated options use the last valid value.
 Full initialization/reboot restarts the seed; ordinary reset continues the stream.
 `--zero-mem` zeros RAM without changing the seeded guest RNG sequence.
+Without `--seed`, the first boot chooses a random seed and logs the `--seed=N`
+needed to repeat it. Reboots reuse that seed.
 
 Repeatability requires the same C runtime, initialization options, and inputs:
 C runtimes may produce different `rand()` sequences, and unrelated `rand()` calls
 share the stream. Snapshot restoration does not rewind RNG state. The SGU snapshot
 test covers PCM playback continuation within one executable, not complete machine
-replay or restoration of the host audio resampler. Omitting `--seed` retains the
-existing initialization behavior.
+replay or restoration of the host audio resampler.
 
 ### Opcode Breakpoints
 
