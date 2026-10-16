@@ -144,7 +144,7 @@ void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data) {
         case RIA816_UART_TX_RX: rb_put(&c->uart_tx, data); break;
 
         case RIA816_IRQ_STATUS: break;
-        case RIA816_IRQ_ENABLE: c->irq_enable = (data && 0x01); break;
+        case RIA816_IRQ_ENABLE: c->irq_enable = (data & 0x01); break;
 
         case RIA816_API_STACK:
             if (xstack_ptr) xstack[--xstack_ptr] = data;
