@@ -815,7 +815,9 @@ void _x65_api_call(uint8_t data, void* user_data) {
             sys->running = false;
             LOG_INFO("RIA API: HALT CPU");
             break;
-        default: LOG_WARNING("Unhandled RIA API call: %02x", data);
+        default:
+            api_return_errno(API_ENOSYS);
+            LOG_WARNING("Unhandled RIA API call: %02x", data);
     }
 
     // sync RIA regs back

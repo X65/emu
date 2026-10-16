@@ -491,6 +491,27 @@ TEST_CASE("RIA FIFO and API-stack inspection exceptions remain intact") {
     xstack[10] = saved_byte;
 }
 
+TEST_CASE("unimplemented RIA API ops fail with ENOSYS") {
+    boot(&machine, nullptr);
+    guest_write(0xFFF2, 0x55); // something for the failure to discard
+    guest_write(0xFFF0, 0x42);
+    CHECK(mem_rd(&machine, 0, 0xFFF3) == 0x01);
+    CHECK(mem_rd16(&machine, 0, 0xFFF0) == 12); // API_ENOSYS
+    CHECK(xstack_ptr == 0x200); // XSTACK_SIZE: emptied
+    // A handled op clears the error.
+    guest_write(0xFFF0, 0x02); // PHI2
+    CHECK(mem_rd(&machine, 0, 0xFFF3) == 0x00);
+}
+
+TEST_CASE("RIA IRQ enable keeps only the timer bit") {
+    boot(&machine, nullptr);
+    guest_write(0xFFEC, 0x02);
+    CHECK(machine.ria.irq_enable == 0);
+    guest_write(0xFFEC, 0xFF);
+    CHECK(machine.ria.irq_enable == 1);
+    guest_write(0xFFEC, 0x00);
+}
+
 TEST_CASE("device windows select chips only in bank zero") {
     boot_quiet(&machine, nullptr);
     // Writable, stable representatives: RIA operand, RGB, buzzer, timer A,
