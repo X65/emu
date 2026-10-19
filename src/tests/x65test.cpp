@@ -516,7 +516,7 @@ TEST_CASE("device windows select chips only in bank zero") {
     boot_quiet(&machine, nullptr);
     // Writable, stable representatives: RIA operand, RGB, buzzer, timer A,
     // GPIO output, CGIA background colour, SGU operator register.
-    const uint16_t windows[] = {0xFFC0, 0xFFA0, 0xFFA8, 0xFF98, 0xFF82, 0xFF34, 0xFEC0};
+    const uint16_t windows[] = {0xFFC0, 0xFFA0, 0xFFA8, 0xFF98, 0xFF82, 0xFF32, 0xFEC0};
     mem_wr(&machine, 0, 0xFEFF, 0);
     for (uint16_t address : windows) {
         CAPTURE(address);
@@ -873,9 +873,8 @@ TEST_CASE("sprites of every depth resolve through the combined palette") {
         }
     }
 
-    mem_wr(&machine, 0, 0xFF01, 0);      // bckgnd_bank
-    mem_wr(&machine, 0, 0xFF02, 0);      // sprite_bank
-    mem_wr(&machine, 0, 0xFF34, back);   // back_color
+    mem_wr(&machine, 0, 0xFF32, back);   // back_color
+    mem_wr(&machine, 0, 0xFF34, 0);      // bank[0]
     mem_wr16(&machine, 0, 0xFF38, DSC);  // offset[0]
     mem_wr(&machine, 0, 0xFF41, 0);      // plane 0 border_columns
     mem_wr(&machine, 0, 0xFF42, 0);      // plane 0 start_y

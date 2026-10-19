@@ -9,6 +9,8 @@
 
 #include "firmware/src/south/hw.h"
 
+_Static_assert(CGIA_VRAM_BUFFERS == CGIA_VRAM_BANKS, "Incorrect CGIA_VRAM_BUFFERS");
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,8 +52,9 @@ void cgia_init(cgia_t* vpu, const cgia_desc_t* desc) {
 
     vpu->hwcolors = cgia_rgb_palette;
 
-    vpu->vram[0] = vram_cache[0];
-    vpu->vram[1] = vram_cache[1];
+    for (int i = 0; i < CGIA_VRAM_BANKS; ++i) {
+        vpu->vram[i] = vram_cache[i];
+    }
 
     CGIA_vpu = vpu;
 
@@ -245,11 +248,11 @@ static inline void set_linear_scans(
     const uint8_t* colour_scan,
     const uint8_t* backgr_scan) {
     assert(memory_scan + row_height >= vram_cache[0]);
-    assert((uintptr_t)memory_scan + row_height < (uintptr_t)(vram_cache[2]));
+    assert((uintptr_t)memory_scan + row_height < (uintptr_t)(vram_cache[CGIA_VRAM_BANKS]));
     assert(colour_scan + 1 >= vram_cache[0]);
-    assert((uintptr_t)colour_scan + 1 < (uintptr_t)(vram_cache[2]));
+    assert((uintptr_t)colour_scan + 1 < (uintptr_t)(vram_cache[CGIA_VRAM_BANKS]));
     assert(backgr_scan + 1 >= vram_cache[0]);
-    assert((uintptr_t)backgr_scan + 1 < (uintptr_t)(vram_cache[2]));
+    assert((uintptr_t)backgr_scan + 1 < (uintptr_t)(vram_cache[CGIA_VRAM_BANKS]));
 
     interp0->base[0] = row_height;
     interp0->accum[0] = (uintptr_t)memory_scan;
@@ -284,7 +287,7 @@ static inline void set_mode7_interp_config(union cgia_plane_regs_t* plane) {
 }
 static inline void set_mode7_scans(union cgia_plane_regs_t* plane, const uint8_t* memory_scan) {
     assert(memory_scan >= vram_cache[0]);
-    assert((uintptr_t)memory_scan < (uintptr_t)(vram_cache[2]));
+    assert((uintptr_t)memory_scan < (uintptr_t)(vram_cache[CGIA_VRAM_BANKS]));
 
     interp0->base[2] = (uintptr_t)memory_scan;
     const uint32_t xy = (uint32_t)interp_pop_lane_result(interp1, 2);
@@ -890,7 +893,7 @@ uint32_t* cgia_encode_mode_7(uint32_t* rgbbuf, uint32_t columns) {
         for (int p = 0; p < 8; ++p) {
             uintptr_t cl_addr = interp_pop_lane_result(interp0, 2);
             assert(cl_addr >= (uintptr_t)vram_cache[0]);
-            assert(cl_addr < (uintptr_t)vram_cache[2]);
+            assert(cl_addr < (uintptr_t)vram_cache[CGIA_VRAM_BANKS]);
             *rgbbuf++ = cgia_rgb_palette[*((uint8_t*)cl_addr)];
         }
         --columns;
@@ -1000,10 +1003,12 @@ static void _copy_internal_regs(cgia_t* vpu) {
             vpu->internal[i].sprite_dsc_offsets[s] = sprite_dsc_offsets[i][s];
         }
     }
+    for (int p = 0; p < CGIA_PLANES; ++p) {
+        vpu->vram_cache[p].bank = vram_cache_bank[p];
+        vpu->vram_cache[p].cache_ptr_idx = (uint8_t)((vram_cache_ptr[p] - vram_cache[0]) / sizeof(vram_cache[0]));
+    }
     for (int i = 0; i < CGIA_VRAM_BANKS; ++i) {
-        vpu->vram_cache[i].bank = vram_cache_bank[i];
-        vpu->vram_cache[i].wanted_bank = vram_wanted_bank[i];
-        vpu->vram_cache[i].cache_ptr_idx = vram_cache_ptr[i] == vram_cache[0] ? 0 : 1;
+        vpu->vram_buf_bank[i] = vcache_buf_bank[i];
     }
     vpu->int_mask = int_mask;
 }

@@ -193,25 +193,36 @@ static void print_regs(x65_t* sys) {
     fflush(stdout);
 }
 
+// A cached memory bank as hex, or "--" for none (-1)
+static const char* cgia_bank_str(int bank, char buf[3]) {
+    if (bank < 0) return "--";
+    snprintf(buf, 3, "%02X", bank);
+    return buf;
+}
+
 static void print_cgia(x65_t* sys) {
+    char b0[3], b1[3], b2[3], b3[3];
     printf("CGIA regs $FF00:");
     for (int i = 0; i < 0x80; i++) {
         if ((i & 15) == 0) printf("\n  %02X:", i);
         printf(" %02X", cgia_reg_read((uint8_t)i));
     }
     printf(
-        "\n  raster=%u frame=%u int_mask=%02X vram_cache=[bank %u (want %u), bank %u (want %u)]\n",
+        "\n  raster=%u frame=%u int_mask=%02X vram_buf=[%s %s %s %s]\n",
         (unsigned)cgia_raster_line(),
         sys->cgia.frame_count,
         sys->cgia.int_mask,
-        sys->cgia.vram_cache[0].bank,
-        sys->cgia.vram_cache[0].wanted_bank,
-        sys->cgia.vram_cache[1].bank,
-        sys->cgia.vram_cache[1].wanted_bank);
+        cgia_bank_str(sys->cgia.vram_buf_bank[0], b0),
+        cgia_bank_str(sys->cgia.vram_buf_bank[1], b1),
+        cgia_bank_str(sys->cgia.vram_buf_bank[2], b2),
+        cgia_bank_str(sys->cgia.vram_buf_bank[3], b3));
     for (int p = 0; p < 4; p++) {
         printf(
-            "  plane%d: memory_scan=%04X colour_scan=%04X backgr_scan=%04X chargen=%04X row_line=%u wait_vbl=%d sprites_upd=%d\n",
+            "  plane%d: vram=%u bank=%s memory_scan=%04X colour_scan=%04X backgr_scan=%04X chargen=%04X row_line=%u "
+            "wait_vbl=%d sprites_upd=%d\n",
             p,
+            sys->cgia.vram_cache[p].cache_ptr_idx,
+            cgia_bank_str(sys->cgia.vram_cache[p].bank, b0),
             sys->cgia.internal[p].memory_scan,
             sys->cgia.internal[p].colour_scan,
             sys->cgia.internal[p].backgr_scan,

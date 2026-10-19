@@ -66,9 +66,9 @@ extern "C" {
     CGIA_FRAME is not a hardware pin: it pulses for one tick when the framebuffer
     holds exactly one complete frame, which is when a host can copy it untorn.
 
-    CGIA has its own 2*64kB of fast SRAM memory to generate video from.
-    It is used to mirror two banks of CPU RAM (bckgnd_bank and sprite_bank).
-    It is done when an internal bank register is changed, then if the bank
+    CGIA has its own 4*64kB of fast SRAM memory to generate video from.
+    It is used to mirror the banks of CPU RAM the planes read (bank[0..3]).
+    It is done when a plane bank register is changed, then if the bank
     is not currently cached a DMA copy of 64kB is triggered from CPU memory.
     Afterwards, CGIA monitors every memory write on data bus and updates local
     VRAM caches accordingly.
@@ -169,6 +169,9 @@ typedef uint8_t (*cgia_fetch_t)(uint32_t data, void* user_data);
 // CGIA has 7 address lines
 #define CGIA_NUM_REGS (1U << 7)
 
+// number of 64kB VRAM cache buffers, one per plane
+#define CGIA_VRAM_BUFFERS (4)
+
 // the cgia setup parameters
 typedef struct {
     // the CPU tick rate in hz
@@ -209,12 +212,13 @@ typedef struct {
         uint16_t sprite_dsc_offsets[8];
     } internal[4];
 
-    // VRAM cache information
+    // VRAM cache information, per plane
     struct {
-        uint32_t bank;
-        uint32_t wanted_bank;
+        int bank;  // memory bank valid in the plane's buffer, -1 while not synced
         uint8_t cache_ptr_idx;
-    } vram_cache[2];
+    } vram_cache[4];
+    // memory bank each VRAM buffer holds or is being filled with, -1: none
+    int vram_buf_bank[CGIA_VRAM_BUFFERS];
 
     // Interrupt mask
     uint8_t int_mask;
@@ -228,7 +232,7 @@ typedef struct {
     // hardware colors
     uint32_t* hwcolors;
     // VRAM banks
-    uint8_t* vram[2];
+    uint8_t* vram[CGIA_VRAM_BUFFERS];
     // rasterizer linebuffer
     uint32_t linebuffer[2][CGIA_LINEBUFFER_WIDTH];
     uint8_t linebuffer_idx;

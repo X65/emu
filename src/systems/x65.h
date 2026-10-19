@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 // bump snapshot version when x65_t memory layout changes
-#define X65_SNAPSHOT_VERSION (6)
+#define X65_SNAPSHOT_VERSION (7)
 
 #define X65_NO_BREAK_ADDR (0xFFFFFFFFu)  // x65_t.hooks.break_addr value that never matches
 

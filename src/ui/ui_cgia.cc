@@ -81,18 +81,20 @@ static void _ui_cgia_draw_registers(const ui_cgia_t* win) {
         ui_util_b8("mode  : ", chip->mode);
         ui_util_b8("planes: ", chip->planes);
 
-        ImGui::Text(
-            "bckgnd_bank: %02X (VRAM%d: %02X/%02X)",
-            chip->bckgnd_bank,
-            win->cgia->vram_cache[0].cache_ptr_idx,
-            win->cgia->vram_cache[0].bank,
-            win->cgia->vram_cache[0].wanted_bank);
-        ImGui::Text(
-            "sprite_bank: %02X (VRAM%d: %02X/%02X)",
-            chip->sprite_bank,
-            win->cgia->vram_cache[1].cache_ptr_idx,
-            win->cgia->vram_cache[1].bank,
-            win->cgia->vram_cache[1].wanted_bank);
+        for (int p = 0; p < CGIA_PLANES; ++p) {
+            const int cached = win->cgia->vram_cache[p].bank;
+            if (cached < 0) {
+                ImGui::Text("bank[%d]: %02X (VRAM%d: --)", p, chip->bank[p], win->cgia->vram_cache[p].cache_ptr_idx);
+            }
+            else {
+                ImGui::Text(
+                    "bank[%d]: %02X (VRAM%d: %02X)",
+                    p,
+                    chip->bank[p],
+                    win->cgia->vram_cache[p].cache_ptr_idx,
+                    cached);
+            }
+        }
 
         _ui_cgia_draw_color(win, "back_color: ", chip->back_color);
 
@@ -127,8 +129,8 @@ static void _ui_cgia_draw_raster_unit(const ui_cgia_t* win) {
     }
 }
 
-static void _ui_cgia_decode_DL(const cgia_t* cgia, uint16_t offset) {
-    uint8_t* ptr = cgia->vram[0] + offset;
+static void _ui_cgia_decode_DL(const cgia_t* cgia, size_t p, uint16_t offset) {
+    uint8_t* ptr = cgia->vram[cgia->vram_cache[p].cache_ptr_idx] + offset;
     uint8_t dl_instr = *ptr;
     switch (dl_instr & 0x0F) {
         case 0x0:  // INSTR0 - blank lines
@@ -203,10 +205,10 @@ static void _ui_cgia_draw_bg_plane(const ui_cgia_t* win, size_t p) {
         win->cgia->internal[p].colour_scan,
         win->cgia->internal[p].backgr_scan,
         win->cgia->internal[p].chargen_offset);
-    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->bckgnd_bank << 16) | chip->offset[p]);
+    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->bank[p] << 16) | chip->offset[p]);
 
     ImGui::SameLine();
-    _ui_cgia_decode_DL(win->cgia, chip->offset[p]);
+    _ui_cgia_decode_DL(win->cgia, p, chip->offset[p]);
     ui_util_b8("flags: ", chip->plane[p].bckgnd.flags);
     _ui_cgia_decode_BG_flags(chip->plane[p].bckgnd.flags);
     ImGui::Text("border: %03d columns", chip->plane[p].bckgnd.border_columns);
@@ -260,7 +262,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
         ImGui::SameLine();
         ImGui::Text(" Need update");
     }
-    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->sprite_bank << 16) | chip->offset[p]);
+    ImGui::Text("offset:%04X (mem:%06X)", chip->offset[p], (chip->bank[p] << 16) | chip->offset[p]);
 
     ui_util_b8("sprites active: ", chip->plane[p].sprite.active);
     ImGui::Text("border: %03d columns", chip->plane[p].sprite.border_columns);
@@ -278,7 +280,7 @@ static void _ui_cgia_draw_sprite_plane(const ui_cgia_t* win, size_t p) {
     ImGui::Separator();
     const float cw0 = 10.0f;
     const float cw = 46.0f;
-    uint8_t* vram = win->cgia->vram[win->cgia->vram_cache[1].cache_ptr_idx];
+    uint8_t* vram = win->cgia->vram[win->cgia->vram_cache[p].cache_ptr_idx];
     if (ImGui::BeginTable("##sprite_descriptors", 13)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cw0);
         ImGui::TableSetupColumn("Offs", ImGuiTableColumnFlags_WidthFixed, cw);
