@@ -733,7 +733,7 @@ void ui_vram_debugger_draw(ui_vram_debugger_t* win) {
 
     /* ---------------- LEFT: image + side scrollbar ---------------- */
     const float right_w = 344.0f;
-    ImGui::BeginChild("##vram_dbg_image", ImVec2(-right_w, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild("##vram_dbg_image", ImVec2(-right_w, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
     const bool image_hovered = ImGui::IsWindowHovered();
 
     /* address scrollbar — vertical slider beside the image, drives `addr`.
@@ -817,7 +817,7 @@ void ui_vram_debugger_draw(ui_vram_debugger_t* win) {
     ImGui::SameLine();
 
     /* ---------------- RIGHT: controls ---------------- */
-    ImGui::BeginChild("##vram_dbg_ctl", ImVec2(0, 0), true);
+    ImGui::BeginChild("##vram_dbg_ctl", ImVec2(0, 0), ImGuiChildFlags_Borders);
 
     /* Source memory */
     ImGui::SeparatorText("Source");

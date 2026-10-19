@@ -165,7 +165,7 @@ void ui_draw_sokol_menu(void) {
     sgimgui_draw_menu("Sokol");
 }
 
-void ui_draw(const gfx_draw_info_t* gfx_draw_info) {
+void ui_update(const gfx_ui_info_t* gfx_ui_info) {
     handle_save_imgui_ini();
     simgui_new_frame({sapp_width(), sapp_height(), sapp_frame_duration(), sapp_dpi_scale() });
 
@@ -174,18 +174,22 @@ void ui_draw(const gfx_draw_info_t* gfx_draw_info) {
     ImGui::DockSpaceOverViewport(dockspace, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
     if (state.draw_cb) {
         ui_draw_info_t ui_draw_info = {};
-        if (gfx_draw_info) {
-            ui_draw_info.display.tex = simgui_imtextureid_with_sampler(gfx_draw_info->display_texview, gfx_draw_info->display_sampler);
-            ui_draw_info.display.dim = gfx_draw_info->display_info.frame.dim;
-            ui_draw_info.display.screen = gfx_draw_info->display_info.screen;
+        if (gfx_ui_info) {
+            ui_draw_info.display.tex = simgui_imtextureid_with_sampler(gfx_ui_info->display_texview, gfx_ui_info->display_sampler);
+            ui_draw_info.display.dim = gfx_ui_info->display_info.frame.dim;
+            ui_draw_info.display.screen = gfx_ui_info->display_info.screen;
             ui_draw_info.display.pixel_aspect = gfx_pixel_aspect();
-            ui_draw_info.display.portrait = gfx_draw_info->display_info.portrait;
+            ui_draw_info.display.portrait = gfx_ui_info->display_info.portrait;
             ui_draw_info.display.origin_top_left = sg_query_features().origin_top_left;
         }
         state.draw_cb(&ui_draw_info);
     }
     sgimgui_draw();
-    simgui_render();
+    simgui_flush();
+}
+
+void ui_draw(void) {
+    simgui_draw();
 }
 
 bool ui_input(const sapp_event* event) {
@@ -198,7 +202,7 @@ ui_texture_t ui_create_texture(int w, int h, const char* label) {
         sg_make_view({
             .texture = {
                 .image = sg_make_image({
-                    .usage = { .stream_update = true },
+                    .usage = { .write_transient = true },
                     .width = w,
                     .height = h,
                     .pixel_format = SG_PIXELFORMAT_RGBA8,
@@ -212,10 +216,11 @@ ui_texture_t ui_create_texture(int w, int h, const char* label) {
 }
 
 void ui_update_texture(ui_texture_t h, void* data, int data_byte_size) {
-    sg_image img = sg_query_view_image(simgui_texture_view_from_imtextureid(h));
-    sg_image_data img_data = { };
-    img_data.mip_levels[0] = { .ptr = data, .size = (size_t) data_byte_size };
-    sg_update_image(img, img_data);
+    sg_write_image_desc desc = { };
+    desc.dst.image = sg_query_view_image(simgui_texture_view_from_imtextureid(h));
+    desc.src.data.ptr = data;
+    desc.src.data.size = (size_t)data_byte_size;
+    sg_write_image_transient(&desc);
 }
 
 void ui_destroy_texture(ui_texture_t h) {

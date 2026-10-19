@@ -639,7 +639,7 @@ static void _ui_dbg_history_draw(ui_dbg_t* win) {
     if (ImGui::Begin(win->ui.history.title, &win->ui.history.open)) {
         const float line_height = ImGui::GetTextLineHeight();
         ImGui::SetNextWindowContentSize(ImVec2(0, UI_DBG_NUM_HISTORY_ITEMS * line_height));
-        ImGui::BeginChild("##main", ImGui::GetContentRegionAvail(), false);
+        ImGui::BeginChild("##main", ImGui::GetContentRegionAvail());
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0,0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0,0));
         const float glyph_width = ImGui::CalcTextSize("F").x;
@@ -1030,7 +1030,7 @@ static void _ui_dbg_bp_draw(ui_dbg_t* win) {
         _ui_dbg_bp_draw_delete_all_modal(win, "Delete All?");
         int del_bp_index = -1;
         ImGui::Separator();
-        ImGui::BeginChild("##bp_list", ImVec2(0, 0), false);
+        ImGui::BeginChild("##bp_list", ImVec2(0, 0));
         for (int i = 0; i < win->dbg.num_breakpoints; i++) {
             ImGui::PushID(i);
             ui_dbg_breakpoint_t* bp = &win->dbg.breakpoints[i];
@@ -1319,7 +1319,7 @@ static void _ui_dbg_heatmap_draw(ui_dbg_t* win) {
         if (ImGui::IsItemHovered() && (hm->autoclear_interval == 0)) {
             ImGui::SetTooltip("Slide to >0 to automatically\nclear every Nth frames.");
         }
-        ImGui::BeginChild("##tex", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::BeginChild("##tex", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
         ImVec2 screen_pos = ImGui::GetCursorScreenPos();
         ImVec2 mouse_pos = ImGui::GetMousePos();
         float w = (float) (hm->scale * hm->tex_width);
@@ -1878,7 +1878,7 @@ static bool _ui_dbg_line_array_needs_update(ui_dbg_t* win, uint32_t addr) {
 static void _ui_dbg_draw_main(ui_dbg_t* win) {
     const float line_height = ImGui::GetTextLineHeight();
     ImGui::SetNextWindowContentSize(ImVec2(0, UI_DBG_NUM_LINES * line_height));
-    ImGui::BeginChild("##main", ImGui::GetContentRegionAvail(), false);
+    ImGui::BeginChild("##main", ImGui::GetContentRegionAvail());
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0,0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0,0));
     const float glyph_width = ImGui::CalcTextSize("F").x;

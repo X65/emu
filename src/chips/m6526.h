@@ -204,6 +204,7 @@ extern "C" {
 
 #define M6526_PIP_IRQ       (0)
 #define M6526_PIP_READ_ICR  (8)
+#define M6526_PIP_CLEAR_IR  (16)
 
 // I/O port state
 typedef struct {
@@ -220,6 +221,7 @@ typedef struct {
     uint8_t cr;         // control register
     bool t_bit;         // toggles between true and false when counter underflows
     bool t_out;         // true for 1 cycle when counter underflow
+    bool t_load;        // true for 1 cycle when the counter was reloaded from the latch
     /* merged delay-pipelines:
         2-cycle 'counter active':   bits 0..7
         1-cycle 'oneshot active':   bits 8..15
@@ -236,9 +238,13 @@ typedef struct {
     /* merged delay pipelines:
         1-cycle delay pipeline to request irq:  bits 0..7
         timer B bug: remember reads from ICR:   bits 8..15
+        delayed clear-on-read of the IR bit:    bits 16..23
     */
     uint32_t pip;
     bool flag;              // last state of flag bit, to detect edge
+    bool irq;               // state of the IRQ output line (not the same as ICR bit 7!)
+    bool ir_now;            // an interrupt is being triggered in this very cycle
+    bool ir_block;          // ...but the ICR was read in the previous cycle
 } m6526_int_t;
 
 // m6526 state
@@ -302,6 +308,7 @@ static void _m6526_init_timer(m6526_timer_t* t) {
     t->cr = 0;
     t->t_bit = 0;
     t->t_out = 0;
+    t->t_load = 0;
     t->pip = 0;
 }
 
@@ -350,6 +357,10 @@ static inline void _m6526_read_port_pins(m6526_t* c, uint64_t pins) {
     c->pb.inp = M6526_GET_PB(pins);
 }
 
+static inline uint8_t _m6526_port_pins(const m6526_port_t* p) {
+    return (uint8_t) ((p->reg | ~p->ddr) & p->inp);
+}
+
 static inline uint8_t _m6526_merge_pb67(const m6526_t* c, uint8_t data) {
     /* merge timer state bits into data byte */
     if (M6526_PBON(c->ta.cr)) {
@@ -386,8 +397,8 @@ static inline uint8_t _m6526_merge_pb67(const m6526_t* c, uint8_t data) {
 }
 
 static inline uint64_t _m6526_write_port_pins(m6526_t* c, uint64_t pins) {
-    c->pa.pins = c->pa.reg | (c->pa.inp & ~c->pa.ddr);
-    c->pb.pins = _m6526_merge_pb67(c, c->pb.reg | (c->pb.inp & ~c->pb.ddr));
+    c->pa.pins = _m6526_port_pins(&c->pa);
+    c->pb.pins = _m6526_merge_pb67(c, _m6526_port_pins(&c->pb));
     M6526_SET_PAB(pins, c->pa.pins, c->pb.pins);
     return pins;
 }
@@ -414,18 +425,54 @@ static void _m6526_write_icr(m6526_t* c, uint8_t data) {
     if (c->intr.icr & c->intr.imr1) {
         _M6526_PIP_SET(c->intr.pip, M6526_PIP_IRQ, 1);
     }
+    else {
+        /* ...but clearing the mask bit in the *same* cycle as the interrupt
+           condition still kills the interrupt, because it hasn't left the
+           1-cycle delay pipeline yet (its output bit is only sampled in
+           _m6526_update_irq() of the next tick).
+
+           Pinned by Wilfred Bos' dd0dtest (tests/vice-tests/CIA/dd0dtest in
+           chips-test): test 11 writes $01 to $dd0d exactly in the timer A
+           underflow cycle and must *not* see an NMI. Test 10 pins the opposite
+           direction: the same write one cycle later comes too late, the
+           interrupt has already happened and the NMI must be taken.
+
+           NOTE: this is old-CIA behaviour (which is what's emulated here, the
+           dd0dtest detects that and checks against its 'expected1' table). On
+           a new CIA the interrupt survives the mask write - that's what the
+           $01 vs $81 difference between icr-oneshot-old.ref and
+           icr-oneshot-new.ref in tests/vice-tests/CIA/shiftregister is.
+        */
+        _M6526_PIP_CLR(c->intr.pip, M6526_PIP_IRQ, 0);
+    }
 }
 
 static uint8_t _m6526_read_icr(m6526_t* c) {
-    /* the icr register is cleared after reading, this will also cause the
-       IRQ line to go inactive, also the irq 1-cycle-delay pipeline is
-       set to cleared state.
+    /* reading the ICR clears it, releases the IRQ line and cancels an
+       interrupt that is still in the 1-cycle delay pipeline
        see Figure 5 https://ist.uwaterloo.ca/~schepers/MJK/cia6526.html
+
+       ...but the IR bit (bit 7) isn't quite the same signal as the IRQ line,
+       and Wilfred Bos' dd0dtest (tests/vice-tests/CIA/dd0dtest in chips-test)
+       pins down two places where they come apart:
+
+       - a read in the cycle the interrupt is triggered still *returns* bit 7
+         set, it only stops the bit from latching and the IRQ line from going
+         active (test 0C/0E/12/13: the dummy read of an 'inc $dd0d,x' lands in
+         the timer A underflow cycle and the real read one cycle later, which
+         must see $80 so that the read-modify-write puts the mask back
+         *enabled*)
+       - the clear-on-read of bit 7 lags the flag bits by one cycle, so a read
+         in the cycle right after another read still sees it (test 0D)
     */
     uint8_t data = c->intr.icr;
-    c->intr.icr = 0;
-    /* cancel an interrupt pending in the pipeline */
-    _M6526_PIP_RESET(c->intr.pip, M6526_PIP_IRQ)
+    if (c->intr.ir_now) {
+        data |= (1<<7);
+    }
+    c->intr.icr &= (1<<7);
+    _M6526_PIP_SET(c->intr.pip, M6526_PIP_CLEAR_IR, 1);
+    c->intr.irq = false;
+    c->intr.ir_block = true;
     /* remember reads from ICR to implement "Timer B Bug" */
     _M6526_PIP_SET(c->intr.pip, M6526_PIP_READ_ICR, 0);
     return data;
@@ -440,9 +487,15 @@ static uint64_t _m6526_update_irq(m6526_t* c, uint64_t pins) {
     }
     /* timer B underflow interrupt flag? */
     if (c->tb.t_out) {
-        /* "Timer B Bug": reads from ICR block timer B interrupt generation */
+        /* "Timer B Bug": a read from the ICR in the same cycle eats the timer B
+           flag bit, but the interrupt itself is still generated - the handler
+           then sees an ICR with the IR bit set and no cause bit ($80)
+        */
         if (!_M6526_PIP_TEST(c->intr.pip, M6526_PIP_READ_ICR, 0)) {
             c->intr.icr |= (1<<1);
+        }
+        else if (c->intr.imr & (1<<1)) {
+            _M6526_PIP_SET(c->intr.pip, M6526_PIP_IRQ, 1);
         }
     }
     /* check for FLAG pin trigger */
@@ -453,13 +506,21 @@ static uint64_t _m6526_update_irq(m6526_t* c, uint64_t pins) {
 
     /* FIXME: ALARM, SP interrupt conditions */
 
-    /* handle main interrupt bit */
-    if (_M6526_PIP_TEST(c->intr.pip, M6526_PIP_IRQ, 0)) {
-        c->intr.icr |= (1<<7);
+    /* handle main interrupt bit: the delayed clear from a read two cycles ago
+       first, so that an interrupt triggered in this cycle still wins
+    */
+    if (_M6526_PIP_TEST(c->intr.pip, M6526_PIP_CLEAR_IR, 0)) {
+        c->intr.icr &= ~(1<<7);
     }
+    c->intr.ir_now = _M6526_PIP_TEST(c->intr.pip, M6526_PIP_IRQ, 0);
+    if (c->intr.ir_now && !c->intr.ir_block) {
+        c->intr.icr |= (1<<7);
+        c->intr.irq = true;
+    }
+    c->intr.ir_block = false;
 
     /* update IRQ pin */
-    if (0 != (c->intr.icr & (1<<7))) {
+    if (c->intr.irq) {
         pins |= M6526_IRQ;
     }
     else {
@@ -492,7 +553,8 @@ static void _m6526_tick_timer(m6526_timer_t* t) {
     }
 
     /* reload counter from latch? */
-    if (_M6526_PIP_TEST(t->pip, M6526_PIP_TIMER_LOAD, 0)) {
+    t->t_load = _M6526_PIP_TEST(t->pip, M6526_PIP_TIMER_LOAD, 0);
+    if (t->t_load) {
         t->counter = t->latch;
         _M6526_PIP_CLR(t->pip, M6526_PIP_TIMER_COUNT, 1);
     }
@@ -551,8 +613,12 @@ static void _m6526_tick_pipeline(m6526_t* c) {
         _M6526_PIP_SET(c->tb.pip, M6526_PIP_TIMER_ONESHOT, 1);
     }
 
-    /* interrupt pipeline */
-    if (c->intr.icr & c->intr.imr) {
+    /* interrupt pipeline (NOTE: uses the new mask imr1, not the delayed imr,
+       otherwise a mask bit cleared in the underflow cycle would immediately
+       re-arm the interrupt here from the still-set flag bit, undoing the
+       cancellation in _m6526_write_icr() - see dd0dtest test 11)
+    */
+    if (c->intr.icr & c->intr.imr1) {
         _M6526_PIP_SET(c->intr.pip, M6526_PIP_IRQ, 1);
     }
     c->intr.imr = c->intr.imr1;
@@ -586,10 +652,10 @@ uint8_t m6526_peek(const m6526_t* c, uint8_t addr) {
     uint8_t data = 0xFF;
     switch (addr) {
         case M6526_REG_PRA:
-            data = c->pa.inp;
+            data = _m6526_port_pins(&c->pa);
             break;
         case M6526_REG_PRB:
-            data = _m6526_merge_pb67(c, c->pb.inp);
+            data = _m6526_merge_pb67(c, _m6526_port_pins(&c->pb));
             break;
         case M6526_REG_DDRA:
             data = c->pa.ddr;
@@ -633,6 +699,23 @@ uint8_t m6526_read(m6526_t* c, uint8_t addr) {
     return m6526_peek(c, addr);
 }
 
+/* NOTE: a latch write in the same cycle the counter is reloaded from the latch
+   also lands in the counter
+*/
+static inline void _m6526_write_latch_lo(m6526_timer_t* t, uint8_t data) {
+    t->latch = (t->latch & 0xFF00) | data;
+    if (t->t_load) {
+        t->counter = (t->counter & 0xFF00) | data;
+    }
+}
+
+static inline void _m6526_write_latch_hi(m6526_timer_t* t, uint8_t data) {
+    t->latch = (data<<8) | (t->latch & 0x00FF);
+    if (t->t_load) {
+        t->counter = (data<<8) | (t->counter & 0x00FF);
+    }
+}
+
 static void _m6526_write(m6526_t* c, uint8_t addr, uint8_t data) {
     switch (addr) {
         case M6526_REG_PRA:
@@ -648,20 +731,20 @@ static void _m6526_write(m6526_t* c, uint8_t addr, uint8_t data) {
             c->pb.ddr = data;
             break;
         case M6526_REG_TALO:
-            c->ta.latch = (c->ta.latch & 0xFF00) | data;
+            _m6526_write_latch_lo(&c->ta, data);
             break;
         case M6526_REG_TAHI:
-            c->ta.latch = (data<<8) | (c->ta.latch & 0x00FF);
+            _m6526_write_latch_hi(&c->ta, data);
             /* if timer is not running, writing hi-byte load counter form latch */
             if (!M6526_TIMER_STARTED(c->ta.cr)) {
                 _M6526_PIP_SET(c->ta.pip, M6526_PIP_TIMER_LOAD, 1);
             }
             break;
         case M6526_REG_TBLO:
-            c->tb.latch = (c->tb.latch & 0xFF00) | data;
+            _m6526_write_latch_lo(&c->tb, data);
             break;
         case M6526_REG_TBHI:
-            c->tb.latch = (data<<8) | (c->tb.latch & 0x00FF);
+            _m6526_write_latch_hi(&c->tb, data);
             /* if timer is not running, writing hi-byte writes latch */
             if (!M6526_TIMER_STARTED(c->tb.cr)) {
                 _M6526_PIP_SET(c->tb.pip, M6526_PIP_TIMER_LOAD, 1);

@@ -376,11 +376,11 @@ void ui_cgia_draw(ui_cgia_t* win) {
     ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(win->title, &win->open)) {
-        ImGui::BeginChild("##cgia_chip", ImVec2(176, 0), true);
+        ImGui::BeginChild("##cgia_chip", ImVec2(176, 0), ImGuiChildFlags_Borders);
         ui_chip_draw(&win->chip, win->cgia->pins);
         ImGui::EndChild();
         ImGui::SameLine();
-        ImGui::BeginChild("##cgia_state", ImVec2(0, 0), true);
+        ImGui::BeginChild("##cgia_state", ImVec2(0, 0), ImGuiChildFlags_Borders);
         _ui_cgia_draw_hwcolors(win);
         _ui_cgia_draw_registers(win);
         _ui_cgia_draw_raster_unit(win);

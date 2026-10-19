@@ -171,11 +171,11 @@ void ui_w65816_draw(ui_w65816_t* win) {
     ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(win->title, &win->open)) {
-        ImGui::BeginChild("##w65816_chip", ImVec2(176, 0), true);
+        ImGui::BeginChild("##w65816_chip", ImVec2(176, 0), ImGuiChildFlags_Borders);
         ui_chip_draw(&win->chip, win->cpu->PINS);
         ImGui::EndChild();
         ImGui::SameLine();
-        ImGui::BeginChild("##w65816_regs", ImVec2(0, 0), true);
+        ImGui::BeginChild("##w65816_regs", ImVec2(0, 0), ImGuiChildFlags_Borders);
         _ui_w65816_regs(win);
         ImGui::EndChild();
     }

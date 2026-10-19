@@ -140,11 +140,11 @@ void ui_tca6416a_draw(ui_tca6416a_t* win) {
     ImGui::SetNextWindowPos(ImVec2(win->init_x, win->init_y), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(win->init_w, win->init_h), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(win->title, &win->open)) {
-        ImGui::BeginChild("##tca6416a_chip", ImVec2(222, 0), true);
+        ImGui::BeginChild("##tca6416a_chip", ImVec2(222, 0), ImGuiChildFlags_Borders);
         ui_chip_draw(&win->chip, win->gpio->pins);
         ImGui::EndChild();
         ImGui::SameLine();
-        ImGui::BeginChild("##tca6416a_state", ImVec2(0, 0), true);
+        ImGui::BeginChild("##tca6416a_state", ImVec2(0, 0), ImGuiChildFlags_Borders);
         _ui_tca6416a_draw_state(win);
         ImGui::EndChild();
     }

@@ -132,11 +132,17 @@ static gfx_border_t gui_border(bool no_gui) {
 }
 
 #ifdef CHIPS_USE_UI
-// gfx draw_extra dispatch: gated on disable_gui at call time so the menu can
+// gfx UI dispatch: gated on disable_gui at call time so the menu can
 // toggle UI visibility at runtime (init-time gating would lock the choice in)
-static void ui_draw_extra(const gfx_draw_info_t* draw_info) {
+static void ui_update_gated(const gfx_ui_info_t* ui_info) {
     if (!disable_gui) {
-        ui_draw(draw_info);
+        ui_update(ui_info);
+    }
+}
+
+static void ui_draw_gated(void) {
+    if (!disable_gui) {
+        ui_draw();
     }
 }
 
@@ -326,8 +332,9 @@ void app_init(void) {
     gfx_init(&(gfx_desc_t){
         .disable_speaker_icon = arguments.disable_speaker_icon,
 #ifdef CHIPS_USE_UI
-        .init_extra_cb = ui_preinit,
-        .draw_extra_cb = ui_draw_extra,
+        .init_ui_cb = ui_preinit,
+        .update_ui_cb = ui_update_gated,
+        .draw_ui_cb = ui_draw_gated,
 #endif
         .border = gui_border(disable_gui),
         .display_info = x65_display_info(&state.x65),

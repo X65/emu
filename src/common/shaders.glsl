@@ -1,68 +1,28 @@
-@vs offscreen_vs
-layout(location=0) in vec2 in_pos;
-layout(location=1) in vec2 in_uv;
-
-layout(binding=0) uniform offscreen_vs_params {
-    vec2 uv_offset;
-    vec2 uv_scale;
+// CRT post-process display shader, injected into sokol_framebuffer.h via
+// sfb_render_ex(). The vertex stage mirrors sfb's own render shader: a
+// buffer-less fullscreen triangle, with the 'rotate' uniform sfb applies to
+// slot 0 itself; texture and sampler slot 0 are sfb's offscreen image.
+@vs display_crt_vs
+layout(binding=0) uniform render_vs_params {
+    int rotate;
 };
-
 out vec2 uv;
 void main() {
-    gl_Position = vec4(in_pos*2.0-1.0, 0.5, 1.0);
-    uv = (in_uv * uv_scale) + uv_offset;
+    float x = ((gl_VertexIndex & 1) != 0) ? 2.0 : 0.0;
+    float y = ((gl_VertexIndex & 2) != 0) ? 2.0 : 0.0;
+    gl_Position = vec4(vec2(x, y) * 2.0 - 1.0, 0.5, 1.0);
+    if (rotate == 0) {
+        uv = vec2(x, 1.0 - y);
+    } else {
+        uv = vec2(1.0 - y, 1.0 - x);
+    }
 }
 @end
 
-@fs offscreen_fs
-layout(binding=0) uniform texture2D fb_tex;
-layout(binding=0) uniform sampler smp;
-in vec2 uv;
-out vec4 frag_color;
-void main() {
-    frag_color = texture(sampler2D(fb_tex, smp), uv);
-}
-@end
-
-// offscreen shader with color palette decoding
-@fs offscreen_pal_fs
-layout(binding=0) uniform texture2D fb_tex;
-layout(binding=1) uniform texture2D pal_tex;
-layout(binding=0) uniform sampler smp;
-in vec2 uv;
-out vec4 frag_color;
-void main() {
-    float pix = texture(sampler2D(fb_tex, smp), uv).x;
-    frag_color = vec4(texture(sampler2D(pal_tex, smp), vec2(pix,0)).xyz, 1.0);
-}
-@end
-
-@vs display_vs
-layout(location=0) in vec2 in_pos;
-layout(location=1) in vec2 in_uv;
-out vec2 uv;
-void main() {
-    gl_Position = vec4(in_pos*2.0-1.0, 0.5, 1.0);
-    uv = in_uv;
-}
-@end
-
-@fs display_fs
-layout(binding=0) uniform texture2D tex;
-layout(binding=0) uniform sampler smp;
-in vec2 uv;
-out vec4 frag_color;
-
-void main() {
-    frag_color = vec4(texture(sampler2D(tex, smp), uv).xyz, 1.0);
-}
-@end
-
-// CRT post-process display shader (parallel to display_fs)
 @fs display_crt_fs
 layout(binding=0) uniform texture2D crt_tex;
 layout(binding=0) uniform sampler crt_smp;
-layout(binding=0) uniform display_crt_fs_params {
+layout(binding=1) uniform display_crt_fs_params {
     vec2  output_size;
     float scanline_intensity;
     float mask_intensity;
@@ -114,7 +74,4 @@ void main() {
 }
 @end
 
-@program offscreen offscreen_vs offscreen_fs
-@program offscreen_pal offscreen_vs offscreen_pal_fs
-@program display display_vs display_fs
-@program display_crt display_vs display_crt_fs
+@program display_crt display_crt_vs display_crt_fs
