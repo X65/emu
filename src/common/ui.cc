@@ -16,6 +16,7 @@
 #include <stdlib.h> // calloc
 #include <stdio.h> // snprintf
 #include "ui/ui_display.h"
+#include "ui/ui_util.h"
 
 #include "AtariST8x16SystemFont.c"
 #include "lucide.c"
@@ -116,6 +117,7 @@ void ui_init(const ui_desc_t* desc) {
         &font_cfg,
         icon_ranges);
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ui_util_style_colors_dark();
     auto& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowBorderSize = 1.0f;

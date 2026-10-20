@@ -76,6 +76,8 @@ void ui_util_b24(const char* label, uint32_t val);
 void ui_util_b32(const char* label, uint32_t val);
 // get an ImGui style color (ImGuiCol_*) with overall alpha applied
 uint32_t ui_util_color(int imgui_color);
+// apply ImGui's dark style: pre-1.93 window colors with x65.zone accents
+void ui_util_style_colors_dark(void);
 // inject the common options menu
 void ui_util_options_menu(void);
 // check if window open state has changed and call ImGui::MarkIniSettingsDirty() if needed
@@ -213,13 +215,67 @@ uint32_t ui_util_color(int imgui_color) {
     return ImColor(c);
 }
 
+void ui_util_style_colors_dark(void) {
+    ImGui::StyleColorsDark();
+    // Dear ImGui 1.93 made the dark WindowBg an opaque grey and FrameBg black;
+    // keep the semi-transparent black windows the emulator display shows through
+    ImVec4* colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_TextDisabled]       = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    colors[ImGuiCol_WindowBg]           = ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
+    colors[ImGuiCol_DockingEmptyBg]     = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    colors[ImGuiCol_TableHeaderBg]      = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+    colors[ImGuiCol_TableBorderStrong]  = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+    colors[ImGuiCol_TableBorderLight]   = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+
+    // accents from the x65.zone palette (https://x65.zone/assets/style.css)
+    const ImVec4 main_bg      = ImVec4(14 / 255.0f, 83 / 255.0f, 111 / 255.0f, 1.0f);
+    const ImVec4 main_fg      = ImVec4(144 / 255.0f, 213 / 255.0f, 241 / 255.0f, 1.0f);
+    const ImVec4 strong_fg    = ImVec4(187 / 255.0f, 244 / 255.0f, 250 / 255.0f, 1.0f);
+    const ImVec4 secondary_bg = ImVec4(5 / 255.0f, 37 / 255.0f, 68 / 255.0f, 1.0f);
+    const ImVec4 secondary_fg = ImVec4(69 / 255.0f, 134 / 255.0f, 160 / 255.0f, 1.0f);
+    auto alpha = [](ImVec4 c, float a) { c.w = a; return c; };
+    colors[ImGuiCol_FrameBg]            = alpha(main_bg, 0.54f);
+    colors[ImGuiCol_FrameBgHovered]     = alpha(secondary_fg, 0.40f);
+    colors[ImGuiCol_FrameBgActive]      = alpha(secondary_fg, 0.67f);
+    colors[ImGuiCol_TitleBg]            = secondary_bg;
+    colors[ImGuiCol_TitleBgActive]      = main_bg;
+    colors[ImGuiCol_CheckMark]          = main_fg;
+    colors[ImGuiCol_SliderGrab]         = secondary_fg;
+    colors[ImGuiCol_SliderGrabActive]   = strong_fg;
+    colors[ImGuiCol_Button]             = alpha(secondary_fg, 0.40f);
+    colors[ImGuiCol_ButtonHovered]      = secondary_fg;
+    colors[ImGuiCol_ButtonActive]       = main_bg;
+    colors[ImGuiCol_Header]             = alpha(secondary_fg, 0.31f);
+    colors[ImGuiCol_HeaderHovered]      = alpha(secondary_fg, 0.80f);
+    colors[ImGuiCol_HeaderActive]       = secondary_fg;
+    colors[ImGuiCol_SeparatorHovered]   = alpha(secondary_fg, 0.78f);
+    colors[ImGuiCol_SeparatorActive]    = secondary_fg;
+    colors[ImGuiCol_ResizeGrip]         = alpha(secondary_fg, 0.20f);
+    colors[ImGuiCol_ResizeGripHovered]  = alpha(secondary_fg, 0.67f);
+    colors[ImGuiCol_ResizeGripActive]   = alpha(secondary_fg, 0.95f);
+    colors[ImGuiCol_TextLink]           = main_fg;
+    colors[ImGuiCol_TextSelectedBg]     = alpha(secondary_fg, 0.35f);
+    colors[ImGuiCol_DragDropTarget]     = alpha(strong_fg, 0.90f);
+    colors[ImGuiCol_NavCursor]          = strong_fg;
+
+    // re-derive the colors StyleColorsDark() computes from the ones above
+    colors[ImGuiCol_CheckboxSelectedBg]  = ImLerp(colors[ImGuiCol_FrameBg], colors[ImGuiCol_FrameBgHovered], 0.65f);
+    colors[ImGuiCol_TabHovered]          = colors[ImGuiCol_HeaderHovered];
+    colors[ImGuiCol_Tab]                 = ImLerp(colors[ImGuiCol_Header], colors[ImGuiCol_TitleBgActive], 0.80f);
+    colors[ImGuiCol_TabSelected]         = ImLerp(colors[ImGuiCol_HeaderActive], colors[ImGuiCol_TitleBgActive], 0.60f);
+    colors[ImGuiCol_TabSelectedOverline] = colors[ImGuiCol_HeaderActive];
+    colors[ImGuiCol_TabDimmed]           = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
+    colors[ImGuiCol_TabDimmedSelected]   = ImLerp(colors[ImGuiCol_TabSelected], colors[ImGuiCol_TitleBg], 0.40f);
+    colors[ImGuiCol_DockingPreview]      = alpha(colors[ImGuiCol_HeaderActive], 0.70f);
+}
+
 void ui_util_options_menu(void) {
     if (ImGui::BeginMenu("Options")) {
         ImGui::SliderFloat("UI Alpha", &ImGui::GetStyle().Alpha, 0.1f, 1.0f);
         ImGui::SliderFloat("BG Alpha", &ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w, 0.1f, 1.0f);
         static int theme = 0;
         if (ImGui::RadioButton("Dark Theme", &theme, 0)) {
-            ImGui::StyleColorsDark();
+            ui_util_style_colors_dark();
         }
         if (ImGui::RadioButton("Light Theme", &theme, 1)) {
             ImGui::StyleColorsLight();
