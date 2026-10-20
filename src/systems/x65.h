@@ -45,9 +45,19 @@ extern "C" {
 #endif
 
 // bump snapshot version when x65_t memory layout changes
-#define X65_SNAPSHOT_VERSION (7)
+#define X65_SNAPSHOT_VERSION (8)
 
 #define X65_NO_BREAK_ADDR (0xFFFFFFFFu)  // x65_t.hooks.break_addr value that never matches
+
+// The RIA API ($FFF0-$FFF3) runs the firmware's own code, which keeps its state
+// in globals (see x65_fw.h). This is the copy of them a snapshot carries.
+#define X65_API_XSTACK_SIZE (0x200)  // the firmware's XSTACK_SIZE
+typedef struct {
+    uint8_t regs[4];      // $FFF0-$FFF3
+    uint8_t rejected;     // $FFF3 bit 6, kept apart from the registers like the firmware does
+    uint16_t xstack_ptr;  // X65_API_XSTACK_SIZE when empty; the stack grows down
+    uint8_t xstack[X65_API_XSTACK_SIZE + 1];
+} x65_api_state_t;
 
 #define X65_FREQUENCY             (3140000)  // clock frequency in Hz
 #define X65_MAX_AUDIO_SAMPLES     (2048)     // max number of audio samples in internal sample buffer
@@ -172,6 +182,8 @@ typedef struct {
     uint8_t joy_joy2_mask;  // current joystick-2 state from x65_joystick()
 
     bool sgu_dump_wai_active;  // true while CPU is parked on WAI, for SGU dump edge detection
+
+    x65_api_state_t api;  // RIA API state, copied from the firmware globals on snapshot save
 
     // host-side scripting/debug hooks (see script.h) - not machine state,
     // so they are carried across a snapshot load instead of being restored

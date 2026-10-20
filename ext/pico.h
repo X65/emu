@@ -1,3 +1,4 @@
+#pragma once
 // dummy file to allow compiling parts of firmware
 
 #define __in_flash(s)
@@ -12,3 +13,11 @@
 
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x)  _STRINGIFY(x)
+
+// glibc defines this; mingw-w64 and emscripten's musl do not
+#ifndef __always_inline
+    #define __always_inline __attribute__((always_inline))
+#endif
+
+// the SDK's spin-loop hint; nothing to hint at on a host
+static inline void tight_loop_contents(void) {}

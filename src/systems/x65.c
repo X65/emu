@@ -1,4 +1,5 @@
 #include "./x65.h"
+#include "./x65_fw.h"
 #include "../args.h"
 #include "../log.h"
 #include "../hid.h"
@@ -19,7 +20,7 @@
 void cgia_ram_write(uint8_t bank, uint16_t addr, uint8_t data);
 
 static uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data);
-static void _x65_api_call(uint8_t data, void* user_data);
+static void _x65_halt(void* user_data);
 
 #define _X65_DEFAULT(val, def) (((val) != 0) ? (val) : (def))
 
@@ -77,7 +78,7 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
         &sys->ria,
         &(ria816_desc_t){
             .tick_hz = X65_FREQUENCY,
-            .api_cb = _x65_api_call,
+            .halt_cb = _x65_halt,
             .user_data = sys,
         });
     // RIA normally seeds from time. Restart the seed for guest RNG,
@@ -108,6 +109,11 @@ void x65_init(x65_t* sys, const x65_desc_t* desc) {
             .base_volume = _X65_DEFAULT(desc->audio.volume, 1.0f),
         });
 
+    // the firmware around the RIA API: init once, then its run() hooks
+    x65_fw_bind(sys);
+    x65_fw_init();
+    x65_fw_run();
+
     hid_reset();
 }
 
@@ -123,6 +129,10 @@ void x65_reset(x65_t* sys) {
     sys->joy_joy1_mask = sys->joy_joy2_mask = 0;
     sys->pins |= W65816_RES;
     ria816_reset(&sys->ria);
+    // the firmware's stop() then run() hooks, in that order like the board
+    x65_fw_bind(sys);
+    x65_fw_stop();
+    x65_fw_run();
     tca6416a_reset(&sys->gpio, 0xff, 0xff);
     cgia_reset(&sys->cgia);
     sgu1_reset(&sys->sgu);
@@ -303,6 +313,9 @@ static uint64_t _x65_tick(x65_t* sys, uint64_t pins) {
         else {
             sys->ria.int_status &= ~X65_INT_RIA;
         }
+        // the firmware's main loop: picks up an op written to $FFF0 and runs
+        // one step of it, so an op stays busy for as many ticks as it works
+        x65_fw_task();
     }
 
     /* tick the CGIA display chip:
@@ -425,6 +438,7 @@ uint8_t mem_rd(x65_t* sys, uint8_t bank, uint16_t addr) {
     return sys->ram[(bank << 16) | addr];
 }
 void mem_wr(x65_t* sys, uint8_t bank, uint16_t addr, uint8_t data) {
+    x65_fw_bind(sys);  // a poke to $FFF0 starts an op on this machine
     if (bank == 0) {
         if (addr >= X65_IO_RIA_BASE) {
             ria816_reg_write(&sys->ria, addr & RIA816_RS, data);
@@ -483,6 +497,7 @@ uint8_t _x65_vpu_fetch(uint32_t addr, void* user_data) {
 
 uint32_t x65_exec(x65_t* sys, uint32_t micro_seconds) {
     CHIPS_ASSERT(sys && sys->valid);
+    x65_fw_bind(sys);
     uint32_t num_ticks = clk_us_to_ticks(X65_FREQUENCY, micro_seconds);
     uint64_t pins = sys->pins;
     uint32_t ticks = 0;
@@ -749,6 +764,7 @@ uint32_t x65_save_snapshot(x65_t* sys, x65_t* dst) {
     cgia_snapshot_onsave(&dst->cgia);
     sgu1_snapshot_onsave(&dst->sgu);
     dst->display_fb = 0;
+    x65_fw_save(&dst->api);
     return X65_SNAPSHOT_VERSION;
 }
 
@@ -767,62 +783,15 @@ bool x65_load_snapshot(x65_t* sys, uint32_t version, x65_t* src) {
     im.hooks = sys->hooks;
     im.display_fb = sys->display_fb;
     *sys = im;
+    x65_fw_bind(sys);
+    x65_fw_load(&sys->api);
     return true;
 }
 
-#include "api/api.h"
-#include "sys/cpu.h"
-#include "term/font.h"
-static const uint8_t* font_8hi(uint16_t cp);
-
-volatile uint8_t regs[0x40];
-uint8_t xstack[XSTACK_SIZE + 1];
-size_t volatile xstack_ptr;
-
-void _x65_api_call(uint8_t data, void* user_data) {
+static void _x65_halt(void* user_data) {
     x65_t* sys = (x65_t*)user_data;
-
-    // sync RIA regs
-    memcpy(regs, sys->ria.reg, sizeof(regs));
-
-    switch (data) {
-        case API_OP_ZXSTACK: {
-            xstack_ptr = XSTACK_SIZE;
-            api_return_ax(0);
-            LOG_INFO("RIA API: XSTACK emptied");
-        } break;
-        case API_OP_PHI2: {
-            api_return_ax(CPU_PHI2_DEFAULT);
-            LOG_INFO("RIA API: PHI2 got: %d", CPU_PHI2_DEFAULT);
-        } break;
-        case API_OP_OEM_GET_CHARGEN: {
-            uint16_t chargen_cp;
-            uint32_t chargen_addr;
-            if (!api_pop_uint16(&chargen_cp) || !api_pop_uint16(&((uint16_t*)(&chargen_addr))[0])
-                || !api_pop_uint8(&((uint8_t*)(&chargen_addr))[2]))
-                api_return_errno(API_EINVAL);
-            else {
-                // blit chargen to memory
-                for (uint16_t i = 0; i < 256 * 8; ++i) {
-                    mem_ram_write(sys, chargen_addr++, font_get_byte(i, chargen_cp));
-                }
-                const uint16_t loaded_cp = (chargen_cp == 0xFFFF || font_8hi(chargen_cp)) ? chargen_cp : 0;
-                api_return_ax(loaded_cp);
-                LOG_INFO("RIA API: OEM_GET_CHARGEN loaded CP%03d to $%06X", loaded_cp, chargen_addr);
-            }
-        } break;
-        case API_OP_HALT:  // STOP CPU
-            sys->running = false;
-            LOG_INFO("RIA API: HALT CPU");
-            break;
-        default:
-            api_return_errno(API_ENOSYS);
-            LOG_WARNING("Unhandled RIA API call: %02x", data);
-    }
-
-    // sync RIA regs back
-    memcpy(sys->ria.reg, regs, sizeof(regs));
+    // STATUS stays blocked until the next run, like on the board
+    x65_fw_stop();
+    sys->running = false;
+    LOG_INFO("RIA API: HALT CPU");
 }
-
-#define RP6502_CODE_PAGE 0
-#include "firmware/src/south/term/font.c"

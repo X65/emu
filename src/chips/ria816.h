@@ -152,14 +152,17 @@ extern "C" {
 #define RIA816_IRQ_ENABLE     (0x2C)  // RIA interrupts enable
 #define RIA816_IRQ_STATUS     (0x2D)  // Interrupt Controller status
 #define RIA816_CPU_N_IRQB     (0x2E)  // 65816 vector.
+// $FFF0-$FFF3 are the firmware's: the bus helpers in its api/api.h decide what
+// a read or write does, its regs[]/xstack[] hold the state, and its api_task()
+// (x65_fw_task) runs the op over the following ticks. See src/systems/x65_fw.h.
 #define RIA816_API_OP_RET     (0x30)  // Write the API operation id here to begin a kernel call.
-#define RIA816_API_RET_HI     (0x31)  // High byte of 16 bit return value. Otherwise `0`.
+#define RIA816_API_RET_HI     (0x31)  // High byte of 16 bit return value. Otherwise `0`. Read-only.
 #define RIA816_API_STACK      (0x32)  // 512 bytes for passing call parameters.
-#define RIA816_API_STATUS     (0x33)  // Bit 7 high while operation is running. Bit 0 high when ERRNO.
+#define RIA816_API_STATUS \
+    (0x33)                            // Bit 7 high while operation is running. Bit 0 high when ERRNO.
                                       // Bit 6 high when an op written while another was running got
                                       // refused (EBUSY); the running op is unaffected. Cleared by the
-                                      // next accepted op. Never set here: the emulator runs ops inside
-                                      // the write.
+                                      // next accepted op. Read-only.
 #define RIA816_CPU_E_COP      (0x34)  // 65816 vector.
 #define RIA816_EXT_IO         (0x36)  // Bitmap of 8x 64byte chunks for mapping RAM into I/O area.
 #define RIA816_EXT_MEM        (0x37)  // reserved for future use (MMU)
@@ -169,16 +172,16 @@ extern "C" {
 #define RIA816_CPU_E_IRQB_BRK (0x3E)  // 6502 vector.
 #define RIA816_NUM_REGS       (64)
 
-// a memory-fetch callback, used to read video memory bytes into the CGIA
-typedef void (*ria816_api_call_t)(uint8_t data, void* user_data);
+// called when the guest writes API_OP_HALT: the system stops the CPU
+typedef void (*ria816_halt_t)(void* user_data);
 
 // the ria816 setup parameters
 typedef struct {
     // the CPU tick rate in hz
     int tick_hz;
-    // API callback
-    ria816_api_call_t api_cb;
-    // optional user-data for the API callback
+    // HALT callback
+    ria816_halt_t halt_cb;
+    // optional user-data for the HALT callback
     void* user_data;
 } ria816_desc_t;
 
@@ -199,9 +202,9 @@ typedef struct {
     uint32_t buzzer_period;
     uint16_t buzzer_freq;
     uint8_t  buzzer_duty;
-    // API callback
-    ria816_api_call_t api_cb;
-    // optional user-data for the API callback
+    // HALT callback
+    ria816_halt_t halt_cb;
+    // optional user-data for the HALT callback
     void* user_data;
 } ria816_t;
 

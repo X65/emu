@@ -18,6 +18,7 @@ extern "C" {
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <ctime>
 #include <vector>
 
 static const size_t FB_PIXELS = CGIA_FRAMEBUFFER_SIZE_BYTES / 4;
@@ -501,6 +502,237 @@ TEST_CASE("unimplemented RIA API ops fail with ENOSYS") {
     // A handled op clears the error.
     guest_write(0xFFF0, 0x02); // PHI2
     CHECK(mem_rd(&machine, 0, 0xFFF3) == 0x00);
+    CHECK(mem_rd16(&machine, 0, 0xFFF0) == X65_FREQUENCY / 1000);  // the emulated clock, in kHz
+}
+
+// The RIA API is the firmware's own north/api code; src/systems/x65_fw.c is
+// the board around it. These cases pin down what a guest sees at $FFF0-$FFF3.
+extern "C" uint8_t font_get_byte(uint16_t byte_index, uint16_t cp);
+
+static constexpr uint16_t API_OP = 0xFFF0;
+static constexpr uint16_t API_STACK = 0xFFF2;
+static constexpr uint16_t API_STATUS = 0xFFF3;
+static constexpr uint8_t OP_PHI2 = 0x02, OP_LRAND = 0x04, OP_CLOCK = 0x0F, OP_GET_CHARGEN = 0x10;
+static constexpr uint8_t OP_CLK_GET_TIME = 0x21, OP_CLK_SET_TIME = 0x22, OP_HALT = 0xFF;
+static constexpr uint16_t API_EINVAL = 6, API_EIO = 10;
+
+// Arguments go on the xstack in push order, then the op. The guest returns
+// right after the write, so the op runs during whatever executes next.
+static void api_call(const std::vector<uint8_t>& args, uint8_t op) {
+    for (uint8_t byte : args)
+        guest_write(API_STACK, byte);
+    guest_write(API_OP, op);
+}
+
+// The same, but the guest polls $FFF3 bit 7 until the op is done:
+// LDA #op; STA $FFF0; wait: LDA $FFF3; BMI wait
+static void api_call_wait(const std::vector<uint8_t>& args, uint8_t op) {
+    for (uint8_t byte : args)
+        guest_write(API_STACK, byte);
+    guest({ 0xA9, op, 0x8D, 0xF0, 0xFF, 0xAD, 0xF3, 0xFF, 0x30, 0xFB });
+}
+
+static bool api_busy() {
+    return mem_rd(&machine, 0, API_STATUS) & 0x80;
+}
+
+static uint32_t api_pop32() {
+    uint32_t value = 0;
+    for (int i = 0; i < 4; ++i)
+        value |= uint32_t(guest_read(API_STACK)) << (8 * i);
+    return value;
+}
+
+// GET_CHARGEN pops cp (uint16), then the address low word, then its high byte;
+// a word is pushed high byte first. This loads CP437 at $010000.
+static const std::vector<uint8_t> CHARGEN_CP437_AT_10000 = { 0x01, 0x00, 0x00, 0x01, 0xB5 };
+
+static bool ram_holds_chargen(uint32_t address, uint16_t cp) {
+    for (uint16_t i = 0; i < 2048; ++i)
+        if (machine.ram[address + i] != font_get_byte(i, cp)) return false;
+    return true;
+}
+
+TEST_CASE("RIA API boots and resets to the firmware's known state") {
+    boot(&machine, nullptr);
+    CHECK(xstack_ptr == 0x200);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);  // errno 0: "errored" with no error
+    CHECK(mem_rd16(&machine, 0, API_OP) == 0);
+    guest_write(API_STACK, 0x11);
+    CHECK(xstack_ptr == 0x1FF);
+    x65_reset(&machine);
+    CHECK(xstack_ptr == 0x200);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == 0);
+}
+
+TEST_CASE("RIA API RET_HI and STATUS are read-only") {
+    boot(&machine, nullptr);
+    guest_write(0xFFF1, 0xAA);
+    guest_write(API_STATUS, 0xAA);
+    CHECK(mem_rd(&machine, 0, 0xFFF1) == 0);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+}
+
+TEST_CASE("RIA API ZXSTACK empties the stack inside the write") {
+    boot(&machine, nullptr);
+    api_call({ 1, 2, 3 }, 0x00);
+    CHECK(xstack_ptr == 0x200);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(mem_rd16(&machine, 0, API_OP) == 0);
+}
+
+TEST_CASE("RIA API GET_CHARGEN copies the font and reports the code page") {
+    boot(&machine, nullptr);
+    api_call_wait(CHARGEN_CP437_AT_10000, OP_GET_CHARGEN);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(mem_rd16(&machine, 0, API_OP) == 437);
+    CHECK(xstack_ptr == 0x200);
+    CHECK(ram_holds_chargen(0x10000, 437));
+
+    // a code page the font does not have loads the base glyphs and reports 0
+    api_call_wait({ 0x02, 0x00, 0x00, 0x03, 0xE7 }, OP_GET_CHARGEN);  // CP999 at $020000
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(mem_rd16(&machine, 0, API_OP) == 0);
+    CHECK(ram_holds_chargen(0x20000, 999));
+}
+
+TEST_CASE("RIA API GET_CHARGEN rejects a short or a long argument list") {
+    boot(&machine, nullptr);
+    std::fill(machine.ram + 0x30000, machine.ram + 0x30800, 0xEE);
+    api_call_wait({ 0x00, 0x00, 0x01, 0xB5 }, OP_GET_CHARGEN);  // no address high byte
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == API_EINVAL);
+    CHECK(xstack_ptr == 0x200);
+    api_call_wait({ 0x00, 0x03, 0x00, 0x00, 0x01, 0xB5 }, OP_GET_CHARGEN);  // one byte too many
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == API_EINVAL);
+    CHECK(xstack_ptr == 0x200);
+    CHECK(machine.ram[0x30000] == 0xEE);
+}
+
+TEST_CASE("RIA API ops stay busy across ticks") {
+    boot(&machine, nullptr);
+    api_call(CHARGEN_CP437_AT_10000, OP_GET_CHARGEN);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x80);
+    run_until(&machine, [] { return !api_busy(); });
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(mem_rd16(&machine, 0, API_OP) == 437);
+    CHECK(ram_holds_chargen(0x10000, 437));
+}
+
+TEST_CASE("RIA API refuses an op written while another runs") {
+    boot(&machine, nullptr);
+    api_call(CHARGEN_CP437_AT_10000, OP_GET_CHARGEN);
+    guest_write(API_OP, OP_PHI2);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0xC0);  // busy, and bit 6 for the refusal
+    run_until(&machine, [] { return !api_busy(); });
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x40);  // the refusal sticks until the next accepted op
+    CHECK(mem_rd16(&machine, 0, API_OP) == 437);     // the running op was not disturbed
+    CHECK(ram_holds_chargen(0x10000, 437));
+    guest_write(API_OP, OP_PHI2);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(mem_rd16(&machine, 0, API_OP) == X65_FREQUENCY / 1000);
+}
+
+TEST_CASE("RIA API lrand follows the machine seed") {
+    const struct arguments saved = arguments;
+    arguments.seed_supplied = true;
+    arguments.seed = 1234;
+    boot(&machine, nullptr);
+    api_call({}, OP_LRAND);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    CHECK(xstack_ptr == 0x1FC);
+    const uint32_t first = api_pop32();
+    CHECK(xstack_ptr == 0x200);
+    CHECK((first & 0x80000000u) == 0);
+
+    boot(&machine, nullptr);
+    api_call({}, OP_LRAND);
+    CHECK(api_pop32() == first);
+
+    arguments.seed = 4321;
+    boot(&machine, nullptr);
+    api_call({}, OP_LRAND);
+    CHECK(api_pop32() != first);
+
+    // no arguments means none: leftovers are an error
+    api_call({ 0x55 }, OP_LRAND);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == API_EINVAL);
+    CHECK(xstack_ptr == 0x200);
+    arguments = saved;
+}
+
+TEST_CASE("RIA API clock runs on emulated time and the RTC on the host's") {
+    boot(&machine, nullptr);
+    run_us(&machine, 20000);
+    api_call({}, OP_CLOCK);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    const uint32_t centiseconds = api_pop32();
+    const uint32_t expected = uint32_t(machine.ria.us / 10000);
+    CHECK(centiseconds + 1 >= expected);
+    CHECK(centiseconds <= expected + 1);
+
+    // CLK_GET_TIME pushes nsec then sec, so sec pops first
+    const uint32_t host = uint32_t(time(nullptr));
+    api_call({ 0x00 }, OP_CLK_GET_TIME);  // clock_id 0: REALTIME
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    const uint32_t sec = api_pop32();
+    const uint32_t nsec = api_pop32();
+    CHECK(sec + 2 >= host);
+    CHECK(sec <= host + 2);
+    CHECK(nsec < 1000000000u);
+    CHECK(xstack_ptr == 0x200);
+
+    // CLK_SET_TIME pops clock_id, sec, then nsec: push nsec, sec, clock_id.
+    // 1000000000 seconds is 2001-09-09; the host clock is left alone.
+    api_call({ 0, 0, 0, 0, 0x3B, 0x9A, 0xCA, 0x00, 0x00 }, OP_CLK_SET_TIME);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x00);
+    api_call({ 0x00 }, OP_CLK_GET_TIME);
+    const uint32_t set_sec = api_pop32();
+    api_pop32();
+    CHECK(set_sec >= 1000000000u);
+    CHECK(set_sec <= 1000000002u);
+}
+
+TEST_CASE("RIA API HALT stops the CPU until the next reset") {
+    boot(&machine, nullptr);
+    mem_wr(&machine, 0, API_OP, OP_HALT);  // a guest would never reach its breakpoint
+    CHECK(!machine.running);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x80);
+    x65_reset(&machine);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+}
+
+TEST_CASE("RIA API state survives a snapshot") {
+    boot(&machine, nullptr);
+    api_call({ 0x11, 0x22, 0x33 }, OP_PHI2);  // EINVAL: leaves errno set and the stack emptied
+    guest_write(API_STACK, 0x44);
+    guest_write(API_STACK, 0x55);
+    CHECK(x65_save_snapshot(&machine, &snapshot) == X65_SNAPSHOT_VERSION);
+    api_call({}, 0x00);  // ZXSTACK clobbers everything the snapshot holds
+    CHECK(xstack_ptr == 0x200);
+    REQUIRE(x65_load_snapshot(&machine, X65_SNAPSHOT_VERSION, &snapshot));
+    CHECK(xstack_ptr == 0x1FE);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == API_EINVAL);
+    CHECK(guest_read(API_STACK) == 0x55);
+    CHECK(guest_read(API_STACK) == 0x44);
+
+    // An op caught in flight cannot be resumed: it fails with EIO on load,
+    // and the next call starts clean.
+    api_call(CHARGEN_CP437_AT_10000, OP_GET_CHARGEN);
+    REQUIRE(api_busy());
+    x65_save_snapshot(&machine, &snapshot);
+    REQUIRE(x65_load_snapshot(&machine, X65_SNAPSHOT_VERSION, &snapshot));
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    CHECK(mem_rd16(&machine, 0, API_OP) == API_EIO);
+    run_us(&machine, 1000);
+    CHECK(mem_rd(&machine, 0, API_STATUS) == 0x01);
+    api_call_wait({ 0x02, 0x00, 0x00, 0x01, 0xB5 }, OP_GET_CHARGEN);  // CP437 at $020000
+    CHECK(mem_rd16(&machine, 0, API_OP) == 437);
+    CHECK(ram_holds_chargen(0x20000, 437));
 }
 
 TEST_CASE("RIA IRQ enable keeps only the timer bit") {

@@ -4,7 +4,7 @@
 #undef CHIPS_IMPL
 
 #include "ria816.h"
-#include "sys/mem.h"
+#include "api/api.h"
 #include <math.h>
 
 #include <string.h>
@@ -29,7 +29,7 @@ void ria816_init(ria816_t* c, const ria816_desc_t* desc) {
 
     c->ticks_per_ms = desc->tick_hz * RIA816_FIXEDPOINT_SCALE / 1000000;
 
-    c->api_cb = desc->api_cb;
+    c->halt_cb = desc->halt_cb;
     c->user_data = desc->user_data;
 
     // Seed the random number generator
@@ -129,10 +129,11 @@ uint8_t ria816_reg_read(ria816_t* c, uint8_t addr) {
         case RIA816_IRQ_ENABLE: data = c->irq_enable; break;
         case RIA816_IRQ_STATUS: data = ~(c->int_status); break;
 
-        case RIA816_API_STACK:
-            data = xstack[xstack_ptr];
-            if (xstack_ptr < XSTACK_SIZE) ++xstack_ptr;
-            break;
+        // the firmware owns $FFF0-$FFF3 (see ria816.h)
+        case RIA816_API_OP_RET:
+        case RIA816_API_RET_HI: data = REGS(addr); break;
+        case RIA816_API_STACK: data = api_bus_pop(); break;
+        case RIA816_API_STATUS: data = api_bus_read_status(); break;
 
         default: data = c->reg[addr];
     }
@@ -146,12 +147,13 @@ void ria816_reg_write(ria816_t* c, uint8_t addr, uint8_t data) {
         case RIA816_IRQ_STATUS: break;
         case RIA816_IRQ_ENABLE: c->irq_enable = (data & 0x01); break;
 
-        case RIA816_API_STACK:
-            if (xstack_ptr) xstack[--xstack_ptr] = data;
-            break;
+        // the firmware owns $FFF0-$FFF3 (see ria816.h)
+        case RIA816_API_STACK: api_bus_push(data); break;
         case RIA816_API_OP_RET:
-            if (c->api_cb) c->api_cb(data, c->user_data);
+            if (api_bus_write_op(data) == API_BUS_OP_HALT && c->halt_cb) c->halt_cb(c->user_data);
             break;
+        case RIA816_API_RET_HI:
+        case RIA816_API_STATUS: break;  // read-only
 
         default: c->reg[addr] = data;
     }

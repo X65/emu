@@ -75,6 +75,23 @@ include_directories(ext/firmware/src/north)
 include_directories(ext/firmware/src/audio)
 include_directories(ext/firmware/src)
 include_directories(ext/firmware/src/tinyusb/src)
+# The firmware's ffconf.h and api/oem.c read these; 0 selects every code page.
+add_compile_definitions(RP6502_CODE_PAGE=0 RP6502_EXFAT=0)
+
+# The RIA API is the firmware's own north/api code, compiled unchanged; the
+# board around it (RNG, timers, PIX to the font, RAM) is src/systems/x65_fw.c.
+# An object library because these files include "sys/pix.h" and the south tree,
+# which is searched first everywhere else, has a header of the same name.
+add_library(x65_fw_api OBJECT
+    ext/firmware/src/north/api/api.c
+    ext/firmware/src/north/api/clk.c
+    ext/firmware/src/north/api/oem.c
+    ext/firmware/src/north/api/rng.c
+    ext/firmware/src/north/mon/str.c
+)
+target_include_directories(x65_fw_api BEFORE PRIVATE ext/firmware/src/north)
+# mon/str.c sizes a ROM-name buffer from littlefs; the firmware build defines this too
+target_compile_definitions(x65_fw_api PRIVATE LFS_NAME_MAX=16)
 # The emulated machine itself: the system wiring and every chip it ticks. Shared
 # with the test suites in src/tests, which link the same machine without the host.
 set(X65_CORE_SOURCES
@@ -84,8 +101,10 @@ set(X65_CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/chips/sgu1.c
     ${CMAKE_SOURCE_DIR}/src/chips/tca6416a.c
     ${CMAKE_SOURCE_DIR}/src/systems/x65.c
+    ${CMAKE_SOURCE_DIR}/src/systems/x65_fw.c
     ${CMAKE_SOURCE_DIR}/src/util/ringbuffer.c
     ${CMAKE_SOURCE_DIR}/ext/sgu-1/sgu.c
+    $<TARGET_OBJECTS:x65_fw_api>
 )
 
 add_executable(emu
